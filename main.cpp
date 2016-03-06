@@ -1,6 +1,10 @@
 #include <rtcore.h>
 #include <rtcore_ray.h>
 
+#include <assimp/cimport.h>
+#include <assimp/scene.h>
+#include <assimp/postprocess.h>
+
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 
@@ -9,7 +13,6 @@
 GLFWwindow* window;
 
 int main(){
-    RTCDevice device = rtcNewDevice(nullptr);
 
 
 	// Initialise GLFW
@@ -49,8 +52,15 @@ int main(){
 	// Set background
 	glClearColor(0.2,0.2,0.2,1.0);
 
+    const aiScene* scene = aiImportFile("aaa.obj",aiProcessPreset_TargetRealtime_MaxQuality);
+
+    RTCDevice device = rtcNewDevice(nullptr);
+
+    /* ... */
 
     rtcDeleteDevice(device);
+
+	aiReleaseImport(scene);
 
     return 0;
 }

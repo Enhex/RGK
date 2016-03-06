@@ -10,10 +10,10 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 find_package(TBB REQUIRED)
 find_package(OpenGL REQUIRED)
-
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW glfw3)
-find_package(GLEW)
+find_package(GLEW REQUIRED)
+find_package(assimp REQUIRED)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/external/include
@@ -62,5 +62,6 @@ target_link_libraries(
   ${GLFW_LIBRARIES}
   ${GLEW_LIBRARY}
   ${OPENGL_LIBRARY}
+  ${assimp_LIBRARIES}
   pthread
   )
