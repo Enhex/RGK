@@ -8,14 +8,27 @@ project(
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
-find_package(TBB)
-message(${TBB_tbb_LIBRARY})
+find_package(TBB REQUIRED)
+find_package(OpenGL REQUIRED)
+
+find_package(PkgConfig REQUIRED)
+pkg_search_module(GLFW glfw3)
+find_package(GLEW)
 
 include_directories(
   ${CMAKE_CURRENT_SOURCE_DIR}/external/include
+  ${GLEW_INCLUDE_DIRS}
+  ${GLFW_INCLUDE_DIRS}
+  ${GLM_INCLUDE_DIRS}
   )
 
 add_definitions(
+	-DTW_STATIC
+	-DTW_NO_LIB_PRAGMA
+	-DTW_NO_DIRECT3D
+	-DGLEW_STATIC
+	-D_CRT_SECURE_NO_WARNINGS
+
   -std=c++14
   -Wall
   -Wextra
@@ -46,5 +59,8 @@ target_link_libraries(
   RGK
   ${EXTLIBS}
   ${TBB_tbb_LIBRARY}
+  ${GLFW_LIBRARIES}
+  ${GLEW_LIBRARY}
+  ${OPENGL_LIBRARY}
   pthread
   )
