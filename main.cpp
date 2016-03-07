@@ -7,6 +7,22 @@
 #include "scene.hpp"
 #include "ray.hpp"
 
+#include <png++/png.hpp>
+
+void write_output_file(std::string path, std::vector<std::vector<Color>> data, unsigned int xsize, unsigned int ysize){
+    png::image<png::rgb_pixel> image(xsize, ysize);
+
+    for (png::uint_32 y = 0; y < image.get_height(); ++y){
+        for (png::uint_32 x = 0; x < image.get_width(); ++x){
+            auto c = data[x][y];
+            auto px = png::rgb_pixel(255.0*c.r,255.0*c.g,255.0*c.b);
+            image[y][x] = px;
+            // non-checking equivalent of image.set_pixel(x, y, ...);
+        }
+    }
+    image.write(path);
+}
+
 int main(){
 
     Assimp::Importer importer;
@@ -35,7 +51,7 @@ int main(){
     s.Dump();
 
     unsigned int xres = 10, yres = 10;
-    float output[xres][yres][3];
+    std::vector<std::vector<Color>> output(xres, std::vector<Color>(yres));
 
     glm::vec3 camerapos(0.0, 0.0, 4.0);
     glm::vec3 cameradir = glm::normalize( -camerapos ); // look at origin
@@ -53,13 +69,11 @@ int main(){
             glm::vec3 p = viewplane + xo + yo;
             std::cout << p << std::endl;
             // TODO: cast a ray from cameradir to p
-            output[x][y][0] = 1.0;
-            output[x][y][1] = 0.5;
-            output[x][y][2] = 0.2;
+            output[x][y] = Color{1.0,0.5,0.2};
         }
     }
 
-    (void)output;
+    write_output_file("out.png",output, xres, yres);
 
     return 0;
 }

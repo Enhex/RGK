@@ -12,6 +12,9 @@ std::ostream& operator<<(std::ostream& stream, glm::vec3 v){
     stream << "[" << v.x << ", " << v.y << ", " << v.z << "]";
     return stream;
 }
+struct Color{
+    float r,g,b;
+};
 
 class Ray{
 public:
