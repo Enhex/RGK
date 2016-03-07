@@ -51,17 +51,16 @@ if(WIN32)
 	endif()
 
 else(WIN32)
-
 	find_path(
 	  assimp_INCLUDE_DIRS
-	  NAME scene.h
+	  NAME assimp/scene.h
 	  HINTS /usr/include/ /usr/local/include/
 	)
 
 	find_library(
 	  assimp_LIBRARIES
 	  NAMES assimp
-	  PATHS /usr/local/lib/ /lib/ /usr/lib/
+	  HINTS /usr/local/lib/ /lib/ /usr/lib/
 	  )
 
 	if (assimp_INCLUDE_DIRS AND assimp_LIBRARIES)

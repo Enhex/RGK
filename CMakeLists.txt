@@ -11,15 +11,21 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 find_package(TBB REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
-pkg_search_module(GLFW glfw3)
+pkg_search_module(GLFW glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(assimp REQUIRED)
+find_package(embree REQUIRED)
+
+if   (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
+	set(OPENGL_LIBRARY ${OPENGL_LIBRARY} -lGL -lGLU -lXxf86vm -lXi -lXrandr -lXinerama -lXcursor -lXext -lX11 -lrt -ldl)
+endif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 
 include_directories(
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/include
   ${GLEW_INCLUDE_DIRS}
   ${GLFW_INCLUDE_DIRS}
   ${GLM_INCLUDE_DIRS}
+  ${assimp_INCLUDE_DIRS}
+  ${embree_INCLUDE_DIRS}/embree2
   )
 
 add_definitions(
@@ -29,7 +35,7 @@ add_definitions(
 	-DGLEW_STATIC
 	-D_CRT_SECURE_NO_WARNINGS
 
-  -std=c++14
+  -std=c++11
   -Wall
   -Wextra
   -Werror
@@ -38,16 +44,6 @@ add_definitions(
 
 file(GLOB SOURCES
   ./*.cpp
-  )
-
-SET(EXTLIBS
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/libembree.a
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/libembree_avx.a
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/libembree_avx2.a
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/libembree_sse42.a
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/libsimd.a
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/liblexers.a
-  ${CMAKE_CURRENT_SOURCE_DIR}/external/libsys.a
   )
 
 add_executable(
@@ -61,7 +57,8 @@ target_link_libraries(
   ${TBB_tbb_LIBRARY}
   ${GLFW_LIBRARIES}
   ${GLEW_LIBRARY}
-  ${OPENGL_LIBRARY}
   ${assimp_LIBRARIES}
+  ${embree_LIBRARY}
+  ${OPENGL_LIBRARY}
   pthread
   )
