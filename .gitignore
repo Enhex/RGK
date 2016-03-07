@@ -1,7 +1,14 @@
+# The build dir
 build
 
+# Examples dir
+obj
+
+# Binaries
 *.so
 *.a
 
+# Temporary and backup files
 *~
 *#
+.\#*
