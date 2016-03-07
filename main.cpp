@@ -48,7 +48,7 @@ int main(){
 
     s.Commit();
 
-    unsigned int xres = 100, yres = 100;
+    unsigned int xres = 200, yres = 200;
     std::vector<std::vector<Color>> output(xres, std::vector<Color>(yres));
 
     glm::vec3 camerapos(0.0, 0.0, 4.0);
@@ -69,10 +69,17 @@ int main(){
             // TODO: cast a ray from cameradir to p
             Ray r(camerapos, p - camerapos);
             Intersection i = s.FindIntersect(r);
+
+            //std::cout << "Casting a ray from " << camerapos << " to " << r.direction << std::endl;
+
             if(i.triangle){
-                output[x][y] = Color{1.0,0.0,0.0};
+                const Material& mat = i.triangle->parent_scene->materials[i.triangle->mat];
+                //std::cout << "hit " << mat.diffuse << std::endl;
+                output[x][y] = mat.diffuse;
             }else{
-                output[x][y] = Color{1.0,0.0,1.0};
+                //std::cout << "no hit" << std::endl;
+                // Black background for void spaces
+                output[x][y] = Color{0.0,0.0,0.0};
             }
         }
     }

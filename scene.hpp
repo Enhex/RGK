@@ -27,7 +27,7 @@ struct Triangle{
 
 struct Material{
     const Scene* parent_scene;
-    aiColor3D diffuse;
+    Color diffuse;
 };
 
 struct Intersection{
@@ -53,14 +53,17 @@ public:
 
     Intersection FindIntersect(const Ray& r) const;
 
-private:
 
+    // TODO: have triangle access these, and keep these fields private
     glm::vec3*    vertices = nullptr;
     unsigned int n_vertices = 0;
     Triangle*      triangles = nullptr;
     unsigned int n_triangles = 0;
     Material*      materials = nullptr;
     unsigned int n_materials = 0;
+
+private:
+
 
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;

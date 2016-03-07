@@ -23,8 +23,9 @@ void Scene::LoadScene(const aiScene* scene) const{
 
         Material m;
         m.parent_scene = this;
-        mat->Get(AI_MATKEY_COLOR_DIFFUSE,m.diffuse);
-
+        aiColor3D c;
+        mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
+        m.diffuse = c;
         materials_buffer.push_back(m);
     }
 
@@ -101,8 +102,9 @@ void Scene::Commit(){
         triangles[i] = triangles_buffer[i];
         CalculateTrianglePlane(triangles[i]);
     }
-    for(unsigned int i = 0; i < n_materials; i++)
+    for(unsigned int i = 0; i < n_materials; i++){
         materials[i] = materials_buffer[i];
+    }
 
     std::cout << "Commited " << n_vertices << " vertices and " << n_triangles <<
         " triangles with " << n_materials << " materials to the scene." << std::endl;
@@ -118,7 +120,7 @@ void Scene::Dump() const{
         const glm::vec3 va = vertices[tr.va];
         const glm::vec3 vb = vertices[tr.vb];
         const glm::vec3 vc = vertices[tr.vc];
-        const aiColor3D& color = materials[tr.mat].diffuse;
+        const Color& color = materials[tr.mat].diffuse;
         std::cout << va.x << " " << va.y << " " << va.z << " | ";
         std::cout << vb.x << " " << vb.y << " " << vb.z << " | ";
         std::cout << vc.x << " " << vc.y << " " << vc.z << " [" ;
@@ -158,12 +160,70 @@ bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ 
     // Currently using Badoulel's algorithm
 
     // This implementation is heavily inspired by the example provided by ANL
-    (void)tri;
-    (void)r;
-    (void)t;
 
+    const float EPSILON = 0.000001;
 
-    return false;
+    glm::vec3 planeN (tri.p.a, tri.p.b, tri.p.c);
+
+    double dot = glm::dot(r.direction, planeN);
+
+    /* is ray parallel to plane? */
+    if (dot < EPSILON && dot > -EPSILON)		/* or use culling check */
+        return false;
+
+    /* find distance to plane and intersection point */
+    double dot2 = glm::dot(r.origin,planeN);
+    t = -(planeN.z + dot2) / dot;
+
+    /* find largest dim*/
+    int i1 = 0, i2 = 1;
+    if(planeN.x >= planeN.y && planeN.x >= planeN.z){
+        i1 = 1; i2 = 2;
+    }else if(planeN.y >= planeN.x && planeN.y >= planeN.z){
+        i1 = 0; i2 = 2;
+    }else if(planeN.z >= planeN.x && planeN.z >= planeN.y){
+        i1 = 0; i2 = 1;
+    }else{
+        std::cerr << "NO LARGEST DIM this should not happen" << std::endl;
+    }
+
+    glm::vec2 point(r.origin[i1] + r.direction[i1] * t,
+                    r.origin[i2] + r.direction[i2] * t);
+
+    glm::vec3 vert0 = tri.parent_scene->vertices[tri.va];
+    glm::vec3 vert1 = tri.parent_scene->vertices[tri.vb];
+    glm::vec3 vert2 = tri.parent_scene->vertices[tri.vc];
+
+    /* begin barycentric intersection algorithm */
+    glm::vec2 q0( point[0] - vert0[i1],
+                  point[1] - vert0[i2]);
+    glm::vec2 q1( vert1[i1] - vert0[i1],
+                  vert1[i2] - vert0[i2]);
+    glm::vec2 q2( vert2[i1] - vert0[i1],
+                  vert2[i2] - vert0[i2]);
+
+    // TODO Return these
+    float alpha, beta;
+
+    /* calculate and compare barycentric coordinates */
+    if (q1.x == 0) {		/* uncommon case */
+        beta = q0.x / q2.x;
+        if (beta < 0 || beta > 1)
+            return false;
+        alpha = (q0.y - beta * q2.y) / q1.y;
+    }
+    else {			/* common case, used for this analysis */
+        beta = (q0.y * q1.x - q0.x * q1.y) / (q2.y * q1.x - q2.x * q1.y);
+        if (beta < 0 || beta > 1)
+            return false;
+        alpha = (q0.x - beta * q2.x) / q1.x;
+    }
+
+    if (alpha < 0 || (alpha + beta) > 1.0)
+        return false;
+
+    return true;
+
 }
 
 void Scene::CalculateTrianglePlane(Triangle& t){
