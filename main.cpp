@@ -48,9 +48,7 @@ int main(){
 
     s.Commit();
 
-    s.Dump();
-
-    unsigned int xres = 10, yres = 10;
+    unsigned int xres = 100, yres = 100;
     std::vector<std::vector<Color>> output(xres, std::vector<Color>(yres));
 
     glm::vec3 camerapos(0.0, 0.0, 4.0);
@@ -67,9 +65,15 @@ int main(){
             glm::vec3 xo = (1.0f/xres) * (x + 0.5f) * viewplane_x;
             glm::vec3 yo = (1.0f/yres) * (y + 0.5f) * viewplane_y;
             glm::vec3 p = viewplane + xo + yo;
-            std::cout << p << std::endl;
+            (void)p;
             // TODO: cast a ray from cameradir to p
-            output[x][y] = Color{1.0,0.5,0.2};
+            Ray r(camerapos, p - camerapos);
+            Intersection i = s.FindIntersect(r);
+            if(i.triangle){
+                output[x][y] = Color{1.0,0.0,0.0};
+            }else{
+                output[x][y] = Color{1.0,0.0,1.0};
+            }
         }
     }
 

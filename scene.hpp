@@ -3,20 +3,37 @@
 
 #include <assimp/scene.h>
 
+#define GLM_FORCE_RADIANS
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <vector>
 #include <unordered_map>
 
+#include "ray.hpp"
+
 class Scene;
+
+struct Plane{
+    float a, b, c, d;
+};
 
 struct Triangle{
     const Scene* parent_scene;
     unsigned int va, vb, vc; // Vertex indices
     unsigned int mat; // Material index
+    Plane p;
 };
 
 struct Material{
     const Scene* parent_scene;
     aiColor3D diffuse;
+};
+
+struct Intersection{
+    const Triangle* triangle = nullptr;
+    float t;
+    // TODO Baricentric coordinates
 };
 
 class Scene{
@@ -34,19 +51,25 @@ public:
     // Prints the entire buffer to stdout.
     void Dump() const;
 
-    aiVector3D*    vertices = nullptr;
+    Intersection FindIntersect(const Ray& r) const;
+
+private:
+
+    glm::vec3*    vertices = nullptr;
     unsigned int n_vertices = 0;
     Triangle*      triangles = nullptr;
     unsigned int n_triangles = 0;
     Material*      materials = nullptr;
     unsigned int n_materials = 0;
 
-private:
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
     mutable std::vector<Material> materials_buffer;
 
     void FreeBuffers();
+
+    bool TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t) const;
+    static void CalculateTrianglePlane(Triangle& t);
 };
 
 #endif //__SCENE_HPP__

@@ -8,7 +8,7 @@
 #include <iostream>
 
 //TODO: Move this to utils
-std::ostream& operator<<(std::ostream& stream, glm::vec3 v){
+inline std::ostream& operator<<(std::ostream& stream, glm::vec3 v){
     stream << "[" << v.x << ", " << v.y << ", " << v.z << "]";
     return stream;
 }
@@ -19,10 +19,15 @@ struct Color{
 class Ray{
 public:
     Ray() {}
+    Ray(glm::vec3 from, glm::vec3 dir) :
+        origin(from){
+        direction = glm::normalize(dir);
+    }
     glm::vec3 origin;
     glm::vec3 direction;
     float near = 0.0f;
     float far = 100.0f;
+    glm::vec3 t(float t) {return origin + t*direction;}
 };
 
 #endif // __RAY_HPP__

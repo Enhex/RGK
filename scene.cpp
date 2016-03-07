@@ -1,6 +1,7 @@
 #include "scene.hpp"
 
 #include <iostream>
+#include <limits>
 
 Scene::~Scene(){
     FreeBuffers();
@@ -85,7 +86,7 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform) const{
 void Scene::Commit(){
     FreeBuffers();
 
-    vertices = new aiVector3D[vertices_buffer.size()];
+    vertices = new glm::vec3[vertices_buffer.size()];
     triangles = new Triangle[triangles_buffer.size()];
     materials = new Material[materials_buffer.size()];
 
@@ -95,9 +96,11 @@ void Scene::Commit(){
 
     // TODO: memcpy
     for(unsigned int i = 0; i < n_vertices; i++)
-        vertices[i] = vertices_buffer[i];
-    for(unsigned int i = 0; i < n_triangles; i++)
+        vertices[i] = glm::vec3(vertices_buffer[i].x, vertices_buffer[i].y, vertices_buffer[i].z);
+    for(unsigned int i = 0; i < n_triangles; i++){
         triangles[i] = triangles_buffer[i];
+        CalculateTrianglePlane(triangles[i]);
+    }
     for(unsigned int i = 0; i < n_materials; i++)
         materials[i] = materials_buffer[i];
 
@@ -112,13 +115,68 @@ void Scene::Commit(){
 void Scene::Dump() const{
     for(unsigned int t = 0; t < n_triangles; t++){
         const Triangle& tr = triangles[t];
-        const aiVector3D va = vertices[tr.va];
-        const aiVector3D vb = vertices[tr.vb];
-        const aiVector3D vc = vertices[tr.vc];
+        const glm::vec3 va = vertices[tr.va];
+        const glm::vec3 vb = vertices[tr.vb];
+        const glm::vec3 vc = vertices[tr.vc];
         const aiColor3D& color = materials[tr.mat].diffuse;
         std::cout << va.x << " " << va.y << " " << va.z << " | ";
         std::cout << vb.x << " " << vb.y << " " << vb.z << " | ";
         std::cout << vc.x << " " << vc.y << " " << vc.z << " [" ;
         std::cout << color.r << " " << color.g << " " << color.b << "]\n" ;
     }
+}
+
+Intersection Scene::FindIntersect(const Ray& r) const{
+    // TODO: Kd-tree?
+
+    // temporarily: iterate over ALL triangles, find ALL
+    // intersections, pick nearest. Super inefficient.
+
+    // create inf result
+    Intersection res;
+    res.triangle = nullptr;
+    res.t = std::numeric_limits<float>::infinity();
+
+    for(unsigned int f = 0; f < n_triangles; f++){
+        const Triangle& tri = triangles[f];
+        float t;
+        if(TestTriangleIntersection(tri, r, t)){
+            // New intersect
+            if(t <= r.near || t >= r.far) continue;
+            if(t < res.t){
+                // New closest intersect
+                res.triangle = &tri;
+                res.t = t;
+            }
+        }
+    }
+
+    return res;
+}
+
+bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t) const{
+    // Currently using Badoulel's algorithm
+
+    // This implementation is heavily inspired by the example provided by ANL
+    (void)tri;
+    (void)r;
+    (void)t;
+
+
+    return false;
+}
+
+void Scene::CalculateTrianglePlane(Triangle& t){
+
+    glm::vec3 v0 = t.parent_scene->vertices[t.va];
+    glm::vec3 v1 = t.parent_scene->vertices[t.vb];
+    glm::vec3 v2 = t.parent_scene->vertices[t.vc];
+
+    glm::vec3 d0 = v1 - v0;
+    glm::vec3 d1 = v2 - v0;
+
+    glm::vec3 n = glm::normalize(glm::cross(d1,d0));
+    float d = - glm::dot(n,v0);
+
+    t.p = Plane{n.x, n.y, n.z, d};
 }
