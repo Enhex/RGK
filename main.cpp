@@ -2,6 +2,10 @@
 #include <assimp/scene.h>
 #include <assimp/postprocess.h>
 
+#define GLM_FORCE_RADIANS
+#include <glm/gtx/transform.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+
 #include <iostream>
 
 #include "scene.hpp"

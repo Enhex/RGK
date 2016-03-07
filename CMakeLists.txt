@@ -16,6 +16,16 @@ find_package(GLEW REQUIRED)
 find_package(assimp REQUIRED)
 find_package(embree REQUIRED)
 
+find_path(
+  GLM_INCLUDE_DIRS "glm/glm.hpp"
+  )
+include(FindPackageHandleStandardArgs)
+find_package_handle_standard_args(
+  GLM
+  DEFAULT_MSG
+  GLM_INCLUDE_DIRS
+  )
+
 if   (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
 	set(OPENGL_LIBRARY ${OPENGL_LIBRARY} -lGL -lGLU -lXxf86vm -lXi -lXrandr -lXinerama -lXcursor -lXext -lX11 -lrt -ldl)
 endif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
