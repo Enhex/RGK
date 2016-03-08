@@ -11,6 +11,7 @@ public:
     OutBuffer(int xsize, int ysize);
 
     void WriteToPNG(std::string path);
+    void WriteToBMP(std::string path);
     void SetPixel(int x, int y, Color c);
 private:
     // Fixed size is kept manually.

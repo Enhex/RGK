@@ -167,6 +167,7 @@ int main(){
 
     tpool.stop(true); // Waits for all remaining threads to complete.
 
+    //ob.WriteToBMP("out.bmp");
     ob.WriteToPNG("out.png");
 
     return 0;
