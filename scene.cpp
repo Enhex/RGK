@@ -27,6 +27,8 @@ void Scene::LoadScene(const aiScene* scene) const{
         aiColor3D c;
         mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
         m.diffuse = c;
+        mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
+        m.specular = c;
         materials_buffer.push_back(m);
     }
 

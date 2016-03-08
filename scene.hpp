@@ -26,6 +26,7 @@ struct Triangle{
 struct Material{
     const Scene* parent_scene;
     Color diffuse;
+    Color specular;
 };
 
 struct Intersection{

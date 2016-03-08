@@ -18,21 +18,27 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
 
     if(i.triangle){
         const Material& mat = i.triangle->parent_scene->materials[i.triangle->mat];
-        Color diffuse = mat.diffuse;
         Color total(0.0, 0.0, 0.0);
 
         glm::vec3 ipos = r[i.t];
+        glm::vec3 N = i.triangle->normal();
 
         for(const Light& l : lights){
-            glm::vec3 vec_to_light = glm::normalize(l - ipos);
+            glm::vec3 L = glm::normalize(l - ipos);
             // if no intersection on path to light
             Ray ray_to_light(ipos, l, 0.01);
             Intersection i2 = scene.FindIntersect(ray_to_light);
             if(!i2.triangle){ // no intersection found
                 //TODO: use actual normals
-                float q = glm::dot(i.triangle->normal(), vec_to_light);
-                q = glm::abs(q); // This way we ignore face orientation.
-                total += diffuse*q;
+                glm::vec3 R = 2.0f * glm::dot(L, N) * N - L;
+                glm::vec3 V = -r.direction; // incoming direction
+                float kD = glm::dot(N, L);
+                float kS = glm::pow(glm::dot(R, V), 30.0f);
+                kD = glm::abs(kD); // This way we ignore face orientation.
+                kS = glm::abs(kS); // This way we ignore face orientation.
+
+                total += mat.diffuse  * kD       ;
+                total += mat.specular * kS * 0.08;
             }
         }
 
@@ -128,13 +134,13 @@ int main(){
 
     unsigned int xres = 1200, yres = 1200;
 
-    glm::vec3 camerapos(3.5, 4.0, -2.0);
+    glm::vec3 camerapos(2.5, 3.0, -2.0);
     glm::vec3 lookat(0.0, 1.0, 0.0);
     glm::vec3 worldup(0.0, 1.0, 0.0);
 
     CameraConfig cconfig(camerapos, lookat, worldup);
 
-    Light light(4.0,7.0,3.0);
+    Light light(4.5,6.5,3.0);
     std::vector<Light> lights = {light};
 
     unsigned int multisample = 4;
