@@ -73,6 +73,27 @@ public:
     };
 };
 
+struct RenderTask{
+    unsigned int xres, yres;
+    unsigned int xrange_start, xrange_end;
+    unsigned int yrange_start, yrange_end;
+    const Scene* scene;
+    const CameraConfig* cconfig;
+    const std::vector<Light>* lights;
+    OutBuffer* output;
+};
+
+void Render(RenderTask task){
+    for(unsigned int y = task.yrange_start; y < task.yrange_end; y++){
+        for(unsigned int x = task.xrange_start; x < task.xrange_end; x++){
+            glm::vec3 p = task.cconfig->GetViewScreenPoint(x, y, task.xres, task.yres);
+            Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
+            Color c = trace_ray(*task.scene, r, *task.lights);
+            task.output->SetPixel(x, y, c);
+        }
+    }
+}
+
 int main(){
 
     Assimp::Importer importer;
@@ -92,7 +113,6 @@ int main(){
 
     Scene s;
     s.LoadScene(scene);
-
     s.Commit();
 
     unsigned int xres = 500, yres = 500;
@@ -108,14 +128,16 @@ int main(){
 
     OutBuffer ob(xres, yres);
 
-    for(unsigned int y = 0; y < yres; y++){
-        for(unsigned int x = 0; x < xres; x++){
-            glm::vec3 p = cconfig.GetViewScreenPoint(x, y, xres, yres);
-            Ray r(camerapos, p - camerapos);
-            Color c = trace_ray(s, r, lights);
-            ob.SetPixel(x, y, c);
-        }
-    }
+    RenderTask task;
+    task.xres = xres; task.yres = yres;
+    task.xrange_start = 0; task.xrange_end = xres;
+    task.yrange_start = 0; task.yrange_end = yres;
+    task.scene = &s;
+    task.cconfig = &cconfig;
+    task.lights = &lights;
+    task.output = &ob;
+
+    Render(task);
 
     ob.WriteToPNG("out.png");
 
