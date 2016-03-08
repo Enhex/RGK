@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 
 #define GLM_FORCE_RADIANS
+#define GLM_SWIZZLE
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 

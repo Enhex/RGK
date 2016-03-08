@@ -2,6 +2,7 @@
 
 #include <iostream>
 #include <limits>
+#include <cmath>
 
 Scene::~Scene(){
     FreeBuffers();
@@ -139,12 +140,19 @@ Intersection Scene::FindIntersect(const Ray& r) const{
     res.triangle = nullptr;
     res.t = std::numeric_limits<float>::infinity();
 
+    //std::cerr << "Searching " << std::endl;
+
     for(unsigned int f = 0; f < n_triangles; f++){
         const Triangle& tri = triangles[f];
         float t;
         if(TestTriangleIntersection(tri, r, t)){
-            // New intersect
             if(t <= r.near || t >= r.far) continue;
+
+            // New intersect
+            //std::cerr << t << ", at triangle no " << f << std::endl;
+            //std::cerr << "Triangle normal " << tri.normal() << std::endl;
+            // Re-test for debug
+            //TestTriangleIntersection(tri, r, t, true);
             if(t < res.t){
                 // New closest intersect
                 res.triangle = &tri;
@@ -152,20 +160,23 @@ Intersection Scene::FindIntersect(const Ray& r) const{
             }
         }
     }
+    //std::cerr << " done: " << res.t << std::endl;
 
     return res;
 }
 
-bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t) const{
+bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t, bool debug) const{
     // Currently using Badoulel's algorithm
 
     // This implementation is heavily inspired by the example provided by ANL
 
     const float EPSILON = 0.000001;
 
-    glm::vec3 planeN (tri.p.a, tri.p.b, tri.p.c);
+    glm::vec3 planeN = tri.normal();
 
     double dot = glm::dot(r.direction, planeN);
+
+    if(debug) std::cout << "dot : " << dot << std::endl;
 
     /* is ray parallel to plane? */
     if (dot < EPSILON && dot > -EPSILON)		/* or use culling check */
@@ -173,26 +184,34 @@ bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ 
 
     /* find distance to plane and intersection point */
     double dot2 = glm::dot(r.origin,planeN);
-    t = -(planeN.z + dot2) / dot;
+    t = -(tri.p.w + dot2) / dot;
 
     /* find largest dim*/
     int i1 = 0, i2 = 1;
-    if(planeN.x >= planeN.y && planeN.x >= planeN.z){
+    glm::vec3 pq = glm::abs(planeN);
+    if(pq.x >= pq.y && pq.x >= pq.z){
         i1 = 1; i2 = 2;
-    }else if(planeN.y >= planeN.x && planeN.y >= planeN.z){
+    }else if(pq.y >= pq.x && pq.y >= pq.z){
         i1 = 0; i2 = 2;
-    }else if(planeN.z >= planeN.x && planeN.z >= planeN.y){
+    }else if(pq.z >= pq.x && pq.z >= pq.y){
         i1 = 0; i2 = 1;
     }else{
         std::cerr << "NO LARGEST DIM this should not happen" << std::endl;
     }
 
-    glm::vec2 point(r.origin[i1] + r.direction[i1] * t,
-                    r.origin[i2] + r.direction[i2] * t);
+    if(debug) std::cout << i1 << "/" << i2 << " ";
+
 
     glm::vec3 vert0 = tri.parent_scene->vertices[tri.va];
     glm::vec3 vert1 = tri.parent_scene->vertices[tri.vb];
     glm::vec3 vert2 = tri.parent_scene->vertices[tri.vc];
+
+    if(debug) std::cerr << vert0 << " " << vert1 << " " << vert2 << std::endl;
+
+    if(debug) std::cerr << "intersection is at: " << r.origin + r.direction*t << std::endl;
+
+    glm::vec2 point(r.origin[i1] + r.direction[i1] * t,
+                    r.origin[i2] + r.direction[i2] * t);
 
     /* begin barycentric intersection algorithm */
     glm::vec2 q0( point[0] - vert0[i1],
@@ -208,18 +227,24 @@ bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ 
     /* calculate and compare barycentric coordinates */
     if (q1.x == 0) {		/* uncommon case */
         beta = q0.x / q2.x;
-        if (beta < 0 || beta > 1)
+        if (/*std::isnan(beta) ||*/ beta < 0 || beta > 1)
             return false;
+        if(debug) std::cout << "UNCOMMON " << q0.y << " " << beta << " " << q2.y << std::endl;
+        if(debug) std::cout << "UNCOMMON " << (q0.y - beta * q2.y) << ", by: " << q1.y << std::endl;
         alpha = (q0.y - beta * q2.y) / q1.y;
     }
     else {			/* common case, used for this analysis */
         beta = (q0.y * q1.x - q0.x * q1.y) / (q2.y * q1.x - q2.x * q1.y);
-        if (beta < 0 || beta > 1)
+        if (std::isnan(beta) || beta < 0 || beta > 1)
             return false;
+
+        if(debug) std::cout << "DIV " << (q0.x - beta * q2.x) << ", by: " << q1.x << std::endl;
         alpha = (q0.x - beta * q2.x) / q1.x;
     }
 
-    if (alpha < 0 || (alpha + beta) > 1.0)
+    if(debug) std::cout << "A: " << alpha << ", B: " << beta << std::endl;
+
+    if (/*std::isnan(alpha) ||*/ alpha < 0 || (alpha + beta) > 1.0)
         return false;
 
     return true;
@@ -238,5 +263,5 @@ void Scene::CalculateTrianglePlane(Triangle& t){
     glm::vec3 n = glm::normalize(glm::cross(d1,d0));
     float d = - glm::dot(n,v0);
 
-    t.p = Plane{n.x, n.y, n.z, d};
+    t.p = glm::vec4(n.x, n.y, n.z, d);
 }

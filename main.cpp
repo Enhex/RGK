@@ -27,7 +27,7 @@ int main(){
 
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile("../obj/cube.obj",
+    const aiScene* scene = importer.ReadFile("../obj/cube2.obj",
                                              //aiProcess_Triangulate |
                                              //aiProcess_JoinIdenticalVertices
                                              aiProcessPreset_TargetRealtime_MaxQuality
@@ -48,29 +48,31 @@ int main(){
 
     s.Commit();
 
-    unsigned int xres = 200, yres = 200;
+    unsigned int xres = 500, yres = 500;
     std::vector<std::vector<Color>> output(xres, std::vector<Color>(yres));
 
-    glm::vec3 camerapos(0.0, 0.0, 4.0);
+    glm::vec3 camerapos(16.0, 14.0, 20.0);
     glm::vec3 cameradir = glm::normalize( -camerapos ); // look at origin
-    glm::vec3 cameraup(0.0,1.0,0.0);
-    glm::vec3 cameraleft = glm::normalize(glm::cross(cameradir, cameraup));
+    glm::vec3 worldup(0.0,1.0,0.0);
+    glm::vec3 cameraleft = glm::normalize(glm::cross(cameradir, worldup));
+    glm::vec3 cameraup = glm::normalize(glm::cross(cameradir,cameraleft));
 
     glm::vec3 viewplane = camerapos + cameradir - cameraup + cameraleft;
-    glm::vec3 viewplane_x = - cameraleft - cameraleft;
-    glm::vec3 viewplane_y =   cameraup   + cameraup;
+    glm::vec3 viewplane_x = -2.0f * cameraleft;
+    glm::vec3 viewplane_y =  2.0f * cameraup;
 
     for(unsigned int x = 0; x < xres; x++){
         for(unsigned int y = 0; y < yres; y++){
-            glm::vec3 xo = (1.0f/xres) * (x + 0.5f) * viewplane_x;
-            glm::vec3 yo = (1.0f/yres) * (y + 0.5f) * viewplane_y;
+            const float off = 0.5f;
+            glm::vec3 xo = (1.0f/xres) * (x + off) * viewplane_x;
+            glm::vec3 yo = (1.0f/yres) * (y + off) * viewplane_y;
             glm::vec3 p = viewplane + xo + yo;
             (void)p;
             // TODO: cast a ray from cameradir to p
             Ray r(camerapos, p - camerapos);
-            Intersection i = s.FindIntersect(r);
+            //std::cout << "Casting a ray from " << camerapos << " to " << p << std::endl;
 
-            //std::cout << "Casting a ray from " << camerapos << " to " << r.direction << std::endl;
+            Intersection i = s.FindIntersect(r);
 
             if(i.triangle){
                 const Material& mat = i.triangle->parent_scene->materials[i.triangle->mat];

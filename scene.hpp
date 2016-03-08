@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 
 #define GLM_FORCE_RADIANS
+#define GLM_SWIZZLE
 #include <glm/gtx/transform.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
@@ -14,15 +15,12 @@
 
 class Scene;
 
-struct Plane{
-    float a, b, c, d;
-};
-
 struct Triangle{
     const Scene* parent_scene;
     unsigned int va, vb, vc; // Vertex indices
     unsigned int mat; // Material index
-    Plane p;
+    glm::vec4 p; // plane
+    glm::vec3 normal() const {return p.xyz();}
 };
 
 struct Material{
@@ -71,7 +69,7 @@ private:
 
     void FreeBuffers();
 
-    bool TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t) const;
+    bool TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t, bool debug = false) const;
     static void CalculateTrianglePlane(Triangle& t);
 };
 

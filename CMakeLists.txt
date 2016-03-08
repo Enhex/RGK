@@ -66,7 +66,7 @@ add_definitions(
   -Wall
   -Wextra
   -Werror
-  -g
+  -Og
   )
 
 file(GLOB SOURCES
