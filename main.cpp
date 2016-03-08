@@ -3,6 +3,9 @@
 #include <assimp/postprocess.h>
 
 #include <iostream>
+#include <queue>
+
+#include "external/ctpl_stl.h"
 
 #include "scene.hpp"
 #include "ray.hpp"
@@ -115,7 +118,7 @@ int main(){
     s.LoadScene(scene);
     s.Commit();
 
-    unsigned int xres = 500, yres = 500;
+    unsigned int xres = 1000, yres = 1000;
 
     glm::vec3 camerapos(3.5, 4.0, -2.0);
     glm::vec3 lookat(0.0, 1.0, 0.0);
@@ -128,16 +131,26 @@ int main(){
 
     OutBuffer ob(xres, yres);
 
-    RenderTask task;
-    task.xres = xres; task.yres = yres;
-    task.xrange_start = 0; task.xrange_end = xres;
-    task.yrange_start = 0; task.yrange_end = yres;
-    task.scene = &s;
-    task.cconfig = &cconfig;
-    task.lights = &lights;
-    task.output = &ob;
+    std::queue<RenderTask> task_queue;
 
-    Render(task);
+    ctpl::thread_pool tpool(4);
+
+    // Split rendering into smaller (100x100) tasks.
+    for(unsigned int yp = 0; yp < yres; yp += 100){
+        for(unsigned int xp = 0; xp < xres; xp += 100){
+            RenderTask task;
+            task.xres = xres; task.yres = yres;
+            task.xrange_start = xp; task.xrange_end = std::min(xres,xp+100);
+            task.yrange_start = yp; task.yrange_end = std::min(yres,yp+100);
+            task.scene = &s;
+            task.cconfig = &cconfig;
+            task.lights = &lights;
+            task.output = &ob;
+            tpool.push( [task](int){Render(task);} );
+        }
+    }
+
+    tpool.stop(true); // Waits for all remaining threads to complete.
 
     ob.WriteToPNG("out.png");
 
