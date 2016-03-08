@@ -11,7 +11,7 @@
 #include <iostream>
 
 struct Color{
-    Color() {}
+    Color() : r(0.0), g(0.0), b(0.0) {}
     Color(float r, float g, float b) : r(r), g(g), b(b) {}
     Color(const aiColor3D& c) : r(c.r), g(c.g), b(c.b) {}
     float r,g,b;

@@ -83,16 +83,24 @@ struct RenderTask{
     const Scene* scene;
     const CameraConfig* cconfig;
     const std::vector<Light>* lights;
+    unsigned int multisample;
     OutBuffer* output;
 };
 
 void Render(RenderTask task){
+    unsigned int m = task.multisample;
     for(unsigned int y = task.yrange_start; y < task.yrange_end; y++){
         for(unsigned int x = task.xrange_start; x < task.xrange_end; x++){
-            glm::vec3 p = task.cconfig->GetViewScreenPoint(x, y, task.xres, task.yres);
-            Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
-            Color c = trace_ray(*task.scene, r, *task.lights);
-            task.output->SetPixel(x, y, c);
+            Color pixel_total(0.0, 0.0, 0.0);
+            float factor = 1.0/(m*m);
+            for(unsigned int my = 0; my < m; my++){
+                for(unsigned int mx = 0; mx < m; mx++){
+                    glm::vec3 p = task.cconfig->GetViewScreenPoint(x*m + mx, y*m + my, task.xres*m, task.yres*m);
+                    Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
+                    pixel_total += trace_ray(*task.scene, r, *task.lights) * factor;
+                }
+            }
+            task.output->SetPixel(x, y, pixel_total);
         }
     }
 }
@@ -118,7 +126,7 @@ int main(){
     s.LoadScene(scene);
     s.Commit();
 
-    unsigned int xres = 1000, yres = 1000;
+    unsigned int xres = 1200, yres = 1200;
 
     glm::vec3 camerapos(3.5, 4.0, -2.0);
     glm::vec3 lookat(0.0, 1.0, 0.0);
@@ -129,9 +137,9 @@ int main(){
     Light light(4.0,7.0,3.0);
     std::vector<Light> lights = {light};
 
-    OutBuffer ob(xres, yres);
+    unsigned int multisample = 4;
 
-    std::queue<RenderTask> task_queue;
+    OutBuffer ob(xres, yres);
 
     ctpl::thread_pool tpool(4);
 
@@ -145,6 +153,7 @@ int main(){
             task.scene = &s;
             task.cconfig = &cconfig;
             task.lights = &lights;
+            task.multisample = multisample;
             task.output = &ob;
             tpool.push( [task](int){Render(task);} );
         }
