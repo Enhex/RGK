@@ -6,22 +6,7 @@
 
 #include "scene.hpp"
 #include "ray.hpp"
-
-#include <png++/png.hpp>
-
-void write_output_file(std::string path, std::vector<std::vector<Color>> data, unsigned int xsize, unsigned int ysize){
-    png::image<png::rgb_pixel> image(xsize, ysize);
-
-    for (png::uint_32 y = 0; y < image.get_height(); ++y){
-        for (png::uint_32 x = 0; x < image.get_width(); ++x){
-            auto c = data[x][y];
-            auto px = png::rgb_pixel(255.0*c.r,255.0*c.g,255.0*c.b);
-            image[y][x] = px;
-            // non-checking equivalent of image.set_pixel(x, y, ...);
-        }
-    }
-    image.write(path);
-}
+#include "outbuffer.hpp"
 
 typedef glm::vec3 Light;
 
@@ -41,6 +26,7 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
             Ray ray_to_light(ipos, l, 0.01);
             Intersection i2 = scene.FindIntersect(ray_to_light);
             if(!i2.triangle){ // no intersection found
+                //TODO: use actual normals
                 float q = glm::dot(i.triangle->normal(), vec_to_light);
                 q = glm::abs(q); // This way we ignore face orientation.
                 total += diffuse*q;
@@ -54,18 +40,49 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
     }
 }
 
+struct CameraConfig{
+public:
+    CameraConfig(glm::vec3 pos, glm::vec3 la, glm::vec3 up){
+        camerapos = pos;
+        lookat = la;
+        cameraup = up;
+
+        cameradir = glm::normalize( lookat - camerapos);
+        cameraleft = glm::normalize(glm::cross(cameradir, cameraup));
+        cameraup = glm::normalize(glm::cross(cameradir,cameraleft));
+
+        viewscreen = camerapos + cameradir - cameraup + cameraleft;
+        viewscreen_x = -2.0f * cameraleft;
+        viewscreen_y =  2.0f * cameraup;
+    }
+    glm::vec3 camerapos;
+    glm::vec3 lookat;
+    glm::vec3 cameraup;
+    glm::vec3 cameradir;
+    glm::vec3 cameraleft;
+
+    glm::vec3 viewscreen;
+    glm::vec3 viewscreen_x;
+    glm::vec3 viewscreen_y;
+
+    glm::vec3 GetViewScreenPoint(int x, int y, int xres, int yres) const {
+        const float off = 0.5f;
+        glm::vec3 xo = (1.0f/xres) * (x + off) * viewscreen_x;
+        glm::vec3 yo = (1.0f/yres) * (y + off) * viewscreen_y;
+        return viewscreen + xo + yo;
+    };
+};
+
 int main(){
 
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile("../obj/cube2.obj",
-                                             //aiProcess_Triangulate |
-                                             //aiProcess_JoinIdenticalVertices
+    const aiScene* scene = importer.ReadFile("../obj/cube3.obj",
                                              aiProcessPreset_TargetRealtime_MaxQuality
                       );
 
     if(!scene){
-        std::cerr << "Failed to load scene. " << std::endl;
+        std::cerr << "Assimp failed to load scene. " << std::endl;
         return 1;
     }
 
@@ -73,41 +90,34 @@ int main(){
         scene->mNumMaterials << " materials and " << scene->mNumLights <<
         " lights." << std::endl;
 
-
     Scene s;
     s.LoadScene(scene);
 
     s.Commit();
 
     unsigned int xres = 500, yres = 500;
-    std::vector<std::vector<Color>> output(xres, std::vector<Color>(yres));
 
-    glm::vec3 camerapos(16.0, 14.0, 20.0);
-    glm::vec3 cameradir = glm::normalize( -camerapos ); // look at origin
-    glm::vec3 worldup(0.0,1.0,0.0);
-    glm::vec3 cameraleft = glm::normalize(glm::cross(cameradir, worldup));
-    glm::vec3 cameraup = glm::normalize(glm::cross(cameradir,cameraleft));
+    glm::vec3 camerapos(3.5, 4.0, -2.0);
+    glm::vec3 lookat(0.0, 1.0, 0.0);
+    glm::vec3 worldup(0.0, 1.0, 0.0);
 
-    glm::vec3 viewplane = camerapos + cameradir - cameraup + cameraleft;
-    glm::vec3 viewplane_x = -2.0f * cameraleft;
-    glm::vec3 viewplane_y =  2.0f * cameraup;
+    CameraConfig cconfig(camerapos, lookat, worldup);
 
-    Light light(16.0,14.0,10.0);
+    Light light(4.0,7.0,3.0);
+    std::vector<Light> lights = {light};
 
-    for(unsigned int x = 0; x < xres; x++){
-        for(unsigned int y = 0; y < yres; y++){
-            const float off = 0.5f;
-            glm::vec3 xo = (1.0f/xres) * (x + off) * viewplane_x;
-            glm::vec3 yo = (1.0f/yres) * (y + off) * viewplane_y;
-            glm::vec3 p = viewplane + xo + yo;
-            (void)p;
-            // TODO: cast a ray from cameradir to p
+    OutBuffer ob(xres, yres);
+
+    for(unsigned int y = 0; y < yres; y++){
+        for(unsigned int x = 0; x < xres; x++){
+            glm::vec3 p = cconfig.GetViewScreenPoint(x, y, xres, yres);
             Ray r(camerapos, p - camerapos);
-            output[x][y] = trace_ray(s, r, {light});
+            Color c = trace_ray(s, r, lights);
+            ob.SetPixel(x, y, c);
         }
     }
 
-    write_output_file("out.png",output, xres, yres);
+    ob.WriteToPNG("out.png");
 
     return 0;
 }
