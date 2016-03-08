@@ -129,7 +129,7 @@ void Scene::Dump() const{
     }
 }
 
-Intersection Scene::FindIntersect(const Ray& r) const{
+Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
     // TODO: Kd-tree?
 
     // temporarily: iterate over ALL triangles, find ALL
@@ -165,7 +165,7 @@ Intersection Scene::FindIntersect(const Ray& r) const{
     return res;
 }
 
-bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t, bool debug) const{
+bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray& __restrict__ r, /*out*/ float& t, bool debug) const{
     // Currently using Badoulel's algorithm
 
     // This implementation is heavily inspired by the example provided by ANL
@@ -186,6 +186,7 @@ bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ 
     double dot2 = glm::dot(r.origin,planeN);
     t = -(tri.p.w + dot2) / dot;
 
+    // TODO: Accelerate this
     /* find largest dim*/
     int i1 = 0, i2 = 1;
     glm::vec3 pq = glm::abs(planeN);
@@ -227,24 +228,21 @@ bool Scene::TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ 
     /* calculate and compare barycentric coordinates */
     if (q1.x == 0) {		/* uncommon case */
         beta = q0.x / q2.x;
-        if (/*std::isnan(beta) ||*/ beta < 0 || beta > 1)
+        if (beta < 0 || beta > 1)
             return false;
-        if(debug) std::cout << "UNCOMMON " << q0.y << " " << beta << " " << q2.y << std::endl;
-        if(debug) std::cout << "UNCOMMON " << (q0.y - beta * q2.y) << ", by: " << q1.y << std::endl;
         alpha = (q0.y - beta * q2.y) / q1.y;
     }
     else {			/* common case, used for this analysis */
         beta = (q0.y * q1.x - q0.x * q1.y) / (q2.y * q1.x - q2.x * q1.y);
-        if (std::isnan(beta) || beta < 0 || beta > 1)
+        if (beta < 0 || beta > 1)
             return false;
 
-        if(debug) std::cout << "DIV " << (q0.x - beta * q2.x) << ", by: " << q1.x << std::endl;
         alpha = (q0.x - beta * q2.x) / q1.x;
     }
 
     if(debug) std::cout << "A: " << alpha << ", B: " << beta << std::endl;
 
-    if (/*std::isnan(alpha) ||*/ alpha < 0 || (alpha + beta) > 1.0)
+    if (alpha < 0 || (alpha + beta) > 1.0)
         return false;
 
     return true;

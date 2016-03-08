@@ -23,6 +23,37 @@ void write_output_file(std::string path, std::vector<std::vector<Color>> data, u
     image.write(path);
 }
 
+typedef glm::vec3 Light;
+
+Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
+    Intersection i = scene.FindIntersect(r);
+
+    if(i.triangle){
+        const Material& mat = i.triangle->parent_scene->materials[i.triangle->mat];
+        Color diffuse = mat.diffuse;
+        Color total(0.0, 0.0, 0.0);
+
+        glm::vec3 ipos = r[i.t];
+
+        for(const Light& l : lights){
+            glm::vec3 vec_to_light = glm::normalize(l - ipos);
+            // if no intersection on path to light
+            Ray ray_to_light(ipos, l, 0.01);
+            Intersection i2 = scene.FindIntersect(ray_to_light);
+            if(!i2.triangle){ // no intersection found
+                float q = glm::dot(i.triangle->normal(), vec_to_light);
+                q = glm::abs(q); // This way we ignore face orientation.
+                total += diffuse*q;
+            }
+        }
+
+        return total;
+    }else{
+        // Black background for void spaces
+        return Color{0.0,0.0,0.0};
+    }
+}
+
 int main(){
 
     Assimp::Importer importer;
@@ -61,6 +92,8 @@ int main(){
     glm::vec3 viewplane_x = -2.0f * cameraleft;
     glm::vec3 viewplane_y =  2.0f * cameraup;
 
+    Light light(16.0,14.0,10.0);
+
     for(unsigned int x = 0; x < xres; x++){
         for(unsigned int y = 0; y < yres; y++){
             const float off = 0.5f;
@@ -70,19 +103,7 @@ int main(){
             (void)p;
             // TODO: cast a ray from cameradir to p
             Ray r(camerapos, p - camerapos);
-            //std::cout << "Casting a ray from " << camerapos << " to " << p << std::endl;
-
-            Intersection i = s.FindIntersect(r);
-
-            if(i.triangle){
-                const Material& mat = i.triangle->parent_scene->materials[i.triangle->mat];
-                //std::cout << "hit " << mat.diffuse << std::endl;
-                output[x][y] = mat.diffuse;
-            }else{
-                //std::cout << "no hit" << std::endl;
-                // Black background for void spaces
-                output[x][y] = Color{0.0,0.0,0.0};
-            }
+            output[x][y] = trace_ray(s, r, {light});
         }
     }
 

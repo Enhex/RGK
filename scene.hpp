@@ -69,8 +69,8 @@ private:
 
     void FreeBuffers();
 
-    bool TestTriangleIntersection(const Triangle& tri, const Ray& r, /*out*/ float& t, bool debug = false) const;
-    static void CalculateTrianglePlane(Triangle& t);
+    bool TestTriangleIntersection(const Triangle& tri,const Ray& r, /*out*/ float& t, bool debug = false) const __attribute__((hot));
+    static void CalculateTrianglePlane(Triangle& t) __attribute__((hot));
 };
 
 #endif //__SCENE_HPP__

@@ -15,6 +15,9 @@ struct Color{
     Color(float r, float g, float b) : r(r), g(g), b(b) {}
     Color(const aiColor3D& c) : r(c.r), g(c.g), b(c.b) {}
     float r,g,b;
+    Color operator*(float q) const {return Color(q*r, q*g, q*b);}
+    Color operator+(const Color& o) const {return Color(r+o.r,g+o.g,b+o.b);}
+    Color& operator+=(const Color& o) {*this = *this + o; return *this;}
 };
 //TODO: Move this to utils
 inline std::ostream& operator<<(std::ostream& stream, const glm::vec3& v){
@@ -29,15 +32,26 @@ inline std::ostream& operator<<(std::ostream& stream, const Color& c){
 class Ray{
 public:
     Ray() {}
+    // Directional constructor (half-line).
     Ray(glm::vec3 from, glm::vec3 dir) :
         origin(from){
         direction = glm::normalize(dir);
+    }
+    // From-to constructor. Sets near and far.
+    Ray(glm::vec3 from, glm::vec3 to, float epsillon){
+        origin = from;
+        glm::vec3 diff = to-from;
+        direction = glm::normalize(diff);
+        float length = glm::length(diff);
+        near =   0.0f + epsillon;
+        far  = length - epsillon;
     }
     glm::vec3 origin;
     glm::vec3 direction;
     float near = 0.0f;
     float far = 100.0f;
-    glm::vec3 t(float t) {return origin + t*direction;}
+    glm::vec3 t(float t) const {return origin + t*direction;}
+    inline glm::vec3 operator[](float t_) const {return t(t_);}
 };
 
 #endif // __RAY_HPP__
