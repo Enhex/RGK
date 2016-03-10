@@ -28,7 +28,7 @@ Config Config::CreateFromFile(std::string path){
     cfg.output_file = line;
     NEXT_LINE();  // recursion level
     unsigned int k = std::stoi(line);
-    if(k==0) throw ConfigFileException("Invalid k value.");
+    // if(k==0) throw ConfigFileException("Invalid k value.");
     cfg.recursion_level = k;
     NEXT_LINE(); // xres yres
     vs = Utils::SplitString(line," ");
@@ -59,7 +59,7 @@ Config Config::CreateFromFile(std::string path){
 
     NEXT_LINE(); // yview
     float yview = std::stof(line);
-    if(k <= 0.0f || k >= 100.0f) throw ConfigFileException("Invalid yview value.");
+    if(yview <= 0.0f || yview >= 100.0f) throw ConfigFileException("Invalid yview value.");
     cfg.yview = yview;
 
     // Now for the extra lines

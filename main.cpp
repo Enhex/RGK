@@ -4,6 +4,7 @@
 
 #include <iostream>
 #include <queue>
+#include <cmath>
 
 #include "external/ctpl_stl.h"
 
@@ -13,7 +14,7 @@
 #include "config.hpp"
 #include "utils.hpp"
 
-Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
+Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, int depth){
     Intersection i = scene.FindIntersect(r);
 
     if(i.triangle){
@@ -21,27 +22,50 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
         Color total(0.0, 0.0, 0.0);
 
         glm::vec3 ipos = r[i.t];
-        glm::vec3 N = i.triangle->normal();
+        glm::vec3 N = glm::normalize(i.triangle->normal());
+        glm::vec3 V = glm::normalize(-r.direction); // incoming direction
 
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);
-            // if no intersection on path to light
-            Ray ray_to_light(ipos, l.pos, 0.01);
-            Intersection i2 = scene.FindIntersect(ray_to_light);
-            if(!i2.triangle){ // no intersection found
+            bool shadow;
+            if(depth == 0) shadow = false;
+            else{
+                // if no intersection on path to light
+                Ray ray_to_light(ipos, l.pos, 0.01);
+                Intersection i2 = scene.FindIntersect(ray_to_light);
+                shadow = i2.triangle;
+            }
+            if(!shadow){ // no intersection found
                 //TODO: use actual normals
-                glm::vec3 R = 2.0f * glm::dot(L, N) * N - L;
-                glm::vec3 V = -r.direction; // incoming direction
-                float kD = glm::dot(N, L);
-                float kS = glm::pow(glm::dot(R, V), 30.0f);
-                kD = glm::abs(kD); // This way we ignore face orientation.
-                kS = glm::abs(kS); // This way we ignore face orientation.
+
                 float distance = glm::length(ipos - l.pos); // The distance to light
                 float d = distance/l.intensity;
                 float intens_factor = 1.0f/(1.0f + d); // Light intensity falloff function
+
+
+                float kD = -glm::dot(N, L);
+                kD = glm::max(0.0f, kD);
                 total += intens_factor * l.color * mat.diffuse  * kD       ;
-                total += intens_factor * l.color * mat.specular * kS * 0.08;
+
+                if(mat.exponent > 1.0f){
+                    glm::vec3 R = 2.0f * glm::dot(L, N) * N - L;
+                    float a = glm::dot(R, V);
+                    a = glm::max(0.0f, a);
+                    float kS = glm::pow(a, mat.exponent);
+                    // if(std::isnan(kS)) std::cout << glm::dot(R,V) << "/" << mat.exponent << std::endl;
+                    total += intens_factor * l.color * mat.specular * kS * 1.0f;
+                }
             }
+        }
+
+        // Next ray
+        if(depth >= 2 && mat.exponent <= 1.0f){
+            glm::vec3 refl = 2.0f * glm::dot(V, N) * N - V;
+            refl = N;
+            Ray refl_ray(ipos, ipos + refl, 0.01);
+            refl_ray.far = 1000.0f;
+            Color reflection = trace_ray(scene, refl_ray, lights, depth-1);
+            total = mat.exponent * reflection + (1.0f - mat.exponent) * total;
         }
 
         return total;
@@ -92,6 +116,7 @@ struct RenderTask{
     const CameraConfig* cconfig;
     const std::vector<Light>* lights;
     unsigned int multisample;
+    unsigned int recursion_level;
     OutBuffer* output;
 };
 
@@ -105,7 +130,7 @@ void Render(RenderTask task){
                 for(unsigned int mx = 0; mx < m; mx++){
                     glm::vec3 p = task.cconfig->GetViewScreenPoint(x*m + mx, y*m + my, task.xres*m, task.yres*m);
                     Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
-                    pixel_total += trace_ray(*task.scene, r, *task.lights) * factor;
+                    pixel_total += trace_ray(*task.scene, r, *task.lights, task.recursion_level) * factor;
                 }
             }
             task.output->SetPixel(x, y, pixel_total);
@@ -173,6 +198,7 @@ int main(int argc, char** argv){
             task.cconfig = &cconfig;
             task.lights = &cfg.lights;
             task.multisample = cfg.multisample;
+            task.recursion_level = cfg.recursion_level;
             task.output = &ob;
             tpool.push( [task](int){Render(task);} );
         }

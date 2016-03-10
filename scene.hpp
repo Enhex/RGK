@@ -34,6 +34,7 @@ struct Material{
     const Scene* parent_scene;
     Color diffuse;
     Color specular;
+    float exponent;
 };
 
 struct Intersection{

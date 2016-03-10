@@ -29,6 +29,9 @@ void Scene::LoadScene(const aiScene* scene) const{
         m.diffuse = c;
         mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
         m.specular = c;
+        float f;
+        mat->Get(AI_MATKEY_SHININESS, f);
+        m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
         materials_buffer.push_back(m);
     }
 
