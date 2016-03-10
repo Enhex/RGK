@@ -13,6 +13,11 @@ void OutBuffer::SetPixel(int x, int y, Color c)
     data[y*xsize + x] = c;
 }
 
+inline float clamp( float f )
+{
+    return 0.5f * ( 1.0f + fabsf( f ) - fabsf( f - 1.0f ) );
+}
+
 void OutBuffer::WriteToPNG(std::string path){
 
     png::image<png::rgb_pixel> image(xsize, ysize);
@@ -20,16 +25,13 @@ void OutBuffer::WriteToPNG(std::string path){
     for (png::uint_32 y = 0; y < image.get_height(); ++y){
         for (png::uint_32 x = 0; x < image.get_width(); ++x){
             auto c = data[y*xsize + x];
-            auto px = png::rgb_pixel(255.0*c.r,255.0*c.g,255.0*c.b);
+            auto px = png::rgb_pixel(255.0*clamp(c.r),
+                                     255.0*clamp(c.g),
+                                     255.0*clamp(c.b));
             image[y][x] = px;
         }
     }
     image.write(path);
-}
-
-inline float clamp( float f )
-{
-    return 0.5f * ( 1.0f + fabsf( f ) - fabsf( f - 1.0f ) );
 }
 
 void OutBuffer::WriteToBMP(std::string path){

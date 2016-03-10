@@ -14,10 +14,10 @@ struct Color{
     Color() : r(0.0), g(0.0), b(0.0) {}
     Color(float r, float g, float b) : r(r), g(g), b(b) {}
     Color(const aiColor3D& c) : r(c.r), g(c.g), b(c.b) {}
-    float r,g,b; // 0 - 255
-    Color operator*(float q) const {return Color(q*r, q*g, q*b);}
-    Color operator*(const Color& other) const {return Color(other.r*r/255.0f, other.g*g/255.0, other.b*b/255.0);}
-    Color operator+(const Color& o) const {return Color(r+o.r,g+o.g,b+o.b);}
+    float r,g,b; // 0 - 1
+    Color  operator* (float q)            const {return Color(q*r, q*g, q*b);}
+    Color  operator* (const Color& other) const {return Color(other.r*r, other.g*g, other.b*b);}
+    Color  operator+ (const Color& o)     const {return Color(r+o.r,g+o.g,b+o.b);}
     Color& operator+=(const Color& o) {*this = *this + o; return *this;}
 };
 
