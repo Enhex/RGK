@@ -51,7 +51,7 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
 
 struct CameraConfig{
 public:
-    CameraConfig(glm::vec3 pos, glm::vec3 la, glm::vec3 up){
+    CameraConfig(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview){
         camerapos = pos;
         lookat = la;
         cameraup = up;
@@ -60,9 +60,9 @@ public:
         cameraleft = glm::normalize(glm::cross(cameradir, cameraup));
         cameraup = glm::normalize(glm::cross(cameradir,cameraleft));
 
-        viewscreen = camerapos + cameradir - cameraup + cameraleft;
-        viewscreen_x = -2.0f * cameraleft;
-        viewscreen_y =  2.0f * cameraup;
+        viewscreen_x = - xview * cameraleft;
+        viewscreen_y =   yview * cameraup;
+        viewscreen = camerapos + cameradir - 0.5f * viewscreen_y - 0.5f * viewscreen_x;
     }
     glm::vec3 camerapos;
     glm::vec3 lookat;
@@ -154,7 +154,7 @@ int main(int argc, char** argv){
     s.LoadScene(scene);
     s.Commit();
 
-    CameraConfig cconfig(cfg.view_point, cfg.look_at, cfg.up_vector);
+    CameraConfig cconfig(cfg.view_point, cfg.look_at, cfg.up_vector, cfg.yview, cfg.yview*cfg.xres/cfg.yres);
 
     OutBuffer ob(cfg.xres, cfg.yres);
 
