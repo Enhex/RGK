@@ -1,9 +1,6 @@
 # The build dir
 build
 
-# Examples dir
-obj
-
 # Binaries
 *.so
 *.a
@@ -12,3 +9,7 @@ obj
 *~
 *#
 .\#*
+
+# 3d model imports
+*.blender
+*.blend*
