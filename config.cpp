@@ -74,8 +74,9 @@ Config Config::CreateFromFile(std::string path){
             // Light info
             if(vs.size() != 8) throw ConfigFileException("Invalid light line.");
             float l1 = std::stof(vs[1]), l2 = std::stof(vs[2]), l3 = std::stof(vs[3]);
-            // TODO color, intensity
-            cfg.lights.push_back(Light(l1,l2,l3));
+            float c1 = std::stof(vs[4]), c2 = std::stof(vs[5]), c3 = std::stof(vs[6]);
+            float i = std::stof(vs[7]);
+            cfg.lights.push_back(Light{glm::vec3(l1,l2,l3), Color(c1,c2,c3), i});
         }else if(vs[0] == "multisample" || vs[0] == "ms"){
             if(vs.size() != 2) throw ConfigFileException("Invalid multisample line.");
             int ms = std::stoi(vs[1]);

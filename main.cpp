@@ -24,9 +24,9 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
         glm::vec3 N = i.triangle->normal();
 
         for(const Light& l : lights){
-            glm::vec3 L = glm::normalize(l - ipos);
+            glm::vec3 L = glm::normalize(l.pos - ipos);
             // if no intersection on path to light
-            Ray ray_to_light(ipos, l, 0.01);
+            Ray ray_to_light(ipos, l.pos, 0.01);
             Intersection i2 = scene.FindIntersect(ray_to_light);
             if(!i2.triangle){ // no intersection found
                 //TODO: use actual normals
@@ -36,9 +36,11 @@ Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
                 float kS = glm::pow(glm::dot(R, V), 30.0f);
                 kD = glm::abs(kD); // This way we ignore face orientation.
                 kS = glm::abs(kS); // This way we ignore face orientation.
-
-                total += mat.diffuse  * kD       ;
-                total += mat.specular * kS * 0.08;
+                float distance = glm::length(ipos - l.pos); // The distance to light
+                float d = distance/l.intensity;
+                float intens_factor = 1.0f/(1.0f + d); // Light intensity falloff function
+                total += intens_factor * l.color * mat.diffuse  * kD       ;
+                total += intens_factor * l.color * mat.specular * kS * 0.08;
             }
         }
 

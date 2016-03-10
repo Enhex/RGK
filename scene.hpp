@@ -12,7 +12,12 @@
 #include <unordered_map>
 
 #include "ray.hpp"
-typedef glm::vec3 Light;
+
+struct Light{
+    glm::vec3 pos;
+    Color color;
+    float intensity;
+};
 
 
 class Scene;
