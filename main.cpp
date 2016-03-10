@@ -10,8 +10,8 @@
 #include "scene.hpp"
 #include "ray.hpp"
 #include "outbuffer.hpp"
-
-typedef glm::vec3 Light;
+#include "config.hpp"
+#include "utils.hpp"
 
 Color trace_ray(const Scene& scene, const Ray& r, std::vector<Light> lights){
     Intersection i = scene.FindIntersect(r);
@@ -111,16 +111,38 @@ void Render(RenderTask task){
     }
 }
 
-int main(){
+int main(int argc, char** argv){
+
+    if(argc < 2){
+        std::cout << "No input file, aborting." << std::endl;
+        return 0;
+    }
+
+    std::string configfile = argv[1];
+
+    Config cfg;
+    try{
+        cfg = Config::CreateFromFile(configfile);
+    }catch(ConfigFileException ex){
+        std::cout << "Failed to load config file: " << ex.what() << std::endl;
+        return 1;
+    }
 
     Assimp::Importer importer;
 
-    const aiScene* scene = importer.ReadFile("../obj/cube3.obj",
+    std::string configdir = Utils::GetDir(configfile);
+    std::string modelfile = configdir + "/" + cfg.model_file;
+    if(!Utils::GetFileExists(modelfile)){
+        std::cout << "Unable to find model file `" << modelfile << "`. " << std::endl;
+        return 1;
+    }
+
+    const aiScene* scene = importer.ReadFile(modelfile,
                                              aiProcessPreset_TargetRealtime_MaxQuality
                       );
 
     if(!scene){
-        std::cerr << "Assimp failed to load scene. " << std::endl;
+        std::cout << "Assimp failed to load scene `" << modelfile << "`. " << std::endl;
         return 1;
     }
 
@@ -132,34 +154,23 @@ int main(){
     s.LoadScene(scene);
     s.Commit();
 
-    unsigned int xres = 1200, yres = 1200;
+    CameraConfig cconfig(cfg.view_point, cfg.look_at, cfg.up_vector);
 
-    glm::vec3 camerapos(2.5, 3.0, -2.0);
-    glm::vec3 lookat(0.0, 1.0, 0.0);
-    glm::vec3 worldup(0.0, 1.0, 0.0);
+    OutBuffer ob(cfg.xres, cfg.yres);
 
-    CameraConfig cconfig(camerapos, lookat, worldup);
-
-    Light light(4.5,6.5,3.0);
-    std::vector<Light> lights = {light};
-
-    unsigned int multisample = 4;
-
-    OutBuffer ob(xres, yres);
-
-    ctpl::thread_pool tpool(4);
+    ctpl::thread_pool tpool(7);
 
     // Split rendering into smaller (100x100) tasks.
-    for(unsigned int yp = 0; yp < yres; yp += 100){
-        for(unsigned int xp = 0; xp < xres; xp += 100){
+    for(unsigned int yp = 0; yp < cfg.yres; yp += 100){
+        for(unsigned int xp = 0; xp < cfg.xres; xp += 100){
             RenderTask task;
-            task.xres = xres; task.yres = yres;
-            task.xrange_start = xp; task.xrange_end = std::min(xres,xp+100);
-            task.yrange_start = yp; task.yrange_end = std::min(yres,yp+100);
+            task.xres = cfg.xres; task.yres = cfg.yres;
+            task.xrange_start = xp; task.xrange_end = std::min(cfg.xres, xp+100);
+            task.yrange_start = yp; task.yrange_end = std::min(cfg.yres, yp+100);
             task.scene = &s;
             task.cconfig = &cconfig;
-            task.lights = &lights;
-            task.multisample = multisample;
+            task.lights = &cfg.lights;
+            task.multisample = cfg.multisample;
             task.output = &ob;
             tpool.push( [task](int){Render(task);} );
         }
@@ -167,8 +178,8 @@ int main(){
 
     tpool.stop(true); // Waits for all remaining threads to complete.
 
-    //ob.WriteToBMP("out.bmp");
-    ob.WriteToPNG("out.png");
+    //ob.WriteToBMP(cfg.output_file);
+    ob.WriteToPNG(cfg.output_file);
 
     return 0;
 }

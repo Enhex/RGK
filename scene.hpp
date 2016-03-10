@@ -12,6 +12,8 @@
 #include <unordered_map>
 
 #include "ray.hpp"
+typedef glm::vec3 Light;
+
 
 class Scene;
 
