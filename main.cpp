@@ -22,8 +22,8 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         Color total(0.0, 0.0, 0.0);
 
         glm::vec3 ipos = r[i.t];
-        glm::vec3 N = glm::normalize(i.triangle->normal());
-        glm::vec3 V = glm::normalize(-r.direction); // incoming direction
+        glm::vec3 N = i.triangle->parent_scene->normals[i.triangle->va];
+        glm::vec3 V = -r.direction; // incoming direction
 
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);
@@ -36,14 +36,14 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                 shadow = i2.triangle;
             }
             if(!shadow){ // no intersection found
-                //TODO: use actual normals
+                //TODO: use interpolated normals
 
                 float distance = glm::length(ipos - l.pos); // The distance to light
                 float d = distance/l.intensity;
                 float intens_factor = 1.0f/(1.0f + d); // Light intensity falloff function
 
 
-                float kD = -glm::dot(N, L);
+                float kD = glm::dot(N, L);
                 kD = glm::max(0.0f, kD);
                 total += intens_factor * l.color * mat.diffuse  * kD       ;
 
@@ -61,7 +61,6 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         // Next ray
         if(depth >= 2 && mat.exponent <= 1.0f){
             glm::vec3 refl = 2.0f * glm::dot(V, N) * N - V;
-            refl = N;
             Ray refl_ray(ipos, ipos + refl, 0.01);
             refl_ray.far = 1000.0f;
             Color reflection = trace_ray(scene, refl_ray, lights, depth-1);

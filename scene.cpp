@@ -15,6 +15,8 @@ void Scene::FreeBuffers(){
     n_triangles = 0;
     if(materials) delete[] materials;
     n_materials = 0;
+    if(normals) delete[] normals;
+    n_normals = 0;
 }
 
 void Scene::LoadScene(const aiScene* scene) const{
@@ -71,6 +73,11 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform) const{
         vertex *= current_transform;
         vertices_buffer.push_back(vertex);
     }
+    for(unsigned int v = 0; v < mesh->mNumVertices; v++){
+        aiVector3D normal = mesh->mNormals[v];
+        // TODO: current transform rotation?
+        normals_buffer.push_back(normal);
+    }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
         if(face.mNumIndices == 3){
@@ -96,10 +103,12 @@ void Scene::Commit(){
     vertices = new glm::vec3[vertices_buffer.size()];
     triangles = new Triangle[triangles_buffer.size()];
     materials = new Material[materials_buffer.size()];
+    normals = new glm::vec3[normals_buffer.size()];
 
     n_vertices = vertices_buffer.size();
     n_triangles = triangles_buffer.size();
     n_materials = materials_buffer.size();
+    n_normals = normals_buffer.size();
 
     // TODO: memcpy
     for(unsigned int i = 0; i < n_vertices; i++)
@@ -111,13 +120,16 @@ void Scene::Commit(){
     for(unsigned int i = 0; i < n_materials; i++){
         materials[i] = materials_buffer[i];
     }
+    for(unsigned int i = 0; i < n_normals; i++)
+        normals[i] = glm::vec3(normals_buffer[i].x, normals_buffer[i].y, normals_buffer[i].z);
 
-    std::cout << "Commited " << n_vertices << " vertices and " << n_triangles <<
+    std::cout << "Commited " << n_vertices << " vertices, " << n_normals << " normals and " << n_triangles <<
         " triangles with " << n_materials << " materials to the scene." << std::endl;
 
     vertices_buffer.clear();
     triangles_buffer.clear();
     materials_buffer.clear();
+    normals_buffer.clear();
 }
 
 void Scene::Dump() const{
@@ -155,7 +167,7 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
 
             // New intersect
             //std::cerr << t << ", at triangle no " << f << std::endl;
-            //std::cerr << "Triangle normal " << tri.normal() << std::endl;
+            //std::cerr << "Triangle normal " << tri.generic_normal() << std::endl;
             // Re-test for debug
             //TestTriangleIntersection(tri, r, t, true);
             if(t < res.t){
@@ -177,7 +189,7 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
 
     const float EPSILON = 0.000001;
 
-    glm::vec3 planeN = tri.normal();
+    glm::vec3 planeN = tri.p.xyz();
 
     double dot = glm::dot(r.direction, planeN);
 

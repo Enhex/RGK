@@ -24,10 +24,10 @@ class Scene;
 
 struct Triangle{
     const Scene* parent_scene;
-    unsigned int va, vb, vc; // Vertex indices
+    unsigned int va, vb, vc; // Vertex and normal indices
     unsigned int mat; // Material index
     glm::vec4 p; // plane
-    glm::vec3 normal() const {return p.xyz();}
+    glm::vec3 generic_normal() const {return p.xyz();}
 };
 
 struct Material{
@@ -62,12 +62,14 @@ public:
 
 
     // TODO: have triangle access these, and keep these fields private
-    glm::vec3*    vertices = nullptr;
+    glm::vec3*     vertices = nullptr;
     unsigned int n_vertices = 0;
     Triangle*      triangles = nullptr;
     unsigned int n_triangles = 0;
     Material*      materials = nullptr;
     unsigned int n_materials = 0;
+    glm::vec3*     normals = nullptr;
+    unsigned int n_normals = 0;
 
 private:
 
@@ -75,6 +77,7 @@ private:
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
     mutable std::vector<Material> materials_buffer;
+    mutable std::vector<aiVector3D> normals_buffer;
 
     void FreeBuffers();
 
