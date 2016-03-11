@@ -3,37 +3,10 @@
 
 #include <assimp/scene.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
-#include <glm/gtx/transform.hpp>
-#include <glm/gtc/matrix_transform.hpp>
+#include "glm.hpp"
 
 #include <iostream>
 
-struct Color{
-    Color() : r(0.0), g(0.0), b(0.0) {}
-    Color(float r, float g, float b) : r(r), g(g), b(b) {}
-    Color(const aiColor3D& c) : r(c.r), g(c.g), b(c.b) {}
-    float r,g,b; // 0 - 1
-    Color  operator* (float q)            const {return Color(q*r, q*g, q*b);}
-    Color  operator* (const Color& other) const {return Color(other.r*r, other.g*g, other.b*b);}
-    Color  operator+ (const Color& o)     const {return Color(r+o.r,g+o.g,b+o.b);}
-    Color& operator+=(const Color& o) {*this = *this + o; return *this;}
-};
-
-inline Color operator*(float q, const Color& c){
-    return Color(q*c.r, q*c.g, q*c.b);
-}
-
-//TODO: Move this to utils
-inline std::ostream& operator<<(std::ostream& stream, const glm::vec3& v){
-    stream << "[" << v.x << ", " << v.y << ", " << v.z << "]";
-    return stream;
-}
-inline std::ostream& operator<<(std::ostream& stream, const Color& c){
-    stream << "{" << c.r << ", " << c.g << ", " << c.b << "}";
-    return stream;
-}
 
 class Ray{
 public:

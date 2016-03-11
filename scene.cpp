@@ -1,4 +1,5 @@
 #include "scene.hpp"
+#include "utils.hpp"
 
 #include <iostream>
 #include <limits>

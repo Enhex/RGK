@@ -18,13 +18,13 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
     Intersection i = scene.FindIntersect(r);
 
     if(i.triangle){
-        const Material& mat = i.triangle->parent_scene->materials[i.triangle->mat];
+        const Material& mat = i.triangle->GetMaterial();
         Color total(0.0, 0.0, 0.0);
 
         glm::vec3 ipos = r[i.t];
-        glm::vec3 N = i.a * i.triangle->parent_scene->normals[i.triangle->va] +
-                      i.b * i.triangle->parent_scene->normals[i.triangle->vb] +
-                      i.c * i.triangle->parent_scene->normals[i.triangle->vc];
+        glm::vec3 N = i.Interpolate(i.triangle->GetNormalA(),
+                                    i.triangle->GetNormalB(),
+                                    i.triangle->GetNormalC());
         glm::vec3 V = -r.direction; // incoming direction
 
         for(const Light& l : lights){

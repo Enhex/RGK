@@ -3,45 +3,14 @@
 
 #include <assimp/scene.h>
 
-#define GLM_FORCE_RADIANS
-#define GLM_SWIZZLE
-#include <glm/gtx/transform.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 #include <vector>
 #include <unordered_map>
 
+#include "glm.hpp"
+
 #include "ray.hpp"
-
-struct Light{
-    glm::vec3 pos;
-    Color color;
-    float intensity;
-};
-
-
-class Scene;
-
-struct Triangle{
-    const Scene* parent_scene;
-    unsigned int va, vb, vc; // Vertex and normal indices
-    unsigned int mat; // Material index
-    glm::vec4 p; // plane
-    glm::vec3 generic_normal() const {return p.xyz();}
-};
-
-struct Material{
-    const Scene* parent_scene;
-    Color diffuse;
-    Color specular;
-    float exponent;
-};
-
-struct Intersection{
-    const Triangle* triangle = nullptr;
-    float t;
-    float a,b,c;
-};
+#include "primitives.hpp"
+#include "utils.hpp"
 
 class Scene{
 public:
@@ -84,5 +53,6 @@ private:
     bool TestTriangleIntersection(const Triangle& tri,const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
     static void CalculateTrianglePlane(Triangle& t) __attribute__((hot));
 };
+
 
 #endif //__SCENE_HPP__
