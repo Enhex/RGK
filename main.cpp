@@ -22,7 +22,9 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         Color total(0.0, 0.0, 0.0);
 
         glm::vec3 ipos = r[i.t];
-        glm::vec3 N = i.triangle->parent_scene->normals[i.triangle->va];
+        glm::vec3 N = i.a * i.triangle->parent_scene->normals[i.triangle->va] +
+                      i.b * i.triangle->parent_scene->normals[i.triangle->vb] +
+                      i.c * i.triangle->parent_scene->normals[i.triangle->vc];
         glm::vec3 V = -r.direction; // incoming direction
 
         for(const Light& l : lights){

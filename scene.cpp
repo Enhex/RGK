@@ -161,8 +161,8 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
 
     for(unsigned int f = 0; f < n_triangles; f++){
         const Triangle& tri = triangles[f];
-        float t;
-        if(TestTriangleIntersection(tri, r, t)){
+        float t, a, b;
+        if(TestTriangleIntersection(tri, r, t, a, b)){
             if(t <= r.near || t >= r.far) continue;
 
             // New intersect
@@ -174,6 +174,11 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
                 // New closest intersect
                 res.triangle = &tri;
                 res.t = t;
+                float c = 1.0f - a - b;
+
+                res.a = c;
+                res.b = a;
+                res.c = b;
             }
         }
     }
@@ -182,7 +187,7 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
     return res;
 }
 
-bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray& __restrict__ r, /*out*/ float& t, bool debug) const{
+bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray& __restrict__ r, /*out*/ float& t, float& a, float& b, bool debug) const{
     // Currently using Badoulel's algorithm
 
     // This implementation is heavily inspired by the example provided by ANL
@@ -261,6 +266,9 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
 
     if (alpha < 0 || (alpha + beta) > 1.0)
         return false;
+
+    a = alpha;
+    b = beta;
 
     return true;
 
