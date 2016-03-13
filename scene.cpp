@@ -4,6 +4,7 @@
 #include <iostream>
 #include <limits>
 #include <cmath>
+#include <stack>
 
 Scene::~Scene(){
     FreeBuffers();
@@ -18,6 +19,11 @@ void Scene::FreeBuffers(){
     n_materials = 0;
     if(normals) delete[] normals;
     n_normals = 0;
+
+    if(root){
+        root->FreeRecursivelly();
+        delete root;
+    }
 }
 
 void Scene::LoadScene(const aiScene* scene) const{
@@ -163,28 +169,27 @@ void Scene::Commit(){
 
     std::cout << "Total avg cost with no kd-tree: " << ISECT_COST * n_triangles << std::endl;
 
-    UncompressedKdNode root;
-    root.parent_scene = this;
-    for(unsigned int i = 0; i < n_triangles; i++) root.triangle_indices.push_back(i);
-    root.xBB = xBB;
-    root.yBB = yBB;
-    root.zBB = zBB;
+    root = new UncompressedKdNode;
+    root->parent_scene = this;
+    for(unsigned int i = 0; i < n_triangles; i++) root->triangle_indices.push_back(i);
+    root->xBB = xBB;
+    root->yBB = yBB;
+    root->zBB = zBB;
 
     // Prepare kd-tree
     int l = std::log2(n_triangles) + 8;
-    //l = 4;
+    //l = 1;
     std::cout << "Building kD-tree with max depth " << l << std::endl;
-    root.Subdivide(l);
+    root->Subdivide(l);
 
-    auto totals = root.GetTotals();
+    auto totals = root->GetTotals();
     std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
     std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
     // TODO: Compress
 
 
-    std::cout << "Total avg cost with kd-tree: " << root.GetCost() << std::endl;
+    std::cout << "Total avg cost with kd-tree: " << root->GetCost() << std::endl;
 
-    root.FreeRecursivelly();
 }
 
 void Scene::Dump() const{
@@ -474,28 +479,9 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     ch0->depth = depth+1;
     ch1->depth = depth+1;
 
-    /*
-    std::vector<int> triangles_left;
-    dups = 0;
-    for(unsigned int i = 0; i < triangle_indices.size(); i++){
-        // Check bounds for this triangle
-        float e0 = all_events[2*triangle_indices[i] + 0];
-        float e1 = all_events[2*triangle_indices[i] + 1];
-        if(e1 < split){
-            ch0->triangle_indices.push_back(i);
-        }else if(e0 > split){
-            ch1->triangle_indices.push_back(i);
-        }else{
-            // Duplicating the triangle as it is, apparently, in both children nodes.
-            ch0->triangle_indices.push_back(i);
-            ch1->triangle_indices.push_back(i);
-            dups++;
-            // Leave this triangle in this node.
-            //triangles_left.push_back(i);
+    split_axis = axis;
+    split_pos = best_pos;
 
-        }
-    }
-    */
     for (unsigned int i = 0; i < (unsigned int)best_offset; ++i)
         if (events[i].type == BBEvent::BEGIN)
             ch0->triangle_indices.push_back(events[i].triangleID);
@@ -557,4 +543,132 @@ float UncompressedKdNode::GetCost() const{
     }else{
         return TRAV_COST  + prob0 * ch0->GetCost() + prob1 * ch1->GetCost();
     }
+}
+
+Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const{
+    //if(debug) std::cerr << "------ Test for intersection " << r.origin << " " << r.direction << std::endl;
+    (void)debug;
+
+    Intersection res;
+    res.triangle = nullptr;
+    res.t = std::numeric_limits<float>::infinity();
+
+    // First, check whether the ray intersects with our BB at all.
+
+    const std::pair<float,float>* bb[3] = {&xBB,&yBB,&zBB};
+
+    // Inspired by pbrt's bbox intersection
+    float t0 = r.near, t1 = r.far;
+    for (int i = 0; i < 3; ++i) {
+        float invRayDir = 1.f / r.direction[i];
+        float tNear = ((*bb[i]).first  - r.origin[i]) * invRayDir;
+        float tFar  = ((*bb[i]).second - r.origin[i]) * invRayDir;
+        if (tNear > tFar) std::swap(tNear, tFar);
+        t0 = tNear > t0 ? tNear : t0;
+        t1 = tFar  < t1 ? tFar  : t1;
+        if (t0 > t1) return res; // No intersection.
+    }
+
+    struct NodeToDo{
+        const UncompressedKdNode* node;
+        float tmin, tmax;
+    };
+
+    glm::vec3 invDir(1.f/r.direction.x, 1.f/r.direction.y, 1.f/r.direction.z);
+
+    std::stack<NodeToDo> todo;
+    todo.push(NodeToDo{root, t0, t1});
+
+    //if(debug) std::cerr << "Is in the box. " << std::endl;
+
+    while(!todo.empty()){
+        const UncompressedKdNode* node = todo.top().node;
+        float tmin = todo.top().tmin;
+        float tmax = todo.top().tmax;
+        todo.pop();
+
+        // Abort if we got too far.
+        if(r.far < tmin) break;
+
+        if(node->type == 0){ // leaf node
+            //if(debug) std::cerr << " -- Testing a leaf node " << tmin << " " << tmax << std::endl;
+
+            bool hit = false;
+            //int hit_i = -1;
+            // Search for intersections with triangles inside this node
+            for(const int& i : node->triangle_indices){
+                // For each triangle ...
+                const Triangle& tri = triangles[i];
+                float t, a, b;
+                //  ... test for an intersection
+                if(TestTriangleIntersection(tri, r, t, a, b)){
+                    if(t < tmin || t > tmax + 0.01f){
+                        //if(debug) std::cout << "Skipping t " << t << " at triangle " << i << std::endl;
+                        continue;
+                    }
+
+                    // New intersect
+
+                    // Re-test for debug
+                    //TestTriangleIntersection(tri, r, t, true);
+                    //if(debug) std::cerr << "Good t " << t << std::endl;
+                    if(t < res.t){
+                        // New closest intersect!
+                        res.triangle = &tri;
+                        res.t = t;
+
+                        float c = 1.0f - a - b;
+                        res.a = c;
+                        res.b = a;
+                        res.c = b;
+
+                        hit = true;
+                        //hit_i = i;
+                    }
+                }
+            }
+
+            if(hit){
+                //if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
+                return res;
+            }else{
+                //if(debug) std::cerr << "No hit" << std::endl;
+            }
+
+        }else{ // internal node
+            //if(debug) std::cerr << " -- Testing an internal node " << tmin << " " << tmax << std::endl;
+
+            // Compute parametric distance along ray to split plane
+            int axis = node->split_axis;
+            float tplane = (node->split_pos - r.origin[axis]) * invDir[axis];
+
+            //if(debug) std::cerr << "split axis: " << axis <<  " tplane: " << tplane << std::endl;
+
+            // Get node children pointers for ray
+            const UncompressedKdNode *firstChild, *secondChild;
+            int belowFirst = (r.origin[axis] <  node->split_pos) ||
+                             (r.origin[axis] == node->split_pos && r.direction[axis] <= 0);
+            if (belowFirst) {
+                firstChild = node->ch0;
+                secondChild = node->ch1;
+            }else{
+                firstChild = node->ch1;
+                secondChild = node->ch0;
+            }
+
+            // Advance to next child node, possibly enqueue other child
+            if (tplane > tmax || tplane <= 0)
+                todo.push(NodeToDo{firstChild, tmin, tmax});
+            else if (tplane < tmin)
+                todo.push(NodeToDo{secondChild, tmin, tmax});
+            else {
+                // Enqueue _secondChild_ in todo list
+                todo.push(NodeToDo{secondChild, tplane, tmax});
+                todo.push(NodeToDo{firstChild,  tmin, tplane});
+            }
+        }
+    }
+
+    // No hit found at all.
+    return res;
 }

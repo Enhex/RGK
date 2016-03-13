@@ -14,10 +14,15 @@
 #include "config.hpp"
 #include "utils.hpp"
 
-Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, int depth){
-    Intersection i = scene.FindIntersect(r);
+static bool debug_trace = false;
+static unsigned int debug_x, debug_y;
+
+Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, int depth, bool debug = false){
+    if(debug) std::cerr << "Debugging a ray. " << std::endl;
+    Intersection i = scene.FindIntersectKd(r, debug);
 
     if(i.triangle){
+        if(debug) std::cerr << "Intersection found. " << std::endl;
         const Material& mat = i.triangle->GetMaterial();
         Color total(0.0, 0.0, 0.0);
 
@@ -27,6 +32,8 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                                     i.triangle->GetNormalC());
         glm::vec3 V = -r.direction; // incoming direction
 
+        // std::cerr << "Was hit. color is " << mat.diffuse << std::endl;
+
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);
             bool shadow;
@@ -34,7 +41,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             else{
                 // if no intersection on path to light
                 Ray ray_to_light(ipos, l.pos, 0.01);
-                Intersection i2 = scene.FindIntersect(ray_to_light);
+                Intersection i2 = scene.FindIntersectKd(ray_to_light);
                 shadow = i2.triangle;
             }
             if(!shadow){ // no intersection found
@@ -68,7 +75,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             Color reflection = trace_ray(scene, refl_ray, lights, depth-1);
             total = mat.exponent * reflection + (1.0f - mat.exponent) * total;
         }
-
+        if(debug) std::cout << "Total: " << total << std::endl;
         return total;
     }else{
         // Black background for void spaces
@@ -125,13 +132,15 @@ void Render(RenderTask task){
     unsigned int m = task.multisample;
     for(unsigned int y = task.yrange_start; y < task.yrange_end; y++){
         for(unsigned int x = task.xrange_start; x < task.xrange_end; x++){
+            bool d = false;
+            if(debug_trace && x == debug_x && y == debug_y) d = true;
             Color pixel_total(0.0, 0.0, 0.0);
             float factor = 1.0/(m*m);
             for(unsigned int my = 0; my < m; my++){
                 for(unsigned int mx = 0; mx < m; mx++){
                     glm::vec3 p = task.cconfig->GetViewScreenPoint(x*m + mx, y*m + my, task.xres*m, task.yres*m);
                     Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
-                    pixel_total += trace_ray(*task.scene, r, *task.lights, task.recursion_level) * factor;
+                    pixel_total += trace_ray(*task.scene, r, *task.lights, task.recursion_level, d) * factor;
                 }
             }
             task.output->SetPixel(x, y, pixel_total);
@@ -144,6 +153,13 @@ int main(int argc, char** argv){
     if(argc < 2){
         std::cout << "No input file, aborting." << std::endl;
         return 0;
+    }
+
+    if(argc >= 4){
+        debug_trace = true;
+        debug_x = std::stoi(argv[2]);
+        debug_y = std::stoi(argv[3]);
+        std::cout << "Debug mode enabled, will trace pixel " << debug_x << " " << debug_y << std::endl;
     }
 
     std::string configfile = argv[1];

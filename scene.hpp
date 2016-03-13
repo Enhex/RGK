@@ -12,6 +12,8 @@
 #include "primitives.hpp"
 #include "utils.hpp"
 
+struct UncompressedKdNode;
+
 class Scene{
 public:
     Scene() {};
@@ -28,6 +30,7 @@ public:
     void Dump() const;
 
     Intersection FindIntersect(const Ray& r) const;
+    Intersection FindIntersectKd(const Ray& r, bool debug = false) const;
 
 
     // TODO: have triangle access these, and keep these fields private
@@ -52,6 +55,7 @@ public:
 
 private:
 
+    UncompressedKdNode* root = nullptr;
 
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
@@ -91,6 +95,9 @@ struct UncompressedKdNode{
     void FreeRecursivelly();
 
     float GetCost() const;
+
+    float split_axis;
+    float split_pos;
 };
 
 #endif //__SCENE_HPP__
