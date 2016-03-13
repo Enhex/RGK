@@ -65,6 +65,10 @@ private:
 };
 
 
+#define EMPTY_BONUS 0.5f
+#define ISECT_COST 80.0f
+#define TRAV_COST 2.0f
+
 struct UncompressedKdNode{
     const Scene* parent_scene;
     unsigned int type = 0;
@@ -78,11 +82,15 @@ struct UncompressedKdNode{
     UncompressedKdNode* ch0 = nullptr;
     UncompressedKdNode* ch1 = nullptr;
 
+    float prob0, prob1;
+
     int dups = 0;
     // Total triangles / leaf nodes / total nodes / total dups
     std::tuple<int, int, int, int> GetTotals() const;
 
     void FreeRecursivelly();
+
+    float GetCost() const;
 };
 
 #endif //__SCENE_HPP__

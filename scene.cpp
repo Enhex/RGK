@@ -161,6 +161,8 @@ void Scene::Commit(){
                                          "[" << yBB.first << ", " << yBB.second << "], " <<
                                          "[" << zBB.first << ", " << zBB.second << "]."  << std::endl;
 
+    std::cout << "Total avg cost with no kd-tree: " << ISECT_COST * n_triangles << std::endl;
+
     UncompressedKdNode root;
     root.parent_scene = this;
     for(unsigned int i = 0; i < n_triangles; i++) root.triangle_indices.push_back(i);
@@ -169,7 +171,7 @@ void Scene::Commit(){
     root.zBB = zBB;
 
     // Prepare kd-tree
-    int l = std::log2(n_triangles) + 1;
+    int l = std::log2(n_triangles) + 8;
     //l = 4;
     std::cout << "Building kD-tree with max depth " << l << std::endl;
     root.Subdivide(l);
@@ -178,6 +180,9 @@ void Scene::Commit(){
     std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
     std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
     // TODO: Compress
+
+
+    std::cout << "Total avg cost with kd-tree: " << root.GetCost() << std::endl;
 
     root.FreeRecursivelly();
 }
@@ -339,7 +344,6 @@ void Scene::CalculateTrianglePlane(Triangle& t){
     t.p = glm::vec4(n.x, n.y, n.z, d);
 }
 
-
 void UncompressedKdNode::Subdivide(unsigned int max_depth){
     if(depth >= max_depth) return; // Do not subdivide further.
 
@@ -349,20 +353,38 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     std::cerr << "--- Subdividing " << n << " faces" << std::endl;
 
     // Choose the axis for subdivision.
+    // TODO: Do it faster
     float sizes[3] = {xBB.second - xBB.first, yBB.second - yBB.first, zBB.second - zBB.first};
     unsigned int axis = std::max_element(sizes, sizes+3) - sizes;
 
     std::cerr << "Using axis " << axis << std::endl;
     const std::vector<float>* evch[3] = {&parent_scene->xevents, &parent_scene->yevents, &parent_scene->zevents};
-    const std::vector<float>& events = *evch[axis];
+    const std::vector<float>& all_events = *evch[axis];
 
-    std::vector<float> selected_events(2*n);
+    // Prepare BB events.
+    struct BBEvent{
+        float pos;
+        int triangleID;
+        enum {BEGIN, END} type;
+    };
+    std::vector<BBEvent> events(2*n);
     for(unsigned int i = 0; i < n; i++){
         int t = triangle_indices[i];
-        selected_events[2*i + 0] = events[2*t + 0];
-        selected_events[2*i + 1] = events[2*t + 1];
+        //std::cerr << "Adding events for triangle no " << t << std::endl;
+        events[2*i + 0] = BBEvent{ all_events[2*t + 0], t, BBEvent::BEGIN };
+        events[2*i + 1] = BBEvent{ all_events[2*t + 1], t, BBEvent::END   };
     }
+    std::sort(events.begin(), events.end(), [](const BBEvent& a, const BBEvent& b){
+            if(a.pos == b.pos) return a.type < b.type;
+            return a.pos < b.pos;
+        });
+    //for(const auto& bbe : events){
+    //    std::cerr << bbe.pos << " (" << bbe.triangleID << ") ";
+    //}
+    //std::cerr << std::endl;
 
+    // Now, find the splitting plane
+    /*.
     float split = 0.0f;
     unsigned int nth = n-1;
     std::nth_element(selected_events.begin(), selected_events.begin() + nth, selected_events.end());
@@ -374,7 +396,73 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
         float f2 = *std::min_element(selected_events.begin() + nth + 1, selected_events.end());
         split = (f1+f2)/2.0f;
     }
-    std::cerr << "Splitting at " << split << std::endl;
+    */
+
+
+    // SAH heuristics. Inspired by the pbrt book.
+    const std::pair<float,float>* axbds[3] = {&xBB,&yBB,&zBB};
+    const std::pair<float,float>& axis_bounds = *axbds[axis];
+    const float d[3] = {xBB.second - xBB.first, yBB.second - yBB.first, zBB.second - zBB.first};
+
+    int best_offset = -1;
+    float best_cost = std::numeric_limits<float>::infinity();
+    float best_pos = std::numeric_limits<float>::infinity();
+    float nosplit_cost = ISECT_COST * n;
+    unsigned int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
+    float invTotalSA = 1.f / (2.f * (d[0]*d[1] + d[0]*d[2] + d[1]*d[2]));
+    int before = 0, after = n;
+    for(unsigned int i = 0; i < 2*n; i++){
+        if(events[i].type == BBEvent::END) after--;
+        float pos = events[i].pos;
+        // Ignore splits at positions outside current bounding box
+        if(pos > axis_bounds.first && pos < axis_bounds.second){
+            // Hopefully CSE cleans this up
+            float belowSA = 2 * (d[otherAxis0]             * d[otherAxis1] +
+                                 (pos - axis_bounds.first) * d[otherAxis0] +
+                                 (pos - axis_bounds.first) * d[otherAxis1]
+                );
+            float aboveSA = 2 * (d[otherAxis0]              * d[otherAxis1] +
+                                 (axis_bounds.second - pos) * d[otherAxis0] +
+                                 (axis_bounds.second - pos) * d[otherAxis1]
+                );
+            float p_before = belowSA * invTotalSA;
+            float p_after = aboveSA * invTotalSA;
+            float eb = (before == 0 || after == 0) ? EMPTY_BONUS : 0.f;
+            float cost = TRAV_COST +
+                         ISECT_COST * (1.f - eb) * (p_before * before + p_after * after);
+
+            //std::cerr << "Potential split at " << pos << " cost " << cost << std::endl;
+            //std::cerr << "Before " << before << " After " << after << std::endl;
+            if (cost < best_cost)  {
+                best_cost = cost;
+                best_offset = i;
+                best_pos = pos;
+                prob0 = p_before;
+                prob1 = p_after;
+            }
+        }else{
+            //std::cerr << "Ignoring split at " << pos << std::endl;
+            //std::cerr << xBB.first << " " << xBB.second << std::endl;
+        }
+        if(events[i].type == BBEvent::BEGIN) before++;
+    }
+
+    // TODO: If no reasonable split was found at all, try a different axis.
+    // TODO: Allow some bad refines, just not too much recursivelly.
+    if(best_offset == -1 ||        // No suitable split position found at all.
+       best_cost > nosplit_cost || // It is cheaper to not split at all
+       false){
+        std::cerr << "Not splitting, best cost = " << best_cost << ", nosplit cost = " << nosplit_cost << std::endl;
+        return;
+    }
+
+    // Note: It is much better to split at a sorted event position
+    // rather than a splitting plane position.  This is because many
+    // begins/ends may have the same coordinate (in tested axis). The
+    // SAH chooses how to split optimally them even though they are at
+    // the same position.
+
+    std::cerr << "Splitting at " << best_pos << " ( " << best_offset <<  " ) " <<std::endl;
 
     // Toggle node type
     type = 1;
@@ -386,12 +474,13 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     ch0->depth = depth+1;
     ch1->depth = depth+1;
 
+    /*
     std::vector<int> triangles_left;
     dups = 0;
     for(unsigned int i = 0; i < triangle_indices.size(); i++){
         // Check bounds for this triangle
-        float e0 = events[2*i + 0];
-        float e1 = events[2*i + 1];
+        float e0 = all_events[2*triangle_indices[i] + 0];
+        float e1 = all_events[2*triangle_indices[i] + 1];
         if(e1 < split){
             ch0->triangle_indices.push_back(i);
         }else if(e0 > split){
@@ -401,23 +490,32 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
             ch0->triangle_indices.push_back(i);
             ch1->triangle_indices.push_back(i);
             dups++;
-            /*
             // Leave this triangle in this node.
-            triangles_left.push_back(i);
-            */
+            //triangles_left.push_back(i);
+
         }
     }
+    */
+    for (unsigned int i = 0; i < (unsigned int)best_offset; ++i)
+        if (events[i].type == BBEvent::BEGIN)
+            ch0->triangle_indices.push_back(events[i].triangleID);
+    for (unsigned int i = best_offset + 1; i < 2*n; ++i)
+        if (events[i].type == BBEvent::END)
+            ch1->triangle_indices.push_back(events[i].triangleID);
+
+    std::cerr << "After split " << ch0->triangle_indices.size() << " " << ch1->triangle_indices.size() << std::endl;
+
     // Remove triangles from this node
     triangle_indices = std::vector<int>(triangle_indices);
     //triangle_indices = std::move(triangles_left);
 
     // Prepare new BBs for children
-    ch0->xBB = (axis == 0) ? std::make_pair(xBB.first,split) : xBB;
-    ch0->yBB = (axis == 1) ? std::make_pair(yBB.first,split) : yBB;
-    ch0->zBB = (axis == 2) ? std::make_pair(zBB.first,split) : zBB;
-    ch1->xBB = (axis == 0) ? std::make_pair(split,xBB.second) : xBB;
-    ch1->yBB = (axis == 1) ? std::make_pair(split,yBB.second) : yBB;
-    ch1->zBB = (axis == 2) ? std::make_pair(split,zBB.second) : zBB;
+    ch0->xBB = (axis == 0) ? std::make_pair(xBB.first,best_pos) : xBB;
+    ch0->yBB = (axis == 1) ? std::make_pair(yBB.first,best_pos) : yBB;
+    ch0->zBB = (axis == 2) ? std::make_pair(zBB.first,best_pos) : zBB;
+    ch1->xBB = (axis == 0) ? std::make_pair(best_pos,xBB.second) : xBB;
+    ch1->yBB = (axis == 1) ? std::make_pair(best_pos,yBB.second) : yBB;
+    ch1->zBB = (axis == 2) ? std::make_pair(best_pos,zBB.second) : zBB;
 
     // If too many duplicates, do not subdivide further.
     if(dups >= n*1.0) {
@@ -450,5 +548,13 @@ std::tuple<int, int, int, int> UncompressedKdNode::GetTotals() const{
         int total_nodes = std::get<2>(p0) + std::get<2>(p1) + 1;
         int total_dups = std::get<3>(p0) + std::get<3>(p1) + dups;
         return std::make_tuple(total_triangles, total_leafs, total_nodes, total_dups);
+    }
+}
+
+float UncompressedKdNode::GetCost() const{
+    if(type == 0){ // leaf
+        return ISECT_COST * triangle_indices.size();
+    }else{
+        return TRAV_COST  + prob0 * ch0->GetCost() + prob1 * ch1->GetCost();
     }
 }
