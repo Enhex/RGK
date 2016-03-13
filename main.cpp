@@ -67,6 +67,11 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             }
         }
 
+        // Special case for when there is no light
+        if(lights.size() == 0){
+            total += mat.diffuse;
+        }
+
         // Next ray
         if(depth >= 2 && mat.exponent <= 1.0f){
             glm::vec3 refl = 2.0f * glm::dot(V, N) * N - V;
