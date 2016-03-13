@@ -75,7 +75,7 @@ private:
 
 struct UncompressedKdNode{
     const Scene* parent_scene;
-    unsigned int type = 0;
+    enum {LEAF, INTERNAL} type = LEAF;
     unsigned int depth = 0;
     std::pair<float,float> xBB;
     std::pair<float,float> yBB;

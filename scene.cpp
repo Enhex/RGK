@@ -185,8 +185,8 @@ void Scene::Commit(){
     auto totals = root->GetTotals();
     std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
     std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
-    // TODO: Compress
 
+    // TODO: Compress the tree
 
     std::cout << "Total avg cost with kd-tree: " << root->GetCost() << std::endl;
 
@@ -261,7 +261,7 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
     if(debug) std::cout << "dot : " << dot << std::endl;
 
     /* is ray parallel to plane? */
-    if (dot < EPSILON && dot > -EPSILON)		/* or use culling check */
+    if (dot < EPSILON && dot > -EPSILON)
         return false;
 
     /* find distance to plane and intersection point */
@@ -272,14 +272,12 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
     /* find largest dim*/
     int i1 = 0, i2 = 1;
     glm::vec3 pq = glm::abs(planeN);
-    if(pq.x >= pq.y && pq.x >= pq.z){
+    if(pq.x > pq.y && pq.x > pq.z){
         i1 = 1; i2 = 2;
-    }else if(pq.y >= pq.x && pq.y >= pq.z){
+    }else if(pq.y > pq.z){
         i1 = 0; i2 = 2;
-    }else if(pq.z >= pq.x && pq.z >= pq.y){
-        i1 = 0; i2 = 1;
     }else{
-        std::cerr << "NO LARGEST DIM this should not happen" << std::endl;
+        i1 = 0; i2 = 1;
     }
 
     if(debug) std::cout << i1 << "/" << i2 << " ";
@@ -355,14 +353,14 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     unsigned int n = triangle_indices.size();
     if(n < 2) return; // Do not subdivide further.
 
-    std::cerr << "--- Subdividing " << n << " faces" << std::endl;
+    //std::cerr << "--- Subdividing " << n << " faces" << std::endl;
 
     // Choose the axis for subdivision.
     // TODO: Do it faster
     float sizes[3] = {xBB.second - xBB.first, yBB.second - yBB.first, zBB.second - zBB.first};
     unsigned int axis = std::max_element(sizes, sizes+3) - sizes;
 
-    std::cerr << "Using axis " << axis << std::endl;
+    //std::cerr << "Using axis " << axis << std::endl;
     const std::vector<float>* evch[3] = {&parent_scene->xevents, &parent_scene->yevents, &parent_scene->zevents};
     const std::vector<float>& all_events = *evch[axis];
 
@@ -383,61 +381,41 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
             if(a.pos == b.pos) return a.type < b.type;
             return a.pos < b.pos;
         });
-    //for(const auto& bbe : events){
-    //    std::cerr << bbe.pos << " (" << bbe.triangleID << ") ";
-    //}
-    //std::cerr << std::endl;
-
-    // Now, find the splitting plane
-    /*.
-    float split = 0.0f;
-    unsigned int nth = n-1;
-    std::nth_element(selected_events.begin(), selected_events.begin() + nth, selected_events.end());
-    if(n % 2 == 1){
-        split = selected_events[nth];
-    }else{
-        // Find the lowest element in the upper half.
-        float f1 = selected_events[nth];
-        float f2 = *std::min_element(selected_events.begin() + nth + 1, selected_events.end());
-        split = (f1+f2)/2.0f;
-    }
-    */
 
 
-    // SAH heuristics. Inspired by the pbrt book.
+    // SAH, inspired by the pbrt book.
     const std::pair<float,float>* axbds[3] = {&xBB,&yBB,&zBB};
     const std::pair<float,float>& axis_bounds = *axbds[axis];
-    const float d[3] = {xBB.second - xBB.first, yBB.second - yBB.first, zBB.second - zBB.first};
+    const float BBsize[3] = {xBB.second - xBB.first, yBB.second - yBB.first, zBB.second - zBB.first};
 
     int best_offset = -1;
     float best_cost = std::numeric_limits<float>::infinity();
-    float best_pos = std::numeric_limits<float>::infinity();
-    float nosplit_cost = ISECT_COST * n;
-    unsigned int otherAxis0 = (axis + 1) % 3, otherAxis1 = (axis + 2) % 3;
-    float invTotalSA = 1.f / (2.f * (d[0]*d[1] + d[0]*d[2] + d[1]*d[2]));
-    int before = 0, after = n;
+    float best_pos  = std::numeric_limits<float>::infinity();
+    float nosplit_cost = ISECT_COST * n; // The estimated traversal costs of this node if we choose not to split it
+    unsigned int axis2 = (axis + 1) % 3, axis3 = (axis + 2) % 3;
+    float invTotalSA = 1.f / (2.f * (BBsize[0]*BBsize[1] + BBsize[0]*BBsize[2] + BBsize[1]*BBsize[2]));
+    int n_before = 0, n_after = n;
     for(unsigned int i = 0; i < 2*n; i++){
-        if(events[i].type == BBEvent::END) after--;
+        if(events[i].type == BBEvent::END)
+            n_after--;
         float pos = events[i].pos;
         // Ignore splits at positions outside current bounding box
         if(pos > axis_bounds.first && pos < axis_bounds.second){
             // Hopefully CSE cleans this up
-            float belowSA = 2 * (d[otherAxis0]             * d[otherAxis1] +
-                                 (pos - axis_bounds.first) * d[otherAxis0] +
-                                 (pos - axis_bounds.first) * d[otherAxis1]
-                );
-            float aboveSA = 2 * (d[otherAxis0]              * d[otherAxis1] +
-                                 (axis_bounds.second - pos) * d[otherAxis0] +
-                                 (axis_bounds.second - pos) * d[otherAxis1]
-                );
-            float p_before = belowSA * invTotalSA;
-            float p_after = aboveSA * invTotalSA;
-            float eb = (before == 0 || after == 0) ? EMPTY_BONUS : 0.f;
+            float below_surface_area = 2 * (BBsize[axis2]             * BBsize[axis3] +
+                                            (pos - axis_bounds.first) * BBsize[axis2] +
+                                            (pos - axis_bounds.first) * BBsize[axis3]
+                                            );
+            float above_surface_area = 2 * (BBsize[axis2]              * BBsize[axis3] +
+                                            (axis_bounds.second - pos) * BBsize[axis2] +
+                                            (axis_bounds.second - pos) * BBsize[axis3]
+                                            );
+            float p_before = below_surface_area * invTotalSA;
+            float p_after  = above_surface_area * invTotalSA;
+            float bonus = (n_before == 0 || n_after == 0) ? EMPTY_BONUS : 0.f;
             float cost = TRAV_COST +
-                         ISECT_COST * (1.f - eb) * (p_before * before + p_after * after);
+                         ISECT_COST * (1.f - bonus) * (p_before * n_before + p_after * n_after);
 
-            //std::cerr << "Potential split at " << pos << " cost " << cost << std::endl;
-            //std::cerr << "Before " << before << " After " << after << std::endl;
             if (cost < best_cost)  {
                 best_cost = cost;
                 best_offset = i;
@@ -445,11 +423,9 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
                 prob0 = p_before;
                 prob1 = p_after;
             }
-        }else{
-            //std::cerr << "Ignoring split at " << pos << std::endl;
-            //std::cerr << xBB.first << " " << xBB.second << std::endl;
         }
-        if(events[i].type == BBEvent::BEGIN) before++;
+        if(events[i].type == BBEvent::BEGIN)
+            n_before++;
     }
 
     // TODO: If no reasonable split was found at all, try a different axis.
@@ -457,7 +433,7 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     if(best_offset == -1 ||        // No suitable split position found at all.
        best_cost > nosplit_cost || // It is cheaper to not split at all
        false){
-        std::cerr << "Not splitting, best cost = " << best_cost << ", nosplit cost = " << nosplit_cost << std::endl;
+        //std::cerr << "Not splitting, best cost = " << best_cost << ", nosplit cost = " << nosplit_cost << std::endl;
         return;
     }
 
@@ -467,10 +443,10 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     // SAH chooses how to split optimally them even though they are at
     // the same position.
 
-    std::cerr << "Splitting at " << best_pos << " ( " << best_offset <<  " ) " <<std::endl;
+    //std::cerr << "Splitting at " << best_pos << " ( " << best_offset <<  " ) " <<std::endl;
 
     // Toggle node type
-    type = 1;
+    type = UncompressedKdNode::INTERNAL;
 
     ch0 = new UncompressedKdNode();
     ch1 = new UncompressedKdNode();
@@ -489,11 +465,10 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
         if (events[i].type == BBEvent::END)
             ch1->triangle_indices.push_back(events[i].triangleID);
 
-    std::cerr << "After split " << ch0->triangle_indices.size() << " " << ch1->triangle_indices.size() << std::endl;
+    //std::cerr << "After split " << ch0->triangle_indices.size() << " " << ch1->triangle_indices.size() << std::endl;
 
     // Remove triangles from this node
     triangle_indices = std::vector<int>(triangle_indices);
-    //triangle_indices = std::move(triangles_left);
 
     // Prepare new BBs for children
     ch0->xBB = (axis == 0) ? std::make_pair(xBB.first,best_pos) : xBB;
@@ -502,12 +477,6 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     ch1->xBB = (axis == 0) ? std::make_pair(best_pos,xBB.second) : xBB;
     ch1->yBB = (axis == 1) ? std::make_pair(best_pos,yBB.second) : yBB;
     ch1->zBB = (axis == 2) ? std::make_pair(best_pos,zBB.second) : zBB;
-
-    // If too many duplicates, do not subdivide further.
-    if(dups >= n*1.0) {
-        std::cerr << "Duplicates : " << dups << ", total to divide: " << n << ", giving up. " << std::endl;
-        return;
-    }
 
     // Recursivelly subdivide
     ch0->Subdivide(max_depth);
@@ -606,12 +575,6 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
                         //if(debug) std::cout << "Skipping t " << t << " at triangle " << i << std::endl;
                         continue;
                     }
-
-                    // New intersect
-
-                    // Re-test for debug
-                    //TestTriangleIntersection(tri, r, t, true);
-                    //if(debug) std::cerr << "Good t " << t << std::endl;
                     if(t < res.t){
                         // New closest intersect!
                         res.triangle = &tri;
@@ -631,9 +594,8 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
             if(hit){
                 //if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
                 return res;
-            }else{
-                //if(debug) std::cerr << "No hit" << std::endl;
             }
+            //if(debug) std::cerr << "No hit" << std::endl;
 
         }else{ // internal node
             //if(debug) std::cerr << " -- Testing an internal node " << tmin << " " << tmax << std::endl;

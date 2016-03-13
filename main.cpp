@@ -40,7 +40,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             if(depth == 0) shadow = false;
             else{
                 // if no intersection on path to light
-                Ray ray_to_light(ipos, l.pos, 0.01);
+                Ray ray_to_light(ipos, l.pos, 0.01 * glm::length(ipos - l.pos));
                 Intersection i2 = scene.FindIntersectKd(ray_to_light);
                 shadow = i2.triangle;
             }
@@ -49,7 +49,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
 
                 float distance = glm::length(ipos - l.pos); // The distance to light
                 float d = distance/l.intensity;
-                float intens_factor = 1.0f/(1.0f + d); // Light intensity falloff function
+                float intens_factor = 1.0f/(1.0f + d*d); // Light intensity falloff function
 
 
                 float kD = glm::dot(N, L);
