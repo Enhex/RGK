@@ -40,6 +40,16 @@ public:
     glm::vec3*     normals = nullptr;
     unsigned int n_normals = 0;
 
+    // Indexed by triangles.
+    std::vector<float> xevents;
+    std::vector<float> yevents;
+    std::vector<float> zevents;
+
+    // The bounding box for the entire scene.
+    std::pair<float,float> xBB;
+    std::pair<float,float> yBB;
+    std::pair<float,float> zBB;
+
 private:
 
 
@@ -54,5 +64,25 @@ private:
     static void CalculateTrianglePlane(Triangle& t) __attribute__((hot));
 };
 
+
+struct UncompressedKdNode{
+    const Scene* parent_scene;
+    unsigned int type = 0;
+    unsigned int depth = 0;
+    std::pair<float,float> xBB;
+    std::pair<float,float> yBB;
+    std::pair<float,float> zBB;
+    std::vector<int> triangle_indices;
+
+    void Subdivide(unsigned int max_depth);
+    UncompressedKdNode* ch0 = nullptr;
+    UncompressedKdNode* ch1 = nullptr;
+
+    int dups = 0;
+    // Total triangles / leaf nodes / total nodes / total dups
+    std::tuple<int, int, int, int> GetTotals() const;
+
+    void FreeRecursivelly();
+};
 
 #endif //__SCENE_HPP__

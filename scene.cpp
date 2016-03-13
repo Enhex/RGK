@@ -127,10 +127,59 @@ void Scene::Commit(){
     std::cout << "Commited " << n_vertices << " vertices, " << n_normals << " normals and " << n_triangles <<
         " triangles with " << n_materials << " materials to the scene." << std::endl;
 
-    vertices_buffer.clear();
-    triangles_buffer.clear();
-    materials_buffer.clear();
-    normals_buffer.clear();
+    // Clearing vectors this way forces memory to be freed.
+    vertices_buffer  = std::vector<aiVector3D>();
+    triangles_buffer = std::vector<Triangle>();
+    materials_buffer = std::vector<Material>();
+    normals_buffer   = std::vector<aiVector3D>();
+
+    // Computing x/y/z bounds for all triangles.
+    xevents.resize(2 * n_triangles);
+    yevents.resize(2 * n_triangles);
+    zevents.resize(2 * n_triangles);
+    auto bound_fill_func = [this](unsigned int axis, std::vector<float>& buf){
+        for(unsigned int i = 0; i < n_triangles; i++){
+            const Triangle& t = triangles[i];
+            auto p = std::minmax({t.GetVertexA()[axis], t.GetVertexB()[axis], t.GetVertexC()[axis]});
+            buf[2*i + 0] = p.first;
+            buf[2*i + 1] = p.second;
+        }
+    };
+    bound_fill_func(0,xevents);
+    bound_fill_func(1,yevents);
+    bound_fill_func(2,zevents);
+
+    // Global bounding box
+    auto p = std::minmax_element(xevents.begin(), xevents.end());
+    auto q = std::minmax_element(yevents.begin(), yevents.end());
+    auto r = std::minmax_element(zevents.begin(), zevents.end());
+    xBB = std::make_pair(*p.first, *p.second);
+    yBB = std::make_pair(*q.first, *q.second);
+    zBB = std::make_pair(*r.first, *r.second);
+
+    std::cout << "The scene is bounded by [" << xBB.first << ", " << xBB.second << "], " <<
+                                         "[" << yBB.first << ", " << yBB.second << "], " <<
+                                         "[" << zBB.first << ", " << zBB.second << "]."  << std::endl;
+
+    UncompressedKdNode root;
+    root.parent_scene = this;
+    for(unsigned int i = 0; i < n_triangles; i++) root.triangle_indices.push_back(i);
+    root.xBB = xBB;
+    root.yBB = yBB;
+    root.zBB = zBB;
+
+    // Prepare kd-tree
+    int l = std::log2(n_triangles) + 1;
+    //l = 4;
+    std::cout << "Building kD-tree with max depth " << l << std::endl;
+    root.Subdivide(l);
+
+    auto totals = root.GetTotals();
+    std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
+    std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
+    // TODO: Compress
+
+    root.FreeRecursivelly();
 }
 
 void Scene::Dump() const{
@@ -288,4 +337,118 @@ void Scene::CalculateTrianglePlane(Triangle& t){
     float d = - glm::dot(n,v0);
 
     t.p = glm::vec4(n.x, n.y, n.z, d);
+}
+
+
+void UncompressedKdNode::Subdivide(unsigned int max_depth){
+    if(depth >= max_depth) return; // Do not subdivide further.
+
+    unsigned int n = triangle_indices.size();
+    if(n < 2) return; // Do not subdivide further.
+
+    std::cerr << "--- Subdividing " << n << " faces" << std::endl;
+
+    // Choose the axis for subdivision.
+    float sizes[3] = {xBB.second - xBB.first, yBB.second - yBB.first, zBB.second - zBB.first};
+    unsigned int axis = std::max_element(sizes, sizes+3) - sizes;
+
+    std::cerr << "Using axis " << axis << std::endl;
+    const std::vector<float>* evch[3] = {&parent_scene->xevents, &parent_scene->yevents, &parent_scene->zevents};
+    const std::vector<float>& events = *evch[axis];
+
+    std::vector<float> selected_events(2*n);
+    for(unsigned int i = 0; i < n; i++){
+        int t = triangle_indices[i];
+        selected_events[2*i + 0] = events[2*t + 0];
+        selected_events[2*i + 1] = events[2*t + 1];
+    }
+
+    float split = 0.0f;
+    unsigned int nth = n-1;
+    std::nth_element(selected_events.begin(), selected_events.begin() + nth, selected_events.end());
+    if(n % 2 == 1){
+        split = selected_events[nth];
+    }else{
+        // Find the lowest element in the upper half.
+        float f1 = selected_events[nth];
+        float f2 = *std::min_element(selected_events.begin() + nth + 1, selected_events.end());
+        split = (f1+f2)/2.0f;
+    }
+    std::cerr << "Splitting at " << split << std::endl;
+
+    // Toggle node type
+    type = 1;
+
+    ch0 = new UncompressedKdNode();
+    ch1 = new UncompressedKdNode();
+    ch0->parent_scene = parent_scene;
+    ch1->parent_scene = parent_scene;
+    ch0->depth = depth+1;
+    ch1->depth = depth+1;
+
+    std::vector<int> triangles_left;
+    dups = 0;
+    for(unsigned int i = 0; i < triangle_indices.size(); i++){
+        // Check bounds for this triangle
+        float e0 = events[2*i + 0];
+        float e1 = events[2*i + 1];
+        if(e1 < split){
+            ch0->triangle_indices.push_back(i);
+        }else if(e0 > split){
+            ch1->triangle_indices.push_back(i);
+        }else{
+            // Duplicating the triangle as it is, apparently, in both children nodes.
+            ch0->triangle_indices.push_back(i);
+            ch1->triangle_indices.push_back(i);
+            dups++;
+            /*
+            // Leave this triangle in this node.
+            triangles_left.push_back(i);
+            */
+        }
+    }
+    // Remove triangles from this node
+    triangle_indices = std::vector<int>(triangle_indices);
+    //triangle_indices = std::move(triangles_left);
+
+    // Prepare new BBs for children
+    ch0->xBB = (axis == 0) ? std::make_pair(xBB.first,split) : xBB;
+    ch0->yBB = (axis == 1) ? std::make_pair(yBB.first,split) : yBB;
+    ch0->zBB = (axis == 2) ? std::make_pair(zBB.first,split) : zBB;
+    ch1->xBB = (axis == 0) ? std::make_pair(split,xBB.second) : xBB;
+    ch1->yBB = (axis == 1) ? std::make_pair(split,yBB.second) : yBB;
+    ch1->zBB = (axis == 2) ? std::make_pair(split,zBB.second) : zBB;
+
+    // If too many duplicates, do not subdivide further.
+    if(dups >= n*1.0) {
+        std::cerr << "Duplicates : " << dups << ", total to divide: " << n << ", giving up. " << std::endl;
+        return;
+    }
+
+    // Recursivelly subdivide
+    ch0->Subdivide(max_depth);
+    ch1->Subdivide(max_depth);
+
+}
+void UncompressedKdNode::FreeRecursivelly(){
+    if(type == 1){
+        ch0->FreeRecursivelly();
+        delete ch0;
+        ch1->FreeRecursivelly();
+        delete ch1;
+    }
+}
+
+std::tuple<int, int, int, int> UncompressedKdNode::GetTotals() const{
+    if(type == 0){ // leaf
+        return std::make_tuple(triangle_indices.size(), 1, 1, dups);
+    }else{
+        auto p0 = ch0->GetTotals();
+        auto p1 = ch1->GetTotals();
+        int total_triangles = std::get<0>(p0) + std::get<0>(p1);
+        int total_leafs = std::get<1>(p0) + std::get<1>(p1);
+        int total_nodes = std::get<2>(p0) + std::get<2>(p1) + 1;
+        int total_dups = std::get<3>(p0) + std::get<3>(p1) + dups;
+        return std::make_tuple(total_triangles, total_leafs, total_nodes, total_dups);
+    }
 }
