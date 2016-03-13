@@ -571,7 +571,7 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
                 float t, a, b;
                 //  ... test for an intersection
                 if(TestTriangleIntersection(tri, r, t, a, b)){
-                    if(t < tmin || t > tmax + 0.01f){
+                    if(t < tmin - 0.01f || t > tmax + 0.01f){
                         //if(debug) std::cout << "Skipping t " << t << " at triangle " << i << std::endl;
                         continue;
                     }
