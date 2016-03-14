@@ -10,13 +10,11 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 include(FindPackageHandleStandardArgs)
 
-find_package(TBB REQUIRED)
 find_package(OpenGL REQUIRED)
 find_package(PkgConfig REQUIRED)
 pkg_search_module(GLFW glfw3 REQUIRED)
 find_package(GLEW REQUIRED)
 find_package(assimp REQUIRED)
-find_package(embree REQUIRED)
 
 ## GLM
 set(GLM_FIND_REQUIRED TRUE)
@@ -52,7 +50,6 @@ include_directories(
   ${GLM_INCLUDE_DIRS}
   ${png++_INCLUDE_DIRS}
   ${assimp_INCLUDE_DIRS}
-  ${embree_INCLUDE_DIRS}/embree2
   )
 
 add_definitions(
@@ -81,11 +78,9 @@ add_executable(
 target_link_libraries(
   RGK
   ${EXTLIBS}
-  ${TBB_tbb_LIBRARY}
   ${GLFW_LIBRARIES}
   ${GLEW_LIBRARY}
   ${assimp_LIBRARIES}
-  ${embree_LIBRARY}
   ${PNG_LIBRARY}
   ${OPENGL_LIBRARY}
   pthread
