@@ -5,6 +5,7 @@
 #include <iostream>
 #include <queue>
 #include <cmath>
+#include <thread>
 
 #include "external/ctpl_stl.h"
 
@@ -207,8 +208,11 @@ int main(int argc, char** argv){
 
     OutBuffer ob(cfg.xres, cfg.yres);
 
-    ctpl::thread_pool tpool(7);
+    unsigned int concurrency = std::thread::hardware_concurrency();
+    concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
+    ctpl::thread_pool tpool(concurrency);
 
+    std::cout << "Using thread pool of size " << concurrency << std::endl;
 
     if(cfg.recursion_level == 0){
         cfg.lights.clear();
