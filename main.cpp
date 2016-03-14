@@ -32,7 +32,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                                     i.triangle->GetNormalC());
         glm::vec3 V = -r.direction; // incoming direction
 
-        // std::cerr << "Was hit. color is " << mat.diffuse << std::endl;
+        if(debug) std::cerr << "Was hit. color is " << mat.diffuse << std::endl;
 
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);
@@ -208,6 +208,11 @@ int main(int argc, char** argv){
     OutBuffer ob(cfg.xres, cfg.yres);
 
     ctpl::thread_pool tpool(7);
+
+
+    if(cfg.recursion_level == 0){
+        cfg.lights.clear();
+    }
 
     // Split rendering into smaller (100x100) tasks.
     for(unsigned int yp = 0; yp < cfg.yres; yp += 100){

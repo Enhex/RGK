@@ -560,10 +560,10 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
         if(r.far < tmin) break;
 
         if(node->type == 0){ // leaf node
-            //if(debug) std::cerr << " -- Testing a leaf node " << tmin << " " << tmax << std::endl;
+            if(debug) std::cerr << " -- Testing a leaf node " << tmin << " " << tmax << std::endl;
 
             bool hit = false;
-            //int hit_i = -1;
+            int hit_i = -1;
             // Search for intersections with triangles inside this node
             for(const int& i : node->triangle_indices){
                 // For each triangle ...
@@ -571,8 +571,8 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
                 float t, a, b;
                 //  ... test for an intersection
                 if(TestTriangleIntersection(tri, r, t, a, b)){
-                    if(t < tmin - 0.01f || t > tmax + 0.01f){
-                        //if(debug) std::cout << "Skipping t " << t << " at triangle " << i << std::endl;
+                    if(t < tmin - 0.00001f || t > tmax + 0.0001f){
+                        if(debug) std::cout << "Skipping t " << t << " at triangle " << i << std::endl;
                         continue;
                     }
                     if(t < res.t){
@@ -586,25 +586,25 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
                         res.c = b;
 
                         hit = true;
-                        //hit_i = i;
+                        hit_i = i;
                     }
                 }
             }
 
             if(hit){
-                //if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
+                if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
                 return res;
             }
-            //if(debug) std::cerr << "No hit" << std::endl;
+            if(debug) std::cerr << "No hit" << std::endl;
 
         }else{ // internal node
-            //if(debug) std::cerr << " -- Testing an internal node " << tmin << " " << tmax << std::endl;
+            if(debug) std::cerr << " -- Testing an internal node " << tmin << " " << tmax << std::endl;
 
             // Compute parametric distance along ray to split plane
             int axis = node->split_axis;
             float tplane = (node->split_pos - r.origin[axis]) * invDir[axis];
 
-            //if(debug) std::cerr << "split axis: " << axis <<  " tplane: " << tplane << std::endl;
+            if(debug) std::cerr << "split axis: " << axis <<  " tplane: " << tplane << std::endl;
 
             // Get node children pointers for ray
             const UncompressedKdNode *firstChild, *secondChild;
