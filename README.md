@@ -3,6 +3,5 @@
 Total list of external libraries used
  - assimp
  - png++
- - glfw3
- - glew
+ - glm
  - ctpl (included with sources)
