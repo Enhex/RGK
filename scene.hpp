@@ -11,6 +11,7 @@
 #include "ray.hpp"
 #include "primitives.hpp"
 #include "utils.hpp"
+#include "texture.hpp"
 
 struct UncompressedKdNode;
 
@@ -19,9 +20,9 @@ public:
     Scene() {};
     ~Scene();
 
-    void LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4()) const;
-    void LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform) const;
-    void LoadScene(const aiScene* scene) const;
+    void LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
+    void LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform);
+    void LoadScene(const aiScene* scene);
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();
@@ -34,14 +35,16 @@ public:
 
 
     // TODO: have triangle access these, and keep these fields private
-    glm::vec3*     vertices = nullptr;
-    unsigned int n_vertices = 0;
+    glm::vec3*     vertices  = nullptr;
+    unsigned int n_vertices  = 0;
     Triangle*      triangles = nullptr;
     unsigned int n_triangles = 0;
     Material*      materials = nullptr;
     unsigned int n_materials = 0;
-    glm::vec3*     normals = nullptr;
-    unsigned int n_normals = 0;
+    glm::vec3*     normals   = nullptr;
+    unsigned int n_normals   = 0;
+    glm::vec2*     texcoords = nullptr;
+    unsigned int n_texcoords = 0;
 
     // Indexed by triangles.
     std::vector<float> xevents;
@@ -53,6 +56,8 @@ public:
     std::pair<float,float> yBB;
     std::pair<float,float> zBB;
 
+    std::string texture_directory;
+
 private:
 
     UncompressedKdNode* root = nullptr;
@@ -61,8 +66,13 @@ private:
     mutable std::vector<Triangle> triangles_buffer;
     mutable std::vector<Material> materials_buffer;
     mutable std::vector<aiVector3D> normals_buffer;
+    mutable std::vector<aiVector3D> texcoords_buffer;
+
+    std::unordered_map<std::string, Texture*> textures;
+    Texture* GetTexture(std::string name);
 
     void FreeBuffers();
+    void FreeTextures();
 
     bool TestTriangleIntersection(const Triangle& tri,const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
     static void CalculateTrianglePlane(Triangle& t) __attribute__((hot));

@@ -1,16 +1,27 @@
-#include "outbuffer.hpp"
+#include "texture.hpp"
 
 #include <png++/png.hpp>
 
-OutBuffer::OutBuffer(int xsize, int ysize):
+#include "utils.hpp"
+
+Texture::Texture(int xsize, int ysize):
     xsize(xsize), ysize(ysize)
 {
     data.resize(xsize*ysize);
 }
 
-void OutBuffer::SetPixel(int x, int y, Color c)
+void Texture::SetPixel(int x, int y, Color c)
 {
     data[y*xsize + x] = c;
+}
+
+
+Color Texture::GetPixelInterpolated(glm::vec2 pos){
+    // TODO: Interpolation
+    int x = pos.x * xsize;
+    int y = pos.y * ysize;
+    Color c1 = data[y*xsize + x];
+    return c1;
 }
 
 inline float clamp( float f )
@@ -18,7 +29,7 @@ inline float clamp( float f )
     return 0.5f * ( 1.0f + fabsf( f ) - fabsf( f - 1.0f ) );
 }
 
-void OutBuffer::WriteToPNG(std::string path){
+void Texture::WriteToPNG(std::string path){
 
     png::image<png::rgb_pixel> image(xsize, ysize);
 
@@ -34,7 +45,7 @@ void OutBuffer::WriteToPNG(std::string path){
     image.write(path);
 }
 
-void OutBuffer::WriteToBMP(std::string path){
+void Texture::WriteToBMP(std::string path){
     // This procedure was contributed by Adam Malinowski and donated
     // to the public domain.
 
@@ -80,4 +91,25 @@ void OutBuffer::WriteToBMP(std::string path){
         }
 
     ofbStream.close();
+}
+
+Texture* Texture::CreateNewFromPNG(std::string path){
+    if(!Utils::GetFileExists(path)){
+        std::cerr << "Failed to load texture '" << path << ", file does not exist." << std::endl;
+        return nullptr;
+    }
+    png::image< png::rgb_pixel > image(path);
+    unsigned int w = image.get_width(), h = image.get_height();
+
+    std::cerr << "Opened image '" << path << "', " << w << "x" << h << std::endl;
+
+    Texture* t = new Texture(w,h);
+    for(unsigned int y = 0; y < h; y++){
+        for(unsigned int x = 0; x < w; x++){
+            auto pixel = image.get_pixel(x, y);
+            Color c = Color(pixel.red/255.0f, pixel.green/255.0f, pixel.blue/255.0f);
+            t->SetPixel(x, y, c);
+        }
+    }
+    return t;
 }

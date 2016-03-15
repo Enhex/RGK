@@ -11,9 +11,10 @@
 
 #include "scene.hpp"
 #include "ray.hpp"
-#include "outbuffer.hpp"
+#include "texture.hpp"
 #include "config.hpp"
 #include "utils.hpp"
+#include "texture.hpp"
 
 static bool debug_trace = false;
 static unsigned int debug_x, debug_y;
@@ -35,6 +36,17 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
 
         if(debug) std::cerr << "Was hit. color is " << mat.diffuse << std::endl;
 
+        glm::vec2 texUV;
+        if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture){
+            texUV = i.Interpolate(i.triangle->GetTexCoordsA(),
+                                  i.triangle->GetTexCoordsB(),
+                                  i.triangle->GetTexCoordsC());
+        }
+
+        Color diffuse  =  mat.diffuse_texture ?  mat.diffuse_texture->GetPixelInterpolated(texUV) : mat.diffuse ;
+        Color specular = mat.specular_texture ? mat.specular_texture->GetPixelInterpolated(texUV) : mat.specular;
+        Color ambient  =  mat.ambient_texture ?  mat.ambient_texture->GetPixelInterpolated(texUV) : mat.ambient ;
+
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);
             bool shadow;
@@ -52,10 +64,16 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                 float d = distance/l.intensity;
                 float intens_factor = 1.0f/(1.0f + d*d); // Light intensity falloff function
 
+                if(debug) std::cerr << "No shadow, distance: " << distance << std::endl;
 
                 float kD = glm::dot(N, L);
                 kD = glm::max(0.0f, kD);
-                total += intens_factor * l.color * mat.diffuse  * kD       ;
+                total += intens_factor * l.color * diffuse * kD;
+
+                if(debug) std::cerr << "N " << N << std::endl;
+                if(debug) std::cerr << "L " << L << std::endl;
+                if(debug) std::cerr << "kD " << kD << std::endl;
+                if(debug) std::cerr << "Total: " << total << std::endl;
 
                 if(mat.exponent > 1.0f){
                     glm::vec3 R = 2.0f * glm::dot(L, N) * N - L;
@@ -63,15 +81,20 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                     a = glm::max(0.0f, a);
                     float kS = glm::pow(a, mat.exponent);
                     // if(std::isnan(kS)) std::cout << glm::dot(R,V) << "/" << mat.exponent << std::endl;
-                    total += intens_factor * l.color * mat.specular * kS * 1.0f;
+                    total += intens_factor * l.color * specular * kS * 1.0f;
                 }
+            }else{
+                if(debug) std::cerr << "Shadow found." << std::endl;
             }
         }
 
         // Special case for when there is no light
         if(lights.size() == 0){
-            total += mat.diffuse;
+            total += diffuse;
         }
+
+        // Ambient lighting
+        total += ambient;
 
         // Next ray
         if(depth >= 2 && mat.exponent <= 1.0f){
@@ -131,7 +154,7 @@ struct RenderTask{
     const std::vector<Light>* lights;
     unsigned int multisample;
     unsigned int recursion_level;
-    OutBuffer* output;
+    Texture* output;
 };
 
 void Render(RenderTask task){
@@ -182,6 +205,7 @@ int main(int argc, char** argv){
 
     std::string configdir = Utils::GetDir(configfile);
     std::string modelfile = configdir + "/" + cfg.model_file;
+    std::string modeldir  = Utils::GetDir(modelfile);
     if(!Utils::GetFileExists(modelfile)){
         std::cout << "Unable to find model file `" << modelfile << "`. " << std::endl;
         return 1;
@@ -201,12 +225,13 @@ int main(int argc, char** argv){
         " lights." << std::endl;
 
     Scene s;
+    s.texture_directory = modeldir + "/";
     s.LoadScene(scene);
     s.Commit();
 
     CameraConfig cconfig(cfg.view_point, cfg.look_at, cfg.up_vector, cfg.yview, cfg.yview*cfg.xres/cfg.yres);
 
-    OutBuffer ob(cfg.xres, cfg.yres);
+    Texture ob(cfg.xres, cfg.yres);
 
     unsigned int concurrency = std::thread::hardware_concurrency();
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.

@@ -8,6 +8,7 @@
 
 Scene::~Scene(){
     FreeBuffers();
+    FreeTextures();
 }
 
 void Scene::FreeBuffers(){
@@ -26,7 +27,14 @@ void Scene::FreeBuffers(){
     }
 }
 
-void Scene::LoadScene(const aiScene* scene) const{
+void Scene::FreeTextures(){
+    for(const auto& p : textures){
+        delete p.second;
+    }
+    textures.clear();
+}
+
+void Scene::LoadScene(const aiScene* scene){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
         const aiMaterial* mat = scene->mMaterials[i];
@@ -38,9 +46,43 @@ void Scene::LoadScene(const aiScene* scene) const{
         m.diffuse = c;
         mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
         m.specular = c;
+        mat->Get(AI_MATKEY_COLOR_AMBIENT,c);
+        m.ambient = c;
         float f;
         mat->Get(AI_MATKEY_SHININESS, f);
         m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
+
+        aiString as; std::string s;
+        Texture* tex;
+        int n;
+        n = mat->GetTextureCount(aiTextureType_DIFFUSE);
+        if(n > 0){
+            mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
+            if(s != ""){
+                // std::cout << "Material has diffuse texture " << s << std::endl;
+                tex = GetTexture(s);
+                m.diffuse_texture = tex;
+            }
+        }
+        n = mat->GetTextureCount(aiTextureType_SPECULAR);
+        if(n > 0){
+            mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
+            if(s != ""){
+                // std::cout << "Material has specular texture " << s << std::endl;
+                tex = GetTexture(s);
+                m.specular_texture = tex;
+            }
+        }
+        n = mat->GetTextureCount(aiTextureType_AMBIENT);
+        if(n > 0){
+            mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
+            if(s != ""){
+                // std::cout << "Material has ambient texture " << s << std::endl;
+                tex = GetTexture(s);
+                m.ambient_texture = tex;
+            }
+        }
+
         materials_buffer.push_back(m);
     }
 
@@ -49,7 +91,7 @@ void Scene::LoadScene(const aiScene* scene) const{
     LoadNode(scene,root);
 }
 
-void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform) const{
+void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
     std::cout << "Loading node \"" << ainode->mName.C_Str() << "\", it has " << ainode->mNumMeshes << " meshes and " <<
         ainode->mNumChildren << " children" << std::endl;
 
@@ -65,7 +107,7 @@ void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 cur
 
 }
 
-void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform) const{
+void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
     std::cout << "-- Loading mesh \"" << mesh->mName.C_Str() << "\" with " << mesh->mNumFaces <<
         " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
@@ -100,9 +142,27 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform) const{
             std::cerr << "WARNING: Skipping a face that apparently was not tringulated." << std::endl;
         }
     }
-
+    if(mesh->mTextureCoords[0]){
+        for(unsigned int v = 0; v < mesh->mNumVertices; v++){
+            aiVector3D uv = mesh->mTextureCoords[0][v];
+            texcoords_buffer.push_back(uv);
+        }
+    }
 }
 
+Texture* Scene::GetTexture(std::string name){
+    if(name == "") return nullptr;
+    auto it = textures.find(name);
+    if(it == textures.end()){
+        Texture* t = Texture::CreateNewFromPNG(texture_directory + name);
+        if(!t){
+            std::cerr << "Failed to load texture '" << name << "' , ignoring it." << std::endl;
+        }
+        textures[name] = t;
+        return t;
+    }
+    return nullptr;
+}
 
 void Scene::Commit(){
     FreeBuffers();
@@ -111,11 +171,13 @@ void Scene::Commit(){
     triangles = new Triangle[triangles_buffer.size()];
     materials = new Material[materials_buffer.size()];
     normals = new glm::vec3[normals_buffer.size()];
+    texcoords = new glm::vec2[texcoords_buffer.size()];
 
     n_vertices = vertices_buffer.size();
     n_triangles = triangles_buffer.size();
     n_materials = materials_buffer.size();
     n_normals = normals_buffer.size();
+    n_texcoords = texcoords_buffer.size();
 
     // TODO: memcpy
     for(unsigned int i = 0; i < n_vertices; i++)
@@ -129,9 +191,11 @@ void Scene::Commit(){
     }
     for(unsigned int i = 0; i < n_normals; i++)
         normals[i] = glm::vec3(normals_buffer[i].x, normals_buffer[i].y, normals_buffer[i].z);
+    for(unsigned int i = 0; i < n_texcoords; i++)
+        texcoords[i] = glm::vec2(texcoords_buffer[i].x, texcoords_buffer[i].y);
 
-    std::cout << "Commited " << n_vertices << " vertices, " << n_normals << " normals and " << n_triangles <<
-        " triangles with " << n_materials << " materials to the scene." << std::endl;
+    std::cout << "Commited " << n_vertices << " vertices, " << n_normals << " normals,  " << n_triangles <<
+        " triangles with " << n_materials << " materials and " << textures.size() <<  " textures to the scene." << std::endl;
 
     // Clearing vectors this way forces memory to be freed.
     vertices_buffer  = std::vector<aiVector3D>();
@@ -572,7 +636,7 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
                 //  ... test for an intersection
                 if(TestTriangleIntersection(tri, r, t, a, b)){
                     if(t < tmin - 0.00001f || t > tmax + 0.0001f){
-                        if(debug) std::cout << "Skipping t " << t << " at triangle " << i << std::endl;
+                        if(debug) std::cerr << "Skipping t " << t << " at triangle " << i << std::endl;
                         continue;
                     }
                     if(t < res.t){

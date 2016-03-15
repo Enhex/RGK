@@ -8,6 +8,7 @@
 #include "ray.hpp"
 
 class Scene;
+class Texture;
 
 struct Color{
     Color() : r(0.0), g(0.0), b(0.0) {}
@@ -34,7 +35,11 @@ struct Material{
     const Scene* parent_scene;
     Color diffuse;
     Color specular;
+    Color ambient;
     float exponent;
+    Texture* diffuse_texture  = nullptr;
+    Texture* specular_texture = nullptr;
+    Texture* ambient_texture  = nullptr;
 };
 
 class Triangle{
@@ -52,6 +57,9 @@ public:
     const glm::vec3 GetNormalA()  const;
     const glm::vec3 GetNormalB()  const;
     const glm::vec3 GetNormalC()  const;
+    const glm::vec2 GetTexCoordsA()  const;
+    const glm::vec2 GetTexCoordsB()  const;
+    const glm::vec2 GetTexCoordsC()  const;
 };
 
 struct Intersection{
