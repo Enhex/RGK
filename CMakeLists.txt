@@ -11,9 +11,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 include(FindPackageHandleStandardArgs)
 
 find_package(OpenGL REQUIRED)
-find_package(PkgConfig REQUIRED)
-pkg_search_module(GLFW glfw3 REQUIRED)
-find_package(GLEW REQUIRED)
 find_package(assimp REQUIRED)
 
 ## GLM
@@ -40,25 +37,13 @@ find_package_handle_standard_args(
   png++_INCLUDE_DIRS
   )
 
-if   (${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-	set(OPENGL_LIBRARY ${OPENGL_LIBRARY} -lGL -lGLU -lXxf86vm -lXi -lXrandr -lXinerama -lXcursor -lXext -lX11 -lrt -ldl)
-endif(${CMAKE_SYSTEM_NAME} MATCHES "Linux")
-
 include_directories(
-  ${GLEW_INCLUDE_DIRS}
-  ${GLFW_INCLUDE_DIRS}
   ${GLM_INCLUDE_DIRS}
   ${png++_INCLUDE_DIRS}
   ${assimp_INCLUDE_DIRS}
   )
 
 add_definitions(
-	-DTW_STATIC
-	-DTW_NO_LIB_PRAGMA
-	-DTW_NO_DIRECT3D
-	-DGLEW_STATIC
-	-D_CRT_SECURE_NO_WARNINGS
-
   -std=c++11
   -Wall
   -Wextra
@@ -77,11 +62,7 @@ add_executable(
 
 target_link_libraries(
   RGK
-  ${EXTLIBS}
-  ${GLFW_LIBRARIES}
-  ${GLEW_LIBRARY}
   ${assimp_LIBRARIES}
   ${PNG_LIBRARY}
-  ${OPENGL_LIBRARY}
   pthread
   )
