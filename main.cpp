@@ -43,9 +43,9 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                                   i.triangle->GetTexCoordsC());
         }
 
-        Color diffuse  =  mat.diffuse_texture ?  mat.diffuse_texture->GetPixelInterpolated(texUV) : mat.diffuse ;
-        Color specular = mat.specular_texture ? mat.specular_texture->GetPixelInterpolated(texUV) : mat.specular;
-        Color ambient  =  mat.ambient_texture ?  mat.ambient_texture->GetPixelInterpolated(texUV) : mat.ambient ;
+        Color diffuse  =  mat.diffuse_texture ?  mat.diffuse_texture->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
+        Color specular = mat.specular_texture ? mat.specular_texture->GetPixelInterpolated(texUV,debug) : mat.specular;
+        Color ambient  =  mat.ambient_texture ?  mat.ambient_texture->GetPixelInterpolated(texUV,debug) : mat.ambient ;
 
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);

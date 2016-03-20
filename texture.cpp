@@ -2,6 +2,8 @@
 
 #include <png++/png.hpp>
 
+#include <cmath>
+
 #include "utils.hpp"
 
 Texture::Texture(int xsize, int ysize):
@@ -16,12 +18,40 @@ void Texture::SetPixel(int x, int y, Color c)
 }
 
 
-Color Texture::GetPixelInterpolated(glm::vec2 pos){
-    // TODO: Interpolation
-    int x = pos.x * xsize;
-    int y = pos.y * ysize;
-    Color c1 = data[y*xsize + x];
-    return c1;
+Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug){
+    // TODO: Fix alignment (move by 0.5f * pixelsize, probably)
+
+    float x = pos.x * xsize;
+    float y = pos.y * ysize;
+    float ix0f, iy0f;
+    float fx = std::modf(x, &ix0f);
+    float fy = std::modf(y, &iy0f);
+    int ix0 = ix0f;
+    int iy0 = iy0f;
+    int ix1 = (ix0 != xsize)? ix0 + 1 : ix0;
+    int iy1 = (iy0 != ysize)? iy0 + 1 : iy0;
+    Color c00 = data[iy0 * xsize + ix0];
+    Color c01 = data[iy0 * xsize + ix1];
+    Color c10 = data[iy1 * xsize + ix0];
+    Color c11 = data[iy1 * xsize + ix1];
+
+    if(debug) std::cout << "x " << x << " y " << y << std::endl;
+    if(debug) std::cout << "fx " << fx  << " fy " << fy << std::endl;
+
+    fy = 1.0f - fy;
+    fx = 1.0f - fx;
+
+    Color c0s = fx * c00 + (1.0f - fx) * c01;
+    Color c1s = fx * c10 + (1.0f - fx) * c11;
+
+    if(debug) std::cout << c00 << std::endl;
+    if(debug) std::cout << c01 << std::endl;
+    if(debug) std::cout << c10 << std::endl;
+    if(debug) std::cout << c11 << std::endl;
+
+    Color css = fy * c0s + (1.0f - fy) * c1s;
+
+    return css;
 }
 
 inline float clamp( float f )
