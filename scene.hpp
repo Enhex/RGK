@@ -31,7 +31,7 @@ public:
     void Dump() const;
 
     Intersection FindIntersect(const Ray& r) const;
-    Intersection FindIntersectKd(const Ray& r, bool debug = false) const;
+    Intersection FindIntersectKdUncompressed(const Ray& r, bool debug = false) const;
 
 
     // TODO: have triangle access these, and keep these fields private
@@ -60,7 +60,7 @@ public:
 
 private:
 
-    UncompressedKdNode* root = nullptr;
+    UncompressedKdNode* uncompressed_root = nullptr;
 
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;

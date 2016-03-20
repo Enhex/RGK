@@ -21,9 +21,9 @@ void Scene::FreeBuffers(){
     if(normals) delete[] normals;
     n_normals = 0;
 
-    if(root){
-        root->FreeRecursivelly();
-        delete root;
+    if(uncompressed_root){
+        uncompressed_root->FreeRecursivelly();
+        delete uncompressed_root;
     }
 }
 
@@ -233,26 +233,26 @@ void Scene::Commit(){
 
     std::cout << "Total avg cost with no kd-tree: " << ISECT_COST * n_triangles << std::endl;
 
-    root = new UncompressedKdNode;
-    root->parent_scene = this;
-    for(unsigned int i = 0; i < n_triangles; i++) root->triangle_indices.push_back(i);
-    root->xBB = xBB;
-    root->yBB = yBB;
-    root->zBB = zBB;
+    uncompressed_root = new UncompressedKdNode;
+    uncompressed_root->parent_scene = this;
+    for(unsigned int i = 0; i < n_triangles; i++) uncompressed_root->triangle_indices.push_back(i);
+    uncompressed_root->xBB = xBB;
+    uncompressed_root->yBB = yBB;
+    uncompressed_root->zBB = zBB;
 
     // Prepare kd-tree
     int l = std::log2(n_triangles) + 8;
     //l = 1;
     std::cout << "Building kD-tree with max depth " << l << std::endl;
-    root->Subdivide(l);
+    uncompressed_root->Subdivide(l);
 
-    auto totals = root->GetTotals();
+    auto totals = uncompressed_root->GetTotals();
     std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
     std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
 
     // TODO: Compress the tree
 
-    std::cout << "Total avg cost with kd-tree: " << root->GetCost() << std::endl;
+    std::cout << "Total avg cost with kd-tree: " << uncompressed_root->GetCost() << std::endl;
 
 }
 
@@ -578,7 +578,7 @@ float UncompressedKdNode::GetCost() const{
     }
 }
 
-Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const{
+Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool debug) const{
     //if(debug) std::cerr << "------ Test for intersection " << r.origin << " " << r.direction << std::endl;
     (void)debug;
 
@@ -610,7 +610,7 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) const
     glm::vec3 invDir(1.f/r.direction.x, 1.f/r.direction.y, 1.f/r.direction.z);
 
     std::stack<NodeToDo> todo;
-    todo.push(NodeToDo{root, t0, t1});
+    todo.push(NodeToDo{uncompressed_root, t0, t1});
 
     //if(debug) std::cerr << "Is in the box. " << std::endl;
 
