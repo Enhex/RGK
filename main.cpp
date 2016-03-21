@@ -61,8 +61,8 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                 //TODO: use interpolated normals
 
                 float distance = glm::length(ipos - l.pos); // The distance to light
-                float d = distance/l.intensity;
-                float intens_factor = 1.0f/(1.0f + d*d); // Light intensity falloff function
+                float d = distance;
+                float intens_factor = l.intensity*0.1f/(1.0f + d); // Light intensity falloff function
 
                 if(debug) std::cerr << "No shadow, distance: " << distance << std::endl;
 
