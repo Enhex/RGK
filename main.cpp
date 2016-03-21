@@ -53,7 +53,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             if(depth == 0) shadow = false;
             else{
                 // if no intersection on path to light
-                Ray ray_to_light(ipos, l.pos, 0.01 * glm::length(ipos - l.pos));
+                Ray ray_to_light(ipos, l.pos, 0.0001f * glm::length(ipos - l.pos));
                 Intersection i2 = scene.FindIntersectKdUncompressed(ray_to_light);
                 shadow = i2.triangle;
             }
