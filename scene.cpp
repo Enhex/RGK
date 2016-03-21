@@ -223,9 +223,10 @@ void Scene::Commit(){
     auto p = std::minmax_element(xevents.begin(), xevents.end());
     auto q = std::minmax_element(yevents.begin(), yevents.end());
     auto r = std::minmax_element(zevents.begin(), zevents.end());
-    xBB = std::make_pair(*p.first, *p.second);
-    yBB = std::make_pair(*q.first, *q.second);
-    zBB = std::make_pair(*r.first, *r.second);
+    const float BB_epsilon = 0.001f;
+    xBB = std::make_pair(*p.first - BB_epsilon, *p.second + BB_epsilon);
+    yBB = std::make_pair(*q.first - BB_epsilon, *q.second + BB_epsilon);
+    zBB = std::make_pair(*r.first - BB_epsilon, *r.second + BB_epsilon);
 
     std::cout << "The scene is bounded by [" << xBB.first << ", " << xBB.second << "], " <<
                                          "[" << yBB.first << ", " << yBB.second << "], " <<
@@ -316,12 +317,13 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
 
     // This implementation is heavily inspired by the example provided by ANL
 
-    const float EPSILON = 0.000001;
+    const float EPSILON = 0.00001;
 
     glm::vec3 planeN = tri.p.xyz();
 
     double dot = glm::dot(r.direction, planeN);
 
+    if(debug) std::cout << "triangle " << tri.GetVertexA() << " " << tri.GetVertexB() << " " << tri.GetVertexC() << " " << std::endl;
     if(debug) std::cout << "dot : " << dot << std::endl;
 
     /* is ray parallel to plane? */
@@ -347,9 +349,9 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
     if(debug) std::cout << i1 << "/" << i2 << " ";
 
 
-    glm::vec3 vert0 = tri.parent_scene->vertices[tri.va];
-    glm::vec3 vert1 = tri.parent_scene->vertices[tri.vb];
-    glm::vec3 vert2 = tri.parent_scene->vertices[tri.vc];
+    glm::vec3 vert0 = tri.GetVertexA();
+    glm::vec3 vert1 = tri.GetVertexB();
+    glm::vec3 vert2 = tri.GetVertexC();
 
     if(debug) std::cerr << vert0 << " " << vert1 << " " << vert2 << std::endl;
 
@@ -366,11 +368,14 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
     glm::vec2 q2( vert2[i1] - vert0[i1],
                   vert2[i2] - vert0[i2]);
 
+    if(debug) std::cerr << q0 << " " << q1 << " " << q2 << std::endl;
+
     // TODO Return these
     float alpha, beta;
 
     /* calculate and compare barycentric coordinates */
-    if (q1.x == 0) {		/* uncommon case */
+    if (q1.x > -EPSILON && q1.x < EPSILON ) {		/* uncommon case */
+        if(debug) std::cout << "UNCOMMON" << std::endl;
         beta = q0.x / q2.x;
         if (beta < 0 || beta > 1)
             return false;
@@ -384,7 +389,7 @@ bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray
         alpha = (q0.x - beta * q2.x) / q1.x;
     }
 
-    if(debug) std::cout << "A: " << alpha << ", B: " << beta << std::endl;
+    if(debug) std::cout << "A: " << alpha << ", B: " << beta << " A+B: " << alpha+beta << std::endl;
 
     if (alpha < 0 || (alpha + beta) > 1.0)
         return false;
@@ -624,7 +629,7 @@ Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool 
         if(r.far < tmin) break;
 
         if(node->type == 0){ // leaf node
-            if(debug) std::cerr << " -- Testing a leaf node " << tmin << " " << tmax << std::endl;
+            if(debug) std::cerr << " -- Testing a leaf node " << tmin << " " << tmax << ", triangles: " << node->triangle_indices.size() << std::endl;
 
             bool hit = false;
             int hit_i = -1;
@@ -634,7 +639,9 @@ Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool 
                 const Triangle& tri = triangles[i];
                 float t, a, b;
                 //  ... test for an intersection
-                if(TestTriangleIntersection(tri, r, t, a, b)){
+                bool d = debug && i == 8;
+                if(d) std::cout << "Debugging intersection with 8th triangle" << std::endl;
+                if(TestTriangleIntersection(tri, r, t, a, b, d)){
                     if(t < tmin - 0.00001f || t > tmax + 0.0001f){
                         if(debug) std::cerr << "Skipping t " << t << " at triangle " << i << std::endl;
                         continue;
@@ -651,12 +658,14 @@ Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool 
 
                         hit = true;
                         hit_i = i;
+
+                        if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
                     }
                 }
             }
 
             if(hit){
-                if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
+                if(debug) std::cerr << "BEST HIT " << r[res.t] << " triangle " << hit_i << std::endl;
                 return res;
             }
             if(debug) std::cerr << "No hit" << std::endl;
