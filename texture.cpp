@@ -18,18 +18,20 @@ void Texture::SetPixel(int x, int y, Color c)
 }
 
 
-Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug){
+Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     // TODO: Fix alignment (move by 0.5f * pixelsize, probably)
 
-    float x = pos.x * xsize;
-    float y = pos.y * ysize;
+    float x = pos.x * xsize - 0.5f;
+    float y = pos.y * ysize - 0.5f;
     float ix0f, iy0f;
     float fx = std::modf(x, &ix0f);
     float fy = std::modf(y, &iy0f);
     int ix0 = ix0f;
     int iy0 = iy0f;
-    int ix1 = (ix0 != xsize)? ix0 + 1 : ix0;
-    int iy1 = (iy0 != ysize)? iy0 + 1 : iy0;
+    int ix1 = (ix0 != xsize - 1)? ix0 + 1 : ix0;
+    int iy1 = (iy0 != ysize - 1)? iy0 + 1 : iy0;
+    if(ix0 == -1) ix0 = 0;
+    if(iy0 == -1) iy0 = 0;
     Color c00 = data[iy0 * xsize + ix0];
     Color c01 = data[iy0 * xsize + ix1];
     Color c10 = data[iy1 * xsize + ix0];
@@ -37,6 +39,8 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug){
 
     if(debug) std::cout << "x " << x << " y " << y << std::endl;
     if(debug) std::cout << "fx " << fx  << " fy " << fy << std::endl;
+    if(debug) std::cout << "ix1 " << ix1  << " iy1 " << iy1 << std::endl;
+    if(debug) std::cout << "xsize " << xsize  << " ysize " << ysize << std::endl;
 
     fy = 1.0f - fy;
     fx = 1.0f - fx;

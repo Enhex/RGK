@@ -16,7 +16,7 @@ public:
     void SetPixel(int x, int y, Color c);
     void GetPixel(int x, int y);
 
-    Color GetPixelInterpolated(glm::vec2 pos, bool debug = false);
+    Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const;
 
     static Texture* CreateNewFromPNG(std::string path);
 private:
