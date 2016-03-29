@@ -278,8 +278,17 @@ int main(int argc, char** argv){
 
     tpool.stop(true); // Waits for all remaining threads to complete.
 
-    //ob.WriteToBMP(cfg.output_file);
-    ob.WriteToPNG(cfg.output_file);
+    std::string out_dir = Utils::GetDir(cfg.output_file);
+    std::string out_file = Utils::GetFilename(cfg.output_file);
+
+    auto fname = Utils::GetFileExtension(out_file);
+    if(fname.second == "BMP" || fname.second == "bmp"){
+        ob.WriteToBMP(cfg.output_file);
+    }else if(fname.second == "PNG" || fname.second == "png"){
+        ob.WriteToPNG(cfg.output_file);
+    }else{
+        std::cout << "Sorry, output file format '" << fname.second << "' is not supported." << std::endl;
+    }
 
     return 0;
 }

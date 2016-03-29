@@ -36,7 +36,14 @@ std::vector<std::string> Utils::SplitString(std::string str, std::string delimit
     return res;
 }
 
-
+std::string Utils::JoinString(std::vector<std::string> str, std::string c){
+	std::string buf = "";
+	for(unsigned int i = 0; i < str.size(); i++){
+		buf += str[i];
+		if(i < str.size()-1) buf += c;
+	}
+	return buf;
+}
 
 std::string Utils::GetDir(std::string path){
   auto pos = path.rfind("/");
@@ -55,6 +62,14 @@ std::string Utils::GetFilename(std::string path){
   }
 }
 
+std::pair<std::string, std::string> Utils::GetFileExtension(std::string fname){
+    auto v = SplitString(fname, ".");
+    if(v.size() == 1) return {v[0], ""};
+    std::string ext = v.back();
+    v.pop_back();
+    std::string name = JoinString(v, ".");
+    return {name, ext};
+}
 
 bool Utils::GetFileExists(std::string name)
 {

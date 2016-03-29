@@ -26,8 +26,12 @@ class Utils{
 public:
     static std::string Trim(std::string);
     static std::vector<std::string> SplitString(std::string str, std::string delimiter, bool skip_empty = true);
+    static std::string JoinString(std::vector<std::string> str, std::string c);
     static std::string GetDir(std::string path);
+    // Extracts filename from a path
     static std::string GetFilename(std::string path);
+    // Splits filename into name and extension
+    static std::pair<std::string, std::string> GetFileExtension(std::string fname);
     static bool GetFileExists(std::string path);
 };
 
