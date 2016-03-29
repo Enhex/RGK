@@ -21,7 +21,7 @@ static unsigned int debug_x, debug_y;
 
 Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, int depth, bool debug = false){
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
-    Intersection i = scene.FindIntersectKdUncompressed(r, debug);
+    Intersection i = scene.FindIntersect(r, debug);
 
     if(i.triangle){
         if(debug) std::cerr << "Intersection found. " << std::endl;
@@ -54,7 +54,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             else{
                 // if no intersection on path to light
                 Ray ray_to_light(ipos, l.pos, 0.0001f * glm::length(ipos - l.pos));
-                Intersection i2 = scene.FindIntersectKdUncompressed(ray_to_light);
+                Intersection i2 = scene.FindIntersect(ray_to_light);
                 shadow = i2.triangle;
             }
             if(!shadow){ // no intersection found

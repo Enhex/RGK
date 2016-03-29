@@ -14,6 +14,7 @@
 #include "texture.hpp"
 
 struct UncompressedKdNode;
+struct CompressedKdNode;
 
 class Scene{
 public:
@@ -26,12 +27,15 @@ public:
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();
+    // Compresses the kd-tree. Called automatically by Commit()
+    void Compress();
 
     // Prints the entire buffer to stdout.
     void Dump() const;
 
-    Intersection FindIntersect(const Ray& r) const;
+    Intersection FindIntersect(const Ray& r, bool debug = false) const;
     Intersection FindIntersectKdUncompressed(const Ray& r, bool debug = false) const;
+    Intersection FindIntersectKdCompressed(const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
 
 
     // TODO: have triangle access these, and keep these fields private
@@ -62,6 +66,13 @@ private:
 
     UncompressedKdNode* uncompressed_root = nullptr;
 
+    CompressedKdNode* compressed_array = nullptr;
+    unsigned int compressed_array_size = 0;
+    unsigned int* compressed_triangles = nullptr;
+    unsigned int compressed_triangles_size = 0;
+
+    void CompressRec(const UncompressedKdNode* node, unsigned int& array_pos, unsigned int& triangle_pos);
+
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
     mutable std::vector<Material> materials_buffer;
@@ -73,6 +84,7 @@ private:
 
     void FreeBuffers();
     void FreeTextures();
+    void FreeCompressedTree();
 };
 
 
@@ -87,7 +99,7 @@ struct UncompressedKdNode{
     std::pair<float,float> xBB;
     std::pair<float,float> yBB;
     std::pair<float,float> zBB;
-    std::vector<int> triangle_indices;
+    std::vector<unsigned int> triangle_indices;
 
     void Subdivide(unsigned int max_depth);
     UncompressedKdNode* ch0 = nullptr;
@@ -103,8 +115,51 @@ struct UncompressedKdNode{
 
     float GetCost() const;
 
-    float split_axis;
+    int split_axis;
     float split_pos;
 };
+
+struct CompressedKdNode{
+    inline bool IsLeaf() const {return (kind & 0x03) == 0x03;}
+    inline short GetSplitAxis() const {return kind & 0x03;}
+    inline float GetSplitPlane() const {return split_plane;}
+    inline unsigned int GetTrianglesN() const {return triangles_num >> 2;}
+    inline unsigned int* GetFirstTrianglePos() const {return triangles_start;}
+    inline unsigned int GetOtherChildIndex() const {return other_child >> 2;}
+
+    // Default constructor;
+    CompressedKdNode() {}
+
+    // Constructor for internal nodes
+    CompressedKdNode(short axis, float split) {
+        kind = axis;
+        split_plane = split;
+    }
+    // Constructor for leaf nodes
+    CompressedKdNode(unsigned int num, unsigned int* start){
+        triangles_num = (num << 2) | 0x03;
+        triangles_start = start;
+    }
+    // Once the other child is placed, it's position has to be set in parent node
+    inline void SetOtherChild(unsigned int pos){
+        other_child = (other_child & 0x03) | (pos << 2);
+    }
+
+private:
+    union{
+        float split_plane; // For internal nodes
+        unsigned int * triangles_start; // For leaf nodes
+    };
+    union{
+         // For internal nodes (shifted right 2 bits). One child is
+         // just after this stuct in memory layout, other is at this
+         // location.
+        unsigned int other_child;
+         // For leaf nodes (shifter right 2 bits).
+        unsigned int triangles_num;
+        // For any kind of node, 2 LSB.
+        unsigned int kind;
+    };
+} __attribute__((packed,aligned(4)));
 
 #endif //__SCENE_HPP__

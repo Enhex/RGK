@@ -49,6 +49,7 @@ add_definitions(
   -Wextra
   -Werror
   -O3
+  ## -pg
   )
 
 file(GLOB SOURCES
@@ -59,6 +60,8 @@ add_executable(
   RGK
   ${SOURCES}
   )
+
+## SET_TARGET_PROPERTIES(RGK PROPERTIES LINK_FLAGS -pg)
 
 target_link_libraries(
   RGK

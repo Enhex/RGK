@@ -6,9 +6,12 @@
 #include <cmath>
 #include <stack>
 
+// #define NO_COMPRESS
+
 Scene::~Scene(){
     FreeBuffers();
     FreeTextures();
+    FreeCompressedTree();
 }
 
 void Scene::FreeBuffers(){
@@ -32,6 +35,13 @@ void Scene::FreeTextures(){
         delete p.second;
     }
     textures.clear();
+}
+
+void Scene::FreeCompressedTree(){
+    if(compressed_triangles) delete[] compressed_triangles;
+    compressed_triangles_size = 0;
+    if(compressed_array) delete[] compressed_array;
+    compressed_array_size = 0;
 }
 
 void Scene::LoadScene(const aiScene* scene){
@@ -250,10 +260,15 @@ void Scene::Commit(){
     std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
     std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
 
-    // TODO: Compress the tree
-
     std::cout << "Total avg cost with kd-tree: " << uncompressed_root->GetCost() << std::endl;
 
+#ifndef NO_COMPRESS
+    Compress();
+
+    uncompressed_root->FreeRecursivelly();
+    delete uncompressed_root;
+    uncompressed_root = nullptr;
+#endif
 }
 
 void Scene::Dump() const{
@@ -270,10 +285,12 @@ void Scene::Dump() const{
     }
 }
 
-Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
-    // TODO: Kd-tree?
+Intersection Scene::FindIntersect(const Ray& __restrict__ r, bool debug) const{
 
-    // temporarily: iterate over ALL triangles, find ALL
+    if(compressed_array != nullptr) return FindIntersectKdCompressed(r, debug);
+    if(uncompressed_root != nullptr) return FindIntersectKdUncompressed(r, debug);
+
+    // fallback solution: iterate over ALL triangles, find ALL
     // intersections, pick nearest. Super inefficient.
 
     // create inf result
@@ -281,19 +298,12 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
     res.triangle = nullptr;
     res.t = std::numeric_limits<float>::infinity();
 
-    //std::cerr << "Searching " << std::endl;
-
     for(unsigned int f = 0; f < n_triangles; f++){
         const Triangle& tri = triangles[f];
         float t, a, b;
         if(tri.TestIntersection(r, t, a, b)){
             if(t <= r.near || t >= r.far) continue;
 
-            // New intersect
-            //std::cerr << t << ", at triangle no " << f << std::endl;
-            //std::cerr << "Triangle normal " << tri.generic_normal() << std::endl;
-            // Re-test for debug
-            //tri.TestIntersection(r, t, true);
             if(t < res.t){
                 // New closest intersect
                 res.triangle = &tri;
@@ -306,7 +316,6 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
             }
         }
     }
-    //std::cerr << " done: " << res.t << std::endl;
 
     return res;
 }
@@ -432,7 +441,7 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     //std::cerr << "After split " << ch0->triangle_indices.size() << " " << ch1->triangle_indices.size() << std::endl;
 
     // Remove triangles from this node
-    triangle_indices = std::vector<int>(triangle_indices);
+    triangle_indices = std::vector<unsigned int>(triangle_indices);
 
     // Prepare new BBs for children
     ch0->xBB = (axis == 0) ? std::make_pair(xBB.first,best_pos) : xBB;
@@ -485,6 +494,12 @@ Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool 
     Intersection res;
     res.triangle = nullptr;
     res.t = std::numeric_limits<float>::infinity();
+
+    if(uncompressed_root == nullptr){
+        std::cout << "CRITICAL: FindIntersectKdUncompressed called while uncompressed_root is not yet ready or was already removed." << std::endl;
+        exit(1);
+        return res;
+    }
 
     // First, check whether the ray intersects with our BB at all.
 
@@ -595,6 +610,187 @@ Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool 
                 // Enqueue _secondChild_ in todo list
                 todo.push(NodeToDo{secondChild, tplane, tmax});
                 todo.push(NodeToDo{firstChild,  tmin, tplane});
+            }
+        }
+    }
+
+    // No hit found at all.
+    return res;
+}
+
+
+void Scene::Compress(){
+    if(uncompressed_root == nullptr) return;
+
+    FreeCompressedTree();
+
+    auto totals = uncompressed_root->GetTotals();
+    compressed_array_size = std::get<2>(totals);
+    compressed_triangles_size = std::get<0>(totals);
+
+    compressed_array = new CompressedKdNode[compressed_array_size];
+    compressed_triangles = new unsigned int[compressed_triangles_size];
+
+    unsigned int array_pos = 0, triangle_pos = 0;
+    CompressRec(uncompressed_root, array_pos, triangle_pos);
+
+    // Asserts
+    if(array_pos != compressed_array_size){
+        std::cout << "Compression failed, array_pos = " << array_pos << ", array_size = " << compressed_array_size << std::endl;
+        return;
+    }
+    if(triangle_pos != compressed_triangles_size){
+        std::cout << "Compression failed, triangle_pos = " << triangle_pos << ", triangles_size = " << compressed_triangles_size << std::endl;
+        return;
+    }
+    std::cout << "Compression appears successful!" << std::endl;
+    std::cout << "Uncompressed node size: " << sizeof(UncompressedKdNode) << "B " << std::endl;
+    std::cout << "Compressed node size: " << sizeof(CompressedKdNode) << "B " << std::endl;
+    std::cout << "Total compressed Kd tree size: " << sizeof(CompressedKdNode)*compressed_array_size/1024 << "kiB " << std::endl;
+
+}
+
+void Scene::CompressRec(const UncompressedKdNode *node, unsigned int &array_pos, unsigned int &triangle_pos){
+    if(node->type == UncompressedKdNode::LEAF){
+        // Leaf node
+        compressed_array[array_pos] = CompressedKdNode(node->triangle_indices.size(), compressed_triangles + triangle_pos);
+        array_pos++;
+        // Fill in triangles
+        for(unsigned int t : node->triangle_indices)
+            compressed_triangles[triangle_pos++] = t;
+    }else{
+        // Internal node
+        unsigned int my_pos = array_pos;
+        compressed_array[array_pos] = CompressedKdNode(node->split_axis, node->split_pos);
+        array_pos++;
+        // Left child
+        CompressRec(node->ch0, array_pos, triangle_pos);
+        // Store right child pos to parent
+        compressed_array[my_pos].SetOtherChild(array_pos);
+        // Right child
+        CompressRec(node->ch1, array_pos, triangle_pos);
+    }
+}
+
+
+Intersection Scene::FindIntersectKdCompressed(const Ray& __restrict__ r, bool debug) __restrict__ const{
+    (void)debug;
+
+    Intersection res;
+    res.triangle = nullptr;
+    res.t = std::numeric_limits<float>::infinity();
+
+
+    // First, check whether the ray intersects with our BB at all.
+
+    const  std::pair<float,float>* __restrict  bb[3] = {&xBB,&yBB,&zBB};
+
+    // Inspired by pbrt's bbox intersection
+    float t0 = r.near, t1 = r.far;
+    for (int i = 0; i < 3; ++i) {
+        float invRayDir = 1.f / r.direction[i];
+        float tNear = ((*bb[i]).first  - r.origin[i]) * invRayDir;
+        float tFar  = ((*bb[i]).second - r.origin[i]) * invRayDir;
+        if (tNear > tFar) std::swap(tNear, tFar);
+        t0 = tNear > t0 ? tNear : t0;
+        t1 = tFar  < t1 ? tFar  : t1;
+        if (t0 > t1) return res; // No intersection.
+    }
+
+    struct NodeToDo{
+        const CompressedKdNode* node;
+        float tmin, tmax;
+    };
+
+
+    glm::vec3 invDir(1.f/r.direction.x, 1.f/r.direction.y, 1.f/r.direction.z);
+
+    NodeToDo todo[200];
+    int todo_size = 1;
+    todo[0] = NodeToDo{compressed_array, t0, t1};
+
+    while(todo_size > 0){
+        todo_size--;
+        const CompressedKdNode* node = todo[todo_size].node;
+        float tmin = todo[todo_size].tmin;
+        float tmax = todo[todo_size].tmax;
+
+        // Abort if we got too far.
+        if(r.far < tmin) break;
+
+        if(node->IsLeaf()){ // leaf node
+            //if(debug) std::cerr << " -- Testing a leaf node " << tmin << " " << tmax << ", triangles: " << node->GetTrianglesN() << std::endl;
+
+            bool hit = false;
+            //int hit_i = -1;
+            // Search for intersections with triangles inside this node
+            unsigned int n = node->GetTrianglesN();
+            unsigned int* tri_start = node->GetFirstTrianglePos();
+            for(unsigned int p = 0; p < n; p++){
+                // For each triangle ...
+                unsigned int i = *(tri_start + p);
+                const Triangle& tri = triangles[i];
+                float t, a, b;
+                //  ... test for an intersection
+                if(tri.TestIntersection(r, t, a, b)){
+                    if(t < tmin - 0.00001f || t > tmax + 0.0001f){
+                        //if(debug) std::cerr << "Skipping t " << t << " at triangle " << i << std::endl;
+                        continue;
+                    }
+                    if(t < res.t){
+                        // New closest intersect!
+                        res.triangle = &tri;
+                        res.t = t;
+
+                        float c = 1.0f - a - b;
+                        res.a = c;
+                        res.b = a;
+                        res.c = b;
+
+                        hit = true;
+                        //hit_i = i;
+
+                        //if(debug) std::cerr << "HIT " << r[res.t] << " triangle " << hit_i << std::endl;
+                    }
+                }
+            }
+
+            if(hit){
+                //if(debug) std::cerr << "BEST HIT " << r[res.t] << " triangle " << hit_i << std::endl;
+                return res;
+            }
+            //if(debug) std::cerr << "No hit" << std::endl;
+
+        }else{ // internal node
+            //if(debug) std::cerr << " -- Testing an internal node " << tmin << " " << tmax << std::endl;
+
+            // Compute parametric distance along ray to split plane
+            int axis = node->GetSplitAxis();
+            float tplane = (node->GetSplitPlane() - r.origin[axis]) * invDir[axis];
+
+            //if(debug) std::cerr << "split axis: " << axis <<  " tplane: " << tplane << std::endl;
+
+            // Get node children pointers for ray
+            const CompressedKdNode *firstChild, *secondChild;
+            int belowFirst = (r.origin[axis] <  node->GetSplitPlane()) ||
+                             (r.origin[axis] == node->GetSplitPlane() && r.direction[axis] <= 0);
+            if (belowFirst) {
+                firstChild = node + 1;
+                secondChild = compressed_array + node->GetOtherChildIndex();
+            }else{
+                firstChild = compressed_array + node->GetOtherChildIndex();
+                secondChild = node + 1;
+            }
+
+            // Advance to next child node, possibly enqueue other child
+            if (tplane > tmax || tplane <= 0)
+                todo[todo_size++] = NodeToDo{firstChild, tmin, tmax};
+            else if (tplane < tmin)
+                todo[todo_size++] = NodeToDo{secondChild, tmin, tmax};
+            else {
+                // Enqueue _secondChild_ in todo list
+                todo[todo_size++] = NodeToDo{secondChild, tplane, tmax};
+                todo[todo_size++] = NodeToDo{firstChild,  tmin, tplane};
             }
         }
     }
