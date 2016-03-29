@@ -8,4 +8,4 @@ teapot.png
 0.0 1.0 0.0
 1.6
 L 0.0 90.0 100.0  255 255 255 400.0
-multisample 4
+multisample 8

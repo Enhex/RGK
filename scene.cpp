@@ -6,7 +6,7 @@
 #include <cmath>
 #include <stack>
 
-#define NO_COMPRESS
+// #define NO_COMPRESS
 
 Scene::~Scene(){
     FreeBuffers();
@@ -287,7 +287,7 @@ void Scene::Dump() const{
 
 Intersection Scene::FindIntersect(const Ray& __restrict__ r, bool debug) const{
 
-    //if(compressed_array != nullptr) return FindIntersectKdCompressed(r, debug);
+    if(compressed_array != nullptr) return FindIntersectKdCompressed(r, debug);
     if(uncompressed_root != nullptr) return FindIntersectKdUncompressed(r, debug);
 
     // fallback solution: iterate over ALL triangles, find ALL
