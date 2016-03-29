@@ -1,0 +1,11 @@
+# The teapot model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
+teapot/teapot.obj
+teapot.png
+2
+1200 900
+50.0 100.0 120.0
+0.0 40.0 0.0
+0.0 1.0 0.0
+1.6
+L 0.0 90.0 100.0  255 255 255 400.0
+multisample 4
