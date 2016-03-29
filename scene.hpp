@@ -73,9 +73,6 @@ private:
 
     void FreeBuffers();
     void FreeTextures();
-
-    bool TestTriangleIntersection(const Triangle& tri,const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
-    static void CalculateTrianglePlane(Triangle& t) __attribute__((hot));
 };
 
 

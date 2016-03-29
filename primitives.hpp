@@ -48,7 +48,12 @@ public:
     unsigned int va, vb, vc; // Vertex and normal indices
     unsigned int mat; // Material index
     glm::vec4 p; // plane
-    glm::vec3 generic_normal() const {return p.xyz();}
+    inline glm::vec3 generic_normal() const {return p.xyz();}
+    void CalculatePlane() __attribute__((hot));
+
+    Triangle(const Scene* parent, unsigned int va, unsigned int vb, unsigned int vc, unsigned int mat) :
+        parent_scene(parent), va(va), vb(vb), vc(vc), mat(mat) {}
+    Triangle() : parent_scene(nullptr) {}
 
     const Material& GetMaterial() const;
     const glm::vec3 GetVertexA()  const;
@@ -60,6 +65,8 @@ public:
     const glm::vec2 GetTexCoordsA()  const;
     const glm::vec2 GetTexCoordsB()  const;
     const glm::vec2 GetTexCoordsC()  const;
+
+    bool TestIntersection(const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
 };
 
 struct Intersection{

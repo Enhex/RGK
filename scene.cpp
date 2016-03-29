@@ -130,14 +130,13 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
         if(face.mNumIndices == 3){
-            Triangle t;
-            t.parent_scene = this;
-            t.va = face.mIndices[0] + vertex_index_offset;
-            t.vb = face.mIndices[1] + vertex_index_offset;
-            t.vc = face.mIndices[2] + vertex_index_offset;
-            t.mat = mat;
-            //std::cout << t.va << " " << t.vb << " " << t.vc << " " << std::endl;
-            triangles_buffer.push_back(t);
+            triangles_buffer.emplace(
+               triangles_buffer.end(),
+               this,
+               face.mIndices[0] + vertex_index_offset,
+               face.mIndices[1] + vertex_index_offset,
+               face.mIndices[2] + vertex_index_offset,
+               mat);
         }else{
             std::cerr << "WARNING: Skipping a face that apparently was not tringulated." << std::endl;
         }
@@ -184,7 +183,7 @@ void Scene::Commit(){
         vertices[i] = glm::vec3(vertices_buffer[i].x, vertices_buffer[i].y, vertices_buffer[i].z);
     for(unsigned int i = 0; i < n_triangles; i++){
         triangles[i] = triangles_buffer[i];
-        CalculateTrianglePlane(triangles[i]);
+        triangles[i].CalculatePlane();
     }
     for(unsigned int i = 0; i < n_materials; i++){
         materials[i] = materials_buffer[i];
@@ -287,14 +286,14 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
     for(unsigned int f = 0; f < n_triangles; f++){
         const Triangle& tri = triangles[f];
         float t, a, b;
-        if(TestTriangleIntersection(tri, r, t, a, b)){
+        if(tri.TestIntersection(r, t, a, b)){
             if(t <= r.near || t >= r.far) continue;
 
             // New intersect
             //std::cerr << t << ", at triangle no " << f << std::endl;
             //std::cerr << "Triangle normal " << tri.generic_normal() << std::endl;
             // Re-test for debug
-            //TestTriangleIntersection(tri, r, t, true);
+            //tri.TestIntersection(r, t, true);
             if(t < res.t){
                 // New closest intersect
                 res.triangle = &tri;
@@ -310,110 +309,6 @@ Intersection Scene::FindIntersect(const Ray& __restrict__ r) const{
     //std::cerr << " done: " << res.t << std::endl;
 
     return res;
-}
-
-bool Scene::TestTriangleIntersection(const Triangle& __restrict__ tri, const Ray& __restrict__ r, /*out*/ float& t, float& a, float& b, bool debug) const{
-    // Currently using Badoulel's algorithm
-
-    // This implementation is heavily inspired by the example provided by ANL
-
-    const float EPSILON = 0.00001;
-
-    glm::vec3 planeN = tri.p.xyz();
-
-    double dot = glm::dot(r.direction, planeN);
-
-    if(debug) std::cout << "triangle " << tri.GetVertexA() << " " << tri.GetVertexB() << " " << tri.GetVertexC() << " " << std::endl;
-    if(debug) std::cout << "dot : " << dot << std::endl;
-
-    /* is ray parallel to plane? */
-    if (dot < EPSILON && dot > -EPSILON)
-        return false;
-
-    /* find distance to plane and intersection point */
-    double dot2 = glm::dot(r.origin,planeN);
-    t = -(tri.p.w + dot2) / dot;
-
-    // TODO: Accelerate this
-    /* find largest dim*/
-    int i1 = 0, i2 = 1;
-    glm::vec3 pq = glm::abs(planeN);
-    if(pq.x > pq.y && pq.x > pq.z){
-        i1 = 1; i2 = 2;
-    }else if(pq.y > pq.z){
-        i1 = 0; i2 = 2;
-    }else{
-        i1 = 0; i2 = 1;
-    }
-
-    if(debug) std::cout << i1 << "/" << i2 << " ";
-
-
-    glm::vec3 vert0 = tri.GetVertexA();
-    glm::vec3 vert1 = tri.GetVertexB();
-    glm::vec3 vert2 = tri.GetVertexC();
-
-    if(debug) std::cerr << vert0 << " " << vert1 << " " << vert2 << std::endl;
-
-    if(debug) std::cerr << "intersection is at: " << r.origin + r.direction*t << std::endl;
-
-    glm::vec2 point(r.origin[i1] + r.direction[i1] * t,
-                    r.origin[i2] + r.direction[i2] * t);
-
-    /* begin barycentric intersection algorithm */
-    glm::vec2 q0( point[0] - vert0[i1],
-                  point[1] - vert0[i2]);
-    glm::vec2 q1( vert1[i1] - vert0[i1],
-                  vert1[i2] - vert0[i2]);
-    glm::vec2 q2( vert2[i1] - vert0[i1],
-                  vert2[i2] - vert0[i2]);
-
-    if(debug) std::cerr << q0 << " " << q1 << " " << q2 << std::endl;
-
-    // TODO Return these
-    float alpha, beta;
-
-    /* calculate and compare barycentric coordinates */
-    if (q1.x > -EPSILON && q1.x < EPSILON ) {		/* uncommon case */
-        if(debug) std::cout << "UNCOMMON" << std::endl;
-        beta = q0.x / q2.x;
-        if (beta < 0 || beta > 1)
-            return false;
-        alpha = (q0.y - beta * q2.y) / q1.y;
-    }
-    else {			/* common case, used for this analysis */
-        beta = (q0.y * q1.x - q0.x * q1.y) / (q2.y * q1.x - q2.x * q1.y);
-        if (beta < 0 || beta > 1)
-            return false;
-
-        alpha = (q0.x - beta * q2.x) / q1.x;
-    }
-
-    if(debug) std::cout << "A: " << alpha << ", B: " << beta << " A+B: " << alpha+beta << std::endl;
-
-    if (alpha < 0 || (alpha + beta) > 1.0)
-        return false;
-
-    a = alpha;
-    b = beta;
-
-    return true;
-
-}
-
-void Scene::CalculateTrianglePlane(Triangle& t){
-
-    glm::vec3 v0 = t.parent_scene->vertices[t.va];
-    glm::vec3 v1 = t.parent_scene->vertices[t.vb];
-    glm::vec3 v2 = t.parent_scene->vertices[t.vc];
-
-    glm::vec3 d0 = v1 - v0;
-    glm::vec3 d1 = v2 - v0;
-
-    glm::vec3 n = glm::normalize(glm::cross(d1,d0));
-    float d = - glm::dot(n,v0);
-
-    t.p = glm::vec4(n.x, n.y, n.z, d);
 }
 
 void UncompressedKdNode::Subdivide(unsigned int max_depth){
@@ -641,7 +536,7 @@ Intersection Scene::FindIntersectKdUncompressed(const Ray& __restrict__ r, bool 
                 //  ... test for an intersection
                 bool d = debug && i == 8;
                 if(d) std::cout << "Debugging intersection with 8th triangle" << std::endl;
-                if(TestTriangleIntersection(tri, r, t, a, b, d)){
+                if(tri.TestIntersection(r, t, a, b, d)){
                     if(t < tmin - 0.00001f || t > tmax + 0.0001f){
                         if(debug) std::cerr << "Skipping t " << t << " at triangle " << i << std::endl;
                         continue;
