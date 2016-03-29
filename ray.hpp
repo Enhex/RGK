@@ -28,7 +28,7 @@ public:
     glm::vec3 origin;
     glm::vec3 direction;
     float near = 0.0f;
-    float far = 100.0f;
+    float far = 10000.0f;
     glm::vec3 t(float t) const {return origin + t*direction;}
     inline glm::vec3 operator[](float t_) const {return t(t_);}
 };

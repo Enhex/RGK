@@ -14,3 +14,6 @@ outs
 # 3d model imports
 *.blender
 *.blend*
+
+# External models
+obj/teapot

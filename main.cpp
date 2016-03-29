@@ -21,6 +21,7 @@ static unsigned int debug_x, debug_y;
 
 Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, int depth, bool debug = false){
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
+    if(debug) std::cerr << r.origin << " " << r.direction << std::endl;
     Intersection i = scene.FindIntersect(r, debug);
 
     if(i.triangle){
@@ -34,8 +35,6 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                                     i.triangle->GetNormalC());
         glm::vec3 V = -r.direction; // incoming direction
 
-        if(debug) std::cerr << "Was hit. color is " << mat.diffuse << std::endl;
-
         glm::vec2 texUV;
         if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture){
             texUV = i.Interpolate(i.triangle->GetTexCoordsA(),
@@ -46,6 +45,8 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         Color diffuse  =  mat.diffuse_texture ?  mat.diffuse_texture->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
         Color specular = mat.specular_texture ? mat.specular_texture->GetPixelInterpolated(texUV,debug) : mat.specular;
         Color ambient  =  mat.ambient_texture ?  mat.ambient_texture->GetPixelInterpolated(texUV,debug) : mat.ambient ;
+
+        if(debug) std::cerr << "Was hit. color is " << diffuse << std::endl;
 
         for(const Light& l : lights){
             glm::vec3 L = glm::normalize(l.pos - ipos);
@@ -94,7 +95,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         }
 
         // Ambient lighting
-        total += ambient;
+        total += ambient * 0.03;
 
         // Next ray
         if(depth >= 2 && mat.exponent <= 1.0f){
@@ -155,6 +156,7 @@ struct RenderTask{
     unsigned int multisample;
     unsigned int recursion_level;
     Texture* output;
+    std::atomic<int>* done_increment;
 };
 
 void Render(RenderTask task){
@@ -175,6 +177,8 @@ void Render(RenderTask task){
             task.output->SetPixel(x, y, pixel_total);
         }
     }
+    int total = ++(*task.done_increment);
+    std::cout << "Tiles done: " << total << std::endl;
 }
 
 int main(int argc, char** argv){
@@ -243,21 +247,33 @@ int main(int argc, char** argv){
         cfg.lights.clear();
     }
 
-    // Split rendering into smaller (100x100) tasks.
-    for(unsigned int yp = 0; yp < cfg.yres; yp += 100){
-        for(unsigned int xp = 0; xp < cfg.xres; xp += 100){
+    std::deque<RenderTask> tasks;
+
+    std::atomic<int> tasks_done(0);
+
+    const int tile_size = 200;
+    // Split rendering into smaller (tile_size x tile_size) tasks.
+    for(unsigned int yp = 0; yp < cfg.yres; yp += tile_size){
+        for(unsigned int xp = 0; xp < cfg.xres; xp += tile_size){
             RenderTask task;
             task.xres = cfg.xres; task.yres = cfg.yres;
-            task.xrange_start = xp; task.xrange_end = std::min(cfg.xres, xp+100);
-            task.yrange_start = yp; task.yrange_end = std::min(cfg.yres, yp+100);
+            task.xrange_start = xp; task.xrange_end = std::min(cfg.xres, xp+tile_size);
+            task.yrange_start = yp; task.yrange_end = std::min(cfg.yres, yp+tile_size);
             task.scene = &s;
             task.cconfig = &cconfig;
             task.lights = &cfg.lights;
             task.multisample = cfg.multisample;
             task.recursion_level = cfg.recursion_level;
             task.output = &ob;
-            tpool.push( [task](int){Render(task);} );
+            task.done_increment = &tasks_done;
+            tasks.push_back(task);
         }
+    }
+
+    std::cout << "Rendering in " << tasks.size() << " tiles." << std::endl;
+
+    for(const RenderTask& task : tasks){
+        tpool.push( [task](int){Render(task);} );
     }
 
     tpool.stop(true); // Waits for all remaining threads to complete.
