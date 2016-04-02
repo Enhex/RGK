@@ -3,9 +3,11 @@
 #include <assimp/postprocess.h>
 
 #include <iostream>
+#include <iomanip>
 #include <queue>
 #include <cmath>
 #include <thread>
+#include <unistd.h>
 
 #include "external/ctpl_stl.h"
 
@@ -156,10 +158,15 @@ struct RenderTask{
     unsigned int multisample;
     unsigned int recursion_level;
     Texture* output;
-    std::atomic<int>* done_increment;
 };
 
+std::atomic<int> tasks_done(0);
+std::atomic<int> pixels_done(0);
+std::atomic<bool> stop_monitor(false);
+int total_pixels;
+
 void Render(RenderTask task){
+    unsigned int pxdone = 0;
     unsigned int m = task.multisample;
     for(unsigned int y = task.yrange_start; y < task.yrange_end; y++){
         for(unsigned int x = task.xrange_start; x < task.xrange_end; x++){
@@ -175,10 +182,44 @@ void Render(RenderTask task){
                 }
             }
             task.output->SetPixel(x, y, pixel_total);
+            pxdone++;
+            if(pxdone % 100 == 0){
+                pixels_done += 100;
+                pxdone = 0;
+            }
         }
     }
-    int total = ++(*task.done_increment);
-    std::cout << "Tiles done: " << total << std::endl;
+    pixels_done += pxdone;
+    tasks_done++;
+}
+
+void Monitor(){
+    std::cout << "Monitor thread started" << std::endl;
+
+    auto print_progress_f = [](){
+        int d = pixels_done;
+        float fraction = d/(float)total_pixels;
+        float percent = int(fraction*1000.0f + 0.5f) / 10.0f;
+        const unsigned int barsize = 60;
+        unsigned int fill = fraction * barsize;
+        unsigned int empty = barsize - fill;
+        std::cout << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
+        for(unsigned int i = 0; i <  fill; i++) std::cout << "#";
+        for(unsigned int i = 0; i < empty; i++) std::cout << "-";
+        std::cout << "] " << std::setw(5) << std::fixed << std::setprecision(1) << percent << "% done.";
+        std::flush(std::cout);
+    };
+
+    while(!stop_monitor){
+        print_progress_f();
+        if(pixels_done >= total_pixels) break;
+
+        usleep(1000*100); // 100ms
+    }
+
+    // Display the message one more time to output "100%"
+    print_progress_f();
+    std::cout << std::endl;
 }
 
 int main(int argc, char** argv){
@@ -249,7 +290,9 @@ int main(int argc, char** argv){
 
     std::deque<RenderTask> tasks;
 
-    std::atomic<int> tasks_done(0);
+    total_pixels = cfg.xres * cfg.yres;
+
+    std::thread monitor_thread(Monitor);
 
     const int tile_size = 200;
     // Split rendering into smaller (tile_size x tile_size) tasks.
@@ -265,7 +308,6 @@ int main(int argc, char** argv){
             task.multisample = cfg.multisample;
             task.recursion_level = cfg.recursion_level;
             task.output = &ob;
-            task.done_increment = &tasks_done;
             tasks.push_back(task);
         }
     }
@@ -276,7 +318,10 @@ int main(int argc, char** argv){
         tpool.push( [task](int){Render(task);} );
     }
 
-    tpool.stop(true); // Waits for all remaining threads to complete.
+    tpool.stop(true); // Waits for all remaining worker threads to complete.
+
+    stop_monitor = true;
+    if(monitor_thread.joinable()) monitor_thread.join();
 
     std::string out_dir = Utils::GetDir(cfg.output_file);
     std::string out_file = Utils::GetFilename(cfg.output_file);
