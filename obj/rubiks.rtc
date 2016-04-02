@@ -1,5 +1,5 @@
 
-rubiks.obj
+rubiks/rubiks.obj
 rubiks.png
 2
 1200 900
@@ -10,4 +10,4 @@ rubiks.png
 L 1.5 4.0 -3.0  255 255 255 100.0
 L 2.0 4.0 3.0  255 255 255 100.0
 L -3.0 2.5 -3.0  255 255 255 100.0
-multisample 2
+multisample 4

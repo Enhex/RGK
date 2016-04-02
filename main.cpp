@@ -313,7 +313,8 @@ int main(int argc, char** argv){
 
     total_pixels = cfg.xres * cfg.yres;
 
-    std::thread monitor_thread(Monitor, &ob, Utils::GetFileExtension(cfg.output_file).first + ".preview.png");
+    auto p = Utils::GetFileExtension(cfg.output_file);
+    std::thread monitor_thread(Monitor, &ob, p.first + ".preview." + p.second);
 
     const int tile_size = 200;
     // Split rendering into smaller (tile_size x tile_size) tasks.
