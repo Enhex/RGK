@@ -1,0 +1,17 @@
+# The conference model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
+conference/conference.obj
+conference.png
+2
+1200 900
+-200.0 500.0 350.0
+200.0 150.0 0.0
+0.0 1.0 0.0
+1.6
+
+L 800.0 400.0 200.0 200 220 255 2000.0
+L 800.0 400.0 280.0 200 220 255 2000.0
+L 800.0 400.0 360.0 200 220 255 2000.0
+L 800.0 400.0 420.0 200 220 255 2000.0
+
+multisample 2
+sky 145 200 235
