@@ -281,7 +281,7 @@ int main(int argc, char** argv){
                       );
 
     if(!scene){
-        std::cout << "Assimp failed to load scene `" << modelfile << "`. " << std::endl;
+        std::cout << "Assimp failed to load scene `" << modelfile << "`: " << importer.GetErrorString() << std::endl;
         return 1;
     }
 
