@@ -7,6 +7,7 @@
 #include <queue>
 #include <cmath>
 #include <thread>
+#include <chrono>
 #include <unistd.h>
 
 #include "external/ctpl_stl.h"
@@ -198,6 +199,9 @@ void Monitor(const Texture* output_buffer, std::string preview_path){
     std::cout << "Monitor thread started" << std::endl;
     int counter = 0;
 
+    std::streamsize orig_precision = std::cout.precision();
+    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+
     auto print_progress_f = [](){
         int d = pixels_done;
         float fraction = d/(float)total_pixels;
@@ -216,8 +220,8 @@ void Monitor(const Texture* output_buffer, std::string preview_path){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
 
-        if(counter % 20 == 0){
-            // Each 2 seconds
+        if(counter % 10 == 0){
+            // Each second
             output_buffer->Write(preview_path);
         }
 
@@ -228,6 +232,14 @@ void Monitor(const Texture* output_buffer, std::string preview_path){
     // Display the message one more time to output "100%"
     print_progress_f();
     std::cout << std::endl;
+    output_buffer->Write(preview_path);
+
+    // Clear cout attributes
+    std::cout << std::defaultfloat << std::setprecision(orig_precision);
+
+    std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
+    std::cout << "Total rendering time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f << "s" << std::endl;
+
 }
 
 int main(int argc, char** argv){
