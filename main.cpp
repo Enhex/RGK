@@ -152,6 +152,7 @@ struct RenderTask{
     unsigned int xres, yres;
     unsigned int xrange_start, xrange_end;
     unsigned int yrange_start, yrange_end;
+    glm::vec2 midpoint;
     const Scene* scene;
     const CameraConfig* cconfig;
     const std::vector<Light>* lights;
@@ -193,8 +194,9 @@ void Render(RenderTask task){
     tasks_done++;
 }
 
-void Monitor(){
+void Monitor(const Texture* output_buffer, std::string preview_path){
     std::cout << "Monitor thread started" << std::endl;
+    int counter = 0;
 
     auto print_progress_f = [](){
         int d = pixels_done;
@@ -214,7 +216,13 @@ void Monitor(){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
 
+        if(counter % 20 == 0){
+            // Each 2 seconds
+            output_buffer->Write(preview_path);
+        }
+
         usleep(1000*100); // 100ms
+        counter++;
     }
 
     // Display the message one more time to output "100%"
@@ -277,6 +285,7 @@ int main(int argc, char** argv){
     CameraConfig cconfig(cfg.view_point, cfg.look_at, cfg.up_vector, cfg.yview, cfg.yview*cfg.xres/cfg.yres);
 
     Texture ob(cfg.xres, cfg.yres);
+    ob.FillStripes(15, Color(0.6,0.6,0.6), Color(0.5,0.5,0.5));
 
     unsigned int concurrency = std::thread::hardware_concurrency();
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
@@ -288,11 +297,11 @@ int main(int argc, char** argv){
         cfg.lights.clear();
     }
 
-    std::deque<RenderTask> tasks;
+    std::vector<RenderTask> tasks;
 
     total_pixels = cfg.xres * cfg.yres;
 
-    std::thread monitor_thread(Monitor);
+    std::thread monitor_thread(Monitor, &ob, Utils::GetFileExtension(cfg.output_file).first + ".preview.png");
 
     const int tile_size = 200;
     // Split rendering into smaller (tile_size x tile_size) tasks.
@@ -302,6 +311,7 @@ int main(int argc, char** argv){
             task.xres = cfg.xres; task.yres = cfg.yres;
             task.xrange_start = xp; task.xrange_end = std::min(cfg.xres, xp+tile_size);
             task.yrange_start = yp; task.yrange_end = std::min(cfg.yres, yp+tile_size);
+            task.midpoint = glm::vec2((task.xrange_start + task.xrange_end)/2.0f, (task.yrange_start + task.yrange_end)/2.0f);
             task.scene = &s;
             task.cconfig = &cconfig;
             task.lights = &cfg.lights;
@@ -314,6 +324,12 @@ int main(int argc, char** argv){
 
     std::cout << "Rendering in " << tasks.size() << " tiles." << std::endl;
 
+    // Sorting tasks by their distance to the middle
+    glm::vec2 middle(cfg.xres/2.0f, cfg.yres/2.0f);
+    std::sort(tasks.begin(), tasks.end(), [&middle](const RenderTask& a, const RenderTask& b){
+            return glm::length(middle - a.midpoint) < glm::length(middle - b.midpoint);
+        });
+
     for(const RenderTask& task : tasks){
         tpool.push( [task](int){Render(task);} );
     }
@@ -323,17 +339,7 @@ int main(int argc, char** argv){
     stop_monitor = true;
     if(monitor_thread.joinable()) monitor_thread.join();
 
-    std::string out_dir = Utils::GetDir(cfg.output_file);
-    std::string out_file = Utils::GetFilename(cfg.output_file);
-
-    auto fname = Utils::GetFileExtension(out_file);
-    if(fname.second == "BMP" || fname.second == "bmp"){
-        ob.WriteToBMP(cfg.output_file);
-    }else if(fname.second == "PNG" || fname.second == "png"){
-        ob.WriteToPNG(cfg.output_file);
-    }else{
-        std::cout << "Sorry, output file format '" << fname.second << "' is not supported." << std::endl;
-    }
+    ob.Write(cfg.output_file);
 
     return 0;
 }

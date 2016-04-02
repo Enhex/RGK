@@ -28,8 +28,8 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     float fy = std::modf(y, &iy0f);
     int ix0 = ix0f;
     int iy0 = iy0f;
-    int ix1 = (ix0 != xsize - 1)? ix0 + 1 : ix0;
-    int iy1 = (iy0 != ysize - 1)? iy0 + 1 : iy0;
+    int ix1 = (ix0 != int(xsize) - 1)? ix0 + 1 : ix0;
+    int iy1 = (iy0 != int(ysize) - 1)? iy0 + 1 : iy0;
     if(ix0 == -1) ix0 = 0;
     if(iy0 == -1) iy0 = 0;
     Color c00 = data[iy0 * xsize + ix0];
@@ -63,7 +63,23 @@ inline float clamp( float f )
     return 0.5f * ( 1.0f + fabsf( f ) - fabsf( f - 1.0f ) );
 }
 
-void Texture::WriteToPNG(std::string path){
+bool Texture::Write(std::string path) const{
+    std::string out_dir = Utils::GetDir(path);
+    std::string out_file = Utils::GetFilename(path);
+
+    auto fname = Utils::GetFileExtension(out_file);
+    if(fname.second == "BMP" || fname.second == "bmp"){
+        WriteToBMP(path);
+    }else if(fname.second == "PNG" || fname.second == "png"){
+        WriteToPNG(path);
+    }else{
+        std::cerr << "Sorry, output file format '" << fname.second << "' is not supported." << std::endl;
+        return false;
+    }
+    return true;
+}
+
+void Texture::WriteToPNG(std::string path) const{
 
     png::image<png::rgb_pixel> image(xsize, ysize);
 
@@ -79,7 +95,7 @@ void Texture::WriteToPNG(std::string path){
     image.write(path);
 }
 
-void Texture::WriteToBMP(std::string path){
+void Texture::WriteToBMP(std::string path) const{
     // This procedure was contributed by Adam Malinowski and donated
     // to the public domain.
 
@@ -146,4 +162,14 @@ Texture* Texture::CreateNewFromPNG(std::string path){
         }
     }
     return t;
+}
+
+void Texture::FillStripes(unsigned int size, Color a, Color b){
+    for(unsigned int y = 0; y < ysize; y++){
+        for(unsigned int x = 0; x < xsize; x++){
+            unsigned int d = (x+y)%(size*2);
+            if(d < size) SetPixel(x, y, a);
+            else         SetPixel(x, y, b);
+        }
+    }
 }

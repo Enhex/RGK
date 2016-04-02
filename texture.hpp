@@ -11,18 +11,21 @@ class Texture{
 public:
     Texture(int xsize, int ysize);
 
-    void WriteToPNG(std::string path);
-    void WriteToBMP(std::string path);
+    bool Write(std::string path) const;
+    void WriteToPNG(std::string path) const;
+    void WriteToBMP(std::string path) const;
     void SetPixel(int x, int y, Color c);
     void GetPixel(int x, int y);
 
     Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const;
 
     static Texture* CreateNewFromPNG(std::string path);
+
+    void FillStripes(unsigned int size, Color a, Color b);
 private:
     // Fixed size is kept manually.
     std::vector<Color> data;
-    int xsize, ysize;
+    unsigned int xsize, ysize;
 
     Texture();
 };
