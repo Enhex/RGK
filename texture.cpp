@@ -1,6 +1,8 @@
 #include "texture.hpp"
 
 #include <png++/png.hpp>
+#include <jpeglib.h>
+#include <jerror.h>
 
 #include <cmath>
 
@@ -163,6 +165,64 @@ Texture* Texture::CreateNewFromPNG(std::string path){
     }
     return t;
 }
+
+Texture* Texture::CreateNewFromJPEG(std::string path){
+    if(!Utils::GetFileExists(path)){
+        std::cerr << "Failed to load texture '" << path << ", file does not exist." << std::endl;
+        return nullptr;
+    }
+
+    struct jpeg_decompress_struct info;
+    struct jpeg_error_mgr err;
+
+    FILE* file = fopen(path.c_str(), "rb");  //open the file
+
+    info.err = jpeg_std_error(& err);
+    jpeg_create_decompress(& info);
+    if(!file) {
+        std::cout << "Failed to read file `" << path << "`, ignoring this texture." << std::endl;
+        return nullptr;
+    }
+
+
+    jpeg_stdio_src(&info, file);
+    jpeg_read_header(&info, TRUE);
+    jpeg_start_decompress(&info);
+
+    int w = info.output_width;
+    int h = info.output_height;
+    int channels = info.num_components;
+    if(channels != 3){
+        std::cout << "Unsupported number of channels in JPEG file `" << path << "`, only 3-channel files are supported" << std::endl;
+        return nullptr;
+    }
+
+    unsigned char* buf = new unsigned char[w * h * 3];
+    unsigned char * rowptr[1];
+    while (info.output_scanline < info.output_height){
+        // Enable jpeg_read_scanlines() to fill our jdata array
+        rowptr[0] = (unsigned char *)buf +
+            3* info.output_width * info.output_scanline;
+        jpeg_read_scanlines(&info, rowptr, 1);
+    }
+    jpeg_finish_decompress(&info);
+    fclose(file);
+
+    Texture* t = new Texture(w,h);
+    for(int y = 0; y < h; y++){
+        for(int x = 0; x < w; x++){
+            int p = (y * w + x) * 3;
+            t->SetPixel(x, y, Color(buf[p+0]/255.0f,
+                                    buf[p+1]/255.0f,
+                                    buf[p+2]/255.0f));
+        }
+    }
+
+    delete[] buf;
+
+    return t;
+}
+
 
 void Texture::FillStripes(unsigned int size, Color a, Color b){
     for(unsigned int y = 0; y < ysize; y++){

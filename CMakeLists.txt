@@ -10,7 +10,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 include(FindPackageHandleStandardArgs)
 
-find_package(OpenGL REQUIRED)
+## find_package(OpenGL REQUIRED)
 find_package(assimp REQUIRED)
 
 ## GLM
@@ -24,7 +24,7 @@ find_package_handle_standard_args(
   GLM_INCLUDE_DIRS
   )
 
-## PNG++
+## libpng, PNG++
 find_package(PNG REQUIRED)
 set(png++_FIND_REQUIRED TRUE)
 find_path(
@@ -37,10 +37,14 @@ find_package_handle_standard_args(
   png++_INCLUDE_DIRS
   )
 
+## libjpeg
+find_package(JPEG REQUIRED)
+
 include_directories(
   ${GLM_INCLUDE_DIRS}
   ${png++_INCLUDE_DIRS}
   ${assimp_INCLUDE_DIRS}
+  ${JPEG_INCLUDE_DIRS}
   )
 
 add_definitions(
@@ -49,7 +53,6 @@ add_definitions(
   -Wextra
   -Werror
   -O3
-  ## -pg
   )
 
 file(GLOB SOURCES
@@ -67,5 +70,6 @@ target_link_libraries(
   RGK
   ${assimp_LIBRARIES}
   ${PNG_LIBRARY}
+  ${JPEG_LIBRARY}
   pthread
   )

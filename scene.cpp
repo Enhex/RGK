@@ -167,6 +167,8 @@ Texture* Scene::GetTexture(std::string name){
         Texture* t = nullptr;
         if(p.second == "PNG" || p.second == "png"){
             t = Texture::CreateNewFromPNG(texture_directory + name);
+        }else if(p.second == "JPG" || p.second == "jpg" || p.second == "JPEG" || p.second == "jpeg"){
+            t = Texture::CreateNewFromJPEG(texture_directory + name);
         }else{
             std::cerr << "ERROR: Texture format '" << p.second << "' is not supported!" << std::endl;
         }

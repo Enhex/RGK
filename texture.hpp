@@ -20,6 +20,7 @@ public:
     Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const;
 
     static Texture* CreateNewFromPNG(std::string path);
+    static Texture* CreateNewFromJPEG(std::string path);
 
     void FillStripes(unsigned int size, Color a, Color b);
 private:
