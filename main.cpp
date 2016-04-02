@@ -22,7 +22,7 @@
 static bool debug_trace = false;
 static unsigned int debug_x, debug_y;
 
-Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, int depth, bool debug = false){
+Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, Color sky_color, int depth, bool debug = false){
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
     if(debug) std::cerr << r.origin << " " << r.direction << std::endl;
     Intersection i = scene.FindIntersect(r, debug);
@@ -98,21 +98,21 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         }
 
         // Ambient lighting
-        total += ambient * 0.03;
+        total += ambient * 0.1;
 
         // Next ray
-        if(depth >= 2 && mat.exponent <= 1.0f){
+        if(depth >= 2 && mat.exponent < 1.0f){
             glm::vec3 refl = 2.0f * glm::dot(V, N) * N - V;
             Ray refl_ray(ipos, ipos + refl, 0.01);
             refl_ray.far = 1000.0f;
-            Color reflection = trace_ray(scene, refl_ray, lights, depth-1);
+            Color reflection = trace_ray(scene, refl_ray, lights, sky_color, depth-1);
             total = mat.exponent * reflection + (1.0f - mat.exponent) * total;
         }
         if(debug) std::cout << "Total: " << total << std::endl;
         return total;
     }else{
         // Black background for void spaces
-        return Color{0.0,0.0,0.0};
+        return sky_color;
     }
 }
 
@@ -159,6 +159,7 @@ struct RenderTask{
     const std::vector<Light>* lights;
     unsigned int multisample;
     unsigned int recursion_level;
+    Color sky_color;
     Texture* output;
 };
 
@@ -180,7 +181,7 @@ void Render(RenderTask task){
                 for(unsigned int mx = 0; mx < m; mx++){
                     glm::vec3 p = task.cconfig->GetViewScreenPoint(x*m + mx, y*m + my, task.xres*m, task.yres*m);
                     Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
-                    pixel_total += trace_ray(*task.scene, r, *task.lights, task.recursion_level, d) * factor;
+                    pixel_total += trace_ray(*task.scene, r, *task.lights, task.sky_color, task.recursion_level, d) * factor;
                 }
             }
             task.output->SetPixel(x, y, pixel_total);
@@ -330,6 +331,7 @@ int main(int argc, char** argv){
             task.lights = &cfg.lights;
             task.multisample = cfg.multisample;
             task.recursion_level = cfg.recursion_level;
+            task.sky_color = cfg.sky_color;
             task.output = &ob;
             tasks.push_back(task);
         }

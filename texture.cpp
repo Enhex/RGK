@@ -8,6 +8,8 @@
 
 #include "utils.hpp"
 
+#include <glm/gtx/wrap.hpp>
+
 Texture::Texture(int xsize, int ysize):
     xsize(xsize), ysize(ysize)
 {
@@ -23,8 +25,8 @@ void Texture::SetPixel(int x, int y, Color c)
 Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     // TODO: Fix alignment (move by 0.5f * pixelsize, probably)
 
-    float x = pos.x * xsize - 0.5f;
-    float y = pos.y * ysize - 0.5f;
+    float x = glm::repeat(pos.x) * xsize - 0.5f;
+    float y = glm::repeat(pos.y) * ysize - 0.5f;
     float ix0f, iy0f;
     float fx = std::modf(x, &ix0f);
     float fy = std::modf(y, &iy0f);
@@ -212,7 +214,7 @@ Texture* Texture::CreateNewFromJPEG(std::string path){
     for(int y = 0; y < h; y++){
         for(int x = 0; x < w; x++){
             int p = (y * w + x) * 3;
-            t->SetPixel(x, y, Color(buf[p+0]/255.0f,
+            t->SetPixel(x, h-y-1, Color(buf[p+0]/255.0f,
                                     buf[p+1]/255.0f,
                                     buf[p+2]/255.0f));
         }

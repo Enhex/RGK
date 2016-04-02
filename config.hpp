@@ -27,6 +27,7 @@ public:
     glm::vec3 up_vector;
     float yview;
     std::vector<Light> lights;
+    Color sky_color = Color(0.0, 0.0, 0.0);
     unsigned int multisample = 1;
 };
 

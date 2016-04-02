@@ -174,8 +174,9 @@ Texture* Scene::GetTexture(std::string name){
         }
         if(!t){
             std::cerr << "Failed to load texture '" << name << "' , ignoring it." << std::endl;
+        }else{
+            textures[name] = t;
         }
-        textures[name] = t;
         return t;
     }
     return nullptr;

@@ -70,6 +70,7 @@ Config Config::CreateFromFile(std::string path){
         vs = Utils::SplitString(line," ");
         if(vs.size() == 0) continue;
         if(vs[0][0] == '#') continue;
+        if(vs[0] == "") continue;
         if(vs[0] == "L"){
             // Light info
             if(vs.size() != 8) throw ConfigFileException("Invalid light line.");
@@ -82,6 +83,9 @@ Config Config::CreateFromFile(std::string path){
             int ms = std::stoi(vs[1]);
             if(ms == 0) throw ConfigFileException("Invalid multisample value.");
             cfg.multisample = ms;
+        }else if(vs[0] == "sky" || vs[0] == "skycolor"){
+            if(vs.size() != 4) throw ConfigFileException("Invalid sky color line.");
+            cfg.sky_color = Color(std::stoi(vs[1])/255.0f, std::stoi(vs[2])/255.0f, std::stoi(vs[3])/255.0f);
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
 
