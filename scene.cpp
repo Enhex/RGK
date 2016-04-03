@@ -51,6 +51,9 @@ void Scene::LoadScene(const aiScene* scene){
 
         Material m;
         m.parent_scene = this;
+        aiString name;
+        mat->Get(AI_MATKEY_NAME, name);
+        m.name = name.C_Str();
         aiColor3D c;
         mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
         m.diffuse = c;
@@ -94,6 +97,7 @@ void Scene::LoadScene(const aiScene* scene){
         }
 
         materials_buffer.push_back(m);
+        std::cout << "Read material: " << m.name << std::endl;
     }
 
     // Load root node
@@ -139,6 +143,7 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
     }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
+        if(face.mNumIndices < 3) continue; // Ignore degenerated faces
         if(face.mNumIndices == 3){
             triangles_buffer.emplace(
                triangles_buffer.end(),
@@ -148,7 +153,7 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
                face.mIndices[2] + vertex_index_offset,
                mat);
         }else{
-            std::cerr << "WARNING: Skipping a face that apparently was not tringulated." << std::endl;
+            std::cerr << "WARNING: Skipping a face that apparently was not triangulated (" << face.mNumIndices << ")." << std::endl;
         }
     }
     if(mesh->mTextureCoords[0]){

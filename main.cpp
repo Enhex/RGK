@@ -1,5 +1,6 @@
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
+#include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 
 #include <iostream>
@@ -24,7 +25,7 @@
 static bool debug_trace = false;
 static unsigned int debug_x, debug_y;
 
-#define SHADOW_CACHE_SIZE 1
+#define SHADOW_CACHE_SIZE 5
 
 Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, std::vector<LRUBuffer<const Triangle*>>& shadow_cache, Color sky_color, int depth, bool debug = false){
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
@@ -303,9 +304,20 @@ int main(int argc, char** argv){
         return 1;
     }
 
+    std::cout << "Loading scene... " << std::endl;
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, NULL);
     const aiScene* scene = importer.ReadFile(modelfile,
-                                             aiProcessPreset_TargetRealtime_MaxQuality
-                      );
+                                             aiProcess_Triangulate |
+                                             aiProcess_TransformUVCoords |
+                                             aiProcess_GenSmoothNormals |
+                                             aiProcess_JoinIdenticalVertices |
+                                             aiProcess_RemoveRedundantMaterials |
+                                             aiProcess_GenUVCoords |
+                                             aiProcess_SortByPType |
+                                             aiProcess_FindDegenerates |
+                                             aiProcess_FindInvalidData |
+        aiProcess_ValidateDataStructure |
+                     0 );
 
     if(!scene){
         std::cout << "Assimp failed to load scene `" << modelfile << "`: " << importer.GetErrorString() << std::endl;

@@ -32,6 +32,7 @@ struct Light{
 };
 
 struct Material{
+    std::string name;
     const Scene* parent_scene;
     Color diffuse;
     Color specular;
