@@ -33,8 +33,8 @@ public:
     // Prints the entire buffer to stdout.
     void Dump() const;
 
-    Intersection FindIntersectKd(const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
-    bool FindIntersectKdBool(const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
+    Intersection    FindIntersectKd   (const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
+    const Triangle* FindIntersectKdAny(const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
 
 
     // TODO: have triangle access these, and keep these fields private

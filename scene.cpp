@@ -631,7 +631,7 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) __res
     return res;
 }
 
-bool Scene::FindIntersectKdBool(const Ray& __restrict__ r, bool debug) __restrict__ const{
+const Triangle* Scene::FindIntersectKdAny(const Ray& __restrict__ r, bool debug) __restrict__ const{
     (void)debug;
 
     // First, check whether the ray intersects with our BB at all.
@@ -647,7 +647,7 @@ bool Scene::FindIntersectKdBool(const Ray& __restrict__ r, bool debug) __restric
         if (tNear > tFar) std::swap(tNear, tFar);
         t0 = tNear > t0 ? tNear : t0;
         t1 = tFar  < t1 ? tFar  : t1;
-        if (t0 > t1) return false; // No intersection.
+        if (t0 > t1) return nullptr; // No intersection.
     }
 
     struct NodeToDo{
@@ -686,7 +686,7 @@ bool Scene::FindIntersectKdBool(const Ray& __restrict__ r, bool debug) __restric
                         continue;
                     }
                     // Ignore whether this is the nearest intersection, we are looking for ANY.
-                    return true;
+                    return &tri;
                 }
             }
 
@@ -721,5 +721,5 @@ bool Scene::FindIntersectKdBool(const Ray& __restrict__ r, bool debug) __restric
     }
 
     // No hit found at all.
-    return false;
+    return nullptr;
 }

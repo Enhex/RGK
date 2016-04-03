@@ -12,6 +12,8 @@
 
 #include "external/ctpl_stl.h"
 
+#include "LRU.hpp"
+
 #include "scene.hpp"
 #include "ray.hpp"
 #include "texture.hpp"
@@ -22,7 +24,9 @@
 static bool debug_trace = false;
 static unsigned int debug_x, debug_y;
 
-Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, Color sky_color, int depth, bool debug = false){
+#define SHADOW_CACHE_SIZE 5
+
+Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, std::vector<LRUBuffer<const Triangle*>>& shadow_cache, Color sky_color, int depth, bool debug = false){
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
     if(debug) std::cerr << r.origin << " " << r.direction << std::endl;
     Intersection i = scene.FindIntersectKd(r, debug);
@@ -51,16 +55,27 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
 
         if(debug) std::cerr << "Was hit. color is " << diffuse << std::endl;
 
-        for(const Light& l : lights){
+        for(unsigned int qq = 0; qq < lights.size(); qq++){
+            const Light& l = lights[qq];
             glm::vec3 L = glm::normalize(l.pos - ipos);
-            bool shadow;
-            if(depth == 0) shadow = false;
-            else{
-                // if no intersection on path to light
+            const Triangle* shadow_triangle = nullptr;
+            if(depth > 0){
+                // Search for shadow triangle.
                 Ray ray_to_light(ipos, l.pos, 0.0001f * glm::length(ipos - l.pos));
-                shadow = scene.FindIntersectKdBool(ray_to_light);
+                // First, try looking within shadow cache.
+                for(const Triangle* tri : shadow_cache[qq]){
+                    float t,a,b;
+                    if(tri->TestIntersection(ray_to_light, t, a, b)){
+                        // Intersection found.
+                        shadow_triangle = tri;
+                        break;
+                    }
+                }
+                // Skip manual search when a shadow triangle was found in cache
+                if(!shadow_triangle)
+                    shadow_triangle = scene.FindIntersectKdAny(ray_to_light);
             }
-            if(!shadow){ // no intersection found
+            if(!shadow_triangle){ // no intersection found
                 //TODO: use interpolated normals
 
                 float distance = glm::length(ipos - l.pos); // The distance to light
@@ -88,6 +103,8 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                 }
             }else{
                 if(debug) std::cerr << "Shadow found." << std::endl;
+                // Update the shadow buffer for this light source
+                shadow_cache[qq].Use(shadow_triangle);
             }
         }
 
@@ -104,7 +121,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             glm::vec3 refl = 2.0f * glm::dot(V, N) * N - V;
             Ray refl_ray(ipos, ipos + refl, 0.01);
             refl_ray.far = 1000.0f;
-            Color reflection = trace_ray(scene, refl_ray, lights, sky_color, depth-1);
+            Color reflection = trace_ray(scene, refl_ray, lights, shadow_cache, sky_color, depth-1);
             total = mat.exponent * reflection + (1.0f - mat.exponent) * total;
         }
         if(debug) std::cout << "Total: " << total << std::endl;
@@ -170,6 +187,9 @@ int total_pixels;
 void Render(RenderTask task){
     unsigned int pxdone = 0;
     unsigned int m = task.multisample;
+    // Per-thread shadow cache
+    std::vector<LRUBuffer<const Triangle*>> shadow_cache(task.lights->size(), LRUBuffer<const Triangle*>(SHADOW_CACHE_SIZE));
+
     for(unsigned int y = task.yrange_start; y < task.yrange_end; y++){
         for(unsigned int x = task.xrange_start; x < task.xrange_end; x++){
             bool d = false;
@@ -180,7 +200,7 @@ void Render(RenderTask task){
                 for(unsigned int mx = 0; mx < m; mx++){
                     glm::vec3 p = task.cconfig->GetViewScreenPoint(x*m + mx, y*m + my, task.xres*m, task.yres*m);
                     Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
-                    pixel_total += trace_ray(*task.scene, r, *task.lights, task.sky_color, task.recursion_level, d) * factor;
+                    pixel_total += trace_ray(*task.scene, r, *task.lights, shadow_cache, task.sky_color, task.recursion_level, d) * factor;
                 }
             }
             task.output->SetPixel(x, y, pixel_total);
