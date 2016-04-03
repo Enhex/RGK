@@ -314,6 +314,10 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
 
     //std::cerr << "Using axis " << axis << std::endl;
     const std::vector<float>* evch[3] = {&parent_scene->xevents, &parent_scene->yevents, &parent_scene->zevents};
+
+    unsigned int retries = 0;
+ retry: // Return point for retrying with a different axis
+
     const std::vector<float>& all_events = *evch[axis];
 
     // Prepare BB events.
@@ -332,8 +336,7 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
     std::sort(events.begin(), events.end(), [](const BBEvent& a, const BBEvent& b){
             if(a.pos == b.pos) return a.type < b.type;
             return a.pos < b.pos;
-        });
-
+            });
 
     // SAH, inspired by the pbrt book.
     const std::pair<float,float>* axbds[3] = {&xBB,&yBB,&zBB};
@@ -380,11 +383,16 @@ void UncompressedKdNode::Subdivide(unsigned int max_depth){
             n_before++;
     }
 
-    // TODO: If no reasonable split was found at all, try a different axis.
     // TODO: Allow some bad refines, just not too much recursivelly.
     if(best_offset == -1 ||        // No suitable split position found at all.
        best_cost > nosplit_cost || // It is cheaper to not split at all
        false){
+        if(retries < 2){
+            // If no reasonable split was found at all, try a different axis.
+            retries++;
+            axis = (axis+1)%3;
+            goto retry;
+            }
         //std::cerr << "Not splitting, best cost = " << best_cost << ", nosplit cost = " << nosplit_cost << std::endl;
         return;
     }
