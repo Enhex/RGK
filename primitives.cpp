@@ -46,7 +46,7 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
 
     // TODO: Is it possible to elliminate such triangles during preprocessing?
     /* If the triangle is just a line segment, then it's normal will be NAN, and so dot will be nan. Ignore such triangles. */
-    //if(std::isnan(dot)) return false;
+    if(std::isnan(dot)) return false;
 
     /* is ray parallel to plane? */
     if (dot < EPSILON && dot > -EPSILON)
