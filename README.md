@@ -20,3 +20,7 @@ Prepare build files:
 Compile:
 
     make
+
+## Running examples
+
+    ./RGK ../obj/dabrovic-sponza.rtc
