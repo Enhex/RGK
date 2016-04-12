@@ -2,6 +2,7 @@
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
+#include <assimp/cimport.h>
 
 #include <iostream>
 #include <iomanip>
@@ -306,7 +307,6 @@ int main(int argc, char** argv){
                                              //aiProcess_SortByPType |
                                              aiProcess_FindDegenerates |
                                              aiProcess_FindInvalidData |
-                                             aiProcess_CalcTangentSpace |
                                              //aiProcess_ValidateDataStructure |
                      0 );
 
@@ -314,6 +314,12 @@ int main(int argc, char** argv){
         std::cout << "Assimp failed to load scene `" << modelfile << "`: " << importer.GetErrorString() << std::endl;
         return 1;
     }
+
+    // Calculating tangents is requested AFTER the scene is
+    // loaded. Otherwise this step runs before normals are calculated
+    // for vertices that are missing them.
+    scene = importer.ApplyPostProcessing(aiProcess_CalcTangentSpace);
+    //aiApplyPostProcessing(scene, aiProcess_CalcTangentSpace);
 
     std::cout << "Loaded scene with " << scene->mNumMeshes << " meshes, " <<
         scene->mNumMaterials << " materials and " << scene->mNumLights <<

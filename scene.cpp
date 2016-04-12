@@ -150,10 +150,12 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
         // TODO: current transform rotation?
         normals_buffer.push_back(normal);
     }
-    for(unsigned int v = 0; v < mesh->mNumVertices; v++){
-        aiVector3D tangent = mesh->mTangents[v];
-        // TODO: current transform rotation?
-        tangents_buffer.push_back(tangent);
+    if(mesh->mTangents){
+        for(unsigned int v = 0; v < mesh->mNumVertices; v++){
+            aiVector3D tangent = mesh->mTangents[v];
+            // TODO: current transform rotation?
+            tangents_buffer.push_back(tangent);
+        }
     }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
