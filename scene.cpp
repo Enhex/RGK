@@ -95,6 +95,15 @@ void Scene::LoadScene(const aiScene* scene){
                 m.ambient_texture = tex;
             }
         }
+        n = mat->GetTextureCount(aiTextureType_HEIGHT);
+        if(n > 0){
+            mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
+            if(s != ""){
+                std::cout << "Material has bump texture " << s << std::endl;
+                tex = GetTexture(s);
+                m.bump_texture = tex;
+            }
+        }
 
         materials_buffer.push_back(m);
         std::cout << "Read material: " << m.name << std::endl;
@@ -140,6 +149,11 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
         aiVector3D normal = mesh->mNormals[v];
         // TODO: current transform rotation?
         normals_buffer.push_back(normal);
+    }
+    for(unsigned int v = 0; v < mesh->mNumVertices; v++){
+        aiVector3D tangent = mesh->mTangents[v];
+        // TODO: current transform rotation?
+        tangents_buffer.push_back(tangent);
     }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
@@ -195,12 +209,14 @@ void Scene::Commit(){
     materials = new Material[materials_buffer.size()];
     normals = new glm::vec3[normals_buffer.size()];
     texcoords = new glm::vec2[texcoords_buffer.size()];
+    tangents = new glm::vec3[tangents_buffer.size()];
 
     n_vertices = vertices_buffer.size();
     n_triangles = triangles_buffer.size();
     n_materials = materials_buffer.size();
     n_normals = normals_buffer.size();
     n_texcoords = texcoords_buffer.size();
+    n_tangents = tangents_buffer.size();
 
     // TODO: memcpy
     for(unsigned int i = 0; i < n_vertices; i++)
@@ -214,6 +230,8 @@ void Scene::Commit(){
     }
     for(unsigned int i = 0; i < n_normals; i++)
         normals[i] = glm::vec3(normals_buffer[i].x, normals_buffer[i].y, normals_buffer[i].z);
+    for(unsigned int i = 0; i < n_tangents; i++)
+        tangents[i] = glm::vec3(tangents_buffer[i].x, tangents_buffer[i].y, tangents_buffer[i].z);
     for(unsigned int i = 0; i < n_texcoords; i++)
         texcoords[i] = glm::vec2(texcoords_buffer[i].x, texcoords_buffer[i].y);
 
@@ -225,6 +243,8 @@ void Scene::Commit(){
     triangles_buffer = std::vector<Triangle>();
     materials_buffer = std::vector<Material>();
     normals_buffer   = std::vector<aiVector3D>();
+    tangents_buffer  = std::vector<aiVector3D>();
+    texcoords_buffer = std::vector<aiVector3D>();
 
     // Computing x/y/z bounds for all triangles.
     xevents.resize(2 * n_triangles);
@@ -508,7 +528,7 @@ void Scene::Compress(){
 void Scene::CompressRec(const UncompressedKdNode *node, unsigned int &array_pos, unsigned int &triangle_pos){
     if(node->type == UncompressedKdNode::LEAF){
         // Leaf node
-        compressed_array[array_pos] = CompressedKdNode(node->triangle_indices.size(), compressed_triangles + triangle_pos);
+        compressed_array[array_pos] = CompressedKdNode(node->triangle_indices.size(), triangle_pos);
         array_pos++;
         // Fill in triangles
         for(unsigned int t : node->triangle_indices)
@@ -578,10 +598,10 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) __res
             bool hit = false;
             // Search for intersections with triangles inside this node
             unsigned int n = node->GetTrianglesN();
-            unsigned int* tri_start = node->GetFirstTrianglePos();
+            uint32_t tri_start = node->GetFirstTrianglePos();
             for(unsigned int p = 0; p < n; p++){
                 // For each triangle ...
-                unsigned int i = *(tri_start + p);
+                unsigned int i = compressed_triangles[tri_start + p];
                 const Triangle& tri = triangles[i];
                 float t, a, b;
                 //  ... test for an intersection
@@ -687,10 +707,10 @@ const Triangle* Scene::FindIntersectKdAny(const Ray& __restrict__ r, bool debug)
         if(node->IsLeaf()){ // leaf node
             // Search for intersections with triangles inside this node
             unsigned int n = node->GetTrianglesN();
-            unsigned int* tri_start = node->GetFirstTrianglePos();
+            uint32_t tri_start = node->GetFirstTrianglePos();
             for(unsigned int p = 0; p < n; p++){
                 // For each triangle ...
-                unsigned int i = *(tri_start + p);
+                unsigned int i = compressed_triangles[tri_start + p];
                 const Triangle& tri = triangles[i];
                 float t, a, b;
                 //  ... test for an intersection

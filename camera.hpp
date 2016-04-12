@@ -14,6 +14,7 @@ public:
        subx, suby - the coordinates of subpixel within (x,y) pixel for requesting ray
      */
     Ray GetSubpixelRay(int x, int y, int xres, int yres, int subx, int suby, int subres) const;
+    Ray GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int suby, int subres) const;
 
     Ray GetRandomRay(int x, int y, int xres, int yres) const;
     Ray GetRandomRayLens(int x, int y, int xres, int yres) const;

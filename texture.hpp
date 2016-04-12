@@ -17,6 +17,10 @@ public:
     void SetPixel(int x, int y, Color c);
     void GetPixel(int x, int y);
 
+    // Finite differentes for bump maps
+    float GetSlopeRight(glm::vec2 pos);
+    float GetSlopeBottom(glm::vec2 pos);
+
     Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const;
 
     static Texture* CreateNewFromPNG(std::string path);

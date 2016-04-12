@@ -46,6 +46,8 @@ public:
     unsigned int n_materials = 0;
     glm::vec3*     normals   = nullptr;
     unsigned int n_normals   = 0;
+    glm::vec3*     tangents  = nullptr;
+    unsigned int n_tangents  = 0;
     glm::vec2*     texcoords = nullptr;
     unsigned int n_texcoords = 0;
 
@@ -76,6 +78,7 @@ private:
     mutable std::vector<Triangle> triangles_buffer;
     mutable std::vector<Material> materials_buffer;
     mutable std::vector<aiVector3D> normals_buffer;
+    mutable std::vector<aiVector3D> tangents_buffer;
     mutable std::vector<aiVector3D> texcoords_buffer;
 
     std::unordered_map<std::string, Texture*> textures;
@@ -122,9 +125,9 @@ struct CompressedKdNode{
     inline bool IsLeaf() const {return (kind & 0x03) == 0x03;}
     inline short GetSplitAxis() const {return kind & 0x03;}
     inline float GetSplitPlane() const {return split_plane;}
-    inline unsigned int GetTrianglesN() const {return triangles_num >> 2;}
-    inline unsigned int* GetFirstTrianglePos() const {return triangles_start;}
-    inline unsigned int GetOtherChildIndex() const {return other_child >> 2;}
+    inline uint32_t GetTrianglesN() const {return triangles_num >> 2;}
+    inline uint32_t GetFirstTrianglePos() const {return triangles_start;}
+    inline uint32_t GetOtherChildIndex() const {return other_child >> 2;}
 
     // Default constructor;
     CompressedKdNode() {}
@@ -135,7 +138,7 @@ struct CompressedKdNode{
         split_plane = split;
     }
     // Constructor for leaf nodes
-    CompressedKdNode(unsigned int num, unsigned int* start){
+    CompressedKdNode(unsigned int num, unsigned int start){
         triangles_num = (num << 2) | 0x03;
         triangles_start = start;
     }
@@ -147,17 +150,17 @@ struct CompressedKdNode{
 private:
     union{
         float split_plane; // For internal nodes
-        unsigned int * triangles_start; // For leaf nodes
+        uint32_t triangles_start; // For leaf nodes
     };
     union{
          // For internal nodes (shifted right 2 bits). One child is
          // just after this stuct in memory layout, other is at this
          // location.
-        unsigned int other_child;
+        uint32_t other_child;
          // For leaf nodes (shifter right 2 bits).
-        unsigned int triangles_num;
+        uint32_t triangles_num;
         // For any kind of node, 2 LSB.
-        unsigned int kind;
+        uint32_t kind;
     };
 } __attribute__((packed,aligned(4)));
 

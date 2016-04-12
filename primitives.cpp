@@ -10,6 +10,9 @@ const glm::vec3 Triangle::GetVertexC()  const { return parent_scene->vertices[vc
 const glm::vec3 Triangle::GetNormalA()  const { return parent_scene->normals[va];  }
 const glm::vec3 Triangle::GetNormalB()  const { return parent_scene->normals[vb];  }
 const glm::vec3 Triangle::GetNormalC()  const { return parent_scene->normals[vc];  }
+const glm::vec3 Triangle::GetTangentA()  const { return parent_scene->tangents[va];  }
+const glm::vec3 Triangle::GetTangentB()  const { return parent_scene->tangents[vb];  }
+const glm::vec3 Triangle::GetTangentC()  const { return parent_scene->tangents[vc];  }
 
 const glm::vec2 Triangle::GetTexCoordsA()  const { return (parent_scene->n_texcoords <= va) ? glm::vec2(0.0,0.0) : parent_scene->texcoords[va]; }
 const glm::vec2 Triangle::GetTexCoordsB()  const { return (parent_scene->n_texcoords <= va) ? glm::vec2(0.0,0.0) : parent_scene->texcoords[vb]; }

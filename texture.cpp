@@ -23,7 +23,7 @@ void Texture::SetPixel(int x, int y, Color c)
 
 
 Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
-    // TODO: Fix alignment (move by 0.5f * pixelsize, probably)
+    (void)debug;
 
     float x = glm::repeat(pos.x) * xsize - 0.5f;
     float y = glm::repeat(pos.y) * ysize - 0.5f;
@@ -41,10 +41,12 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     Color c10 = data[iy1 * xsize + ix0];
     Color c11 = data[iy1 * xsize + ix1];
 
+    /*
     if(debug) std::cout << "x " << x << " y " << y << std::endl;
     if(debug) std::cout << "fx " << fx  << " fy " << fy << std::endl;
     if(debug) std::cout << "ix1 " << ix1  << " iy1 " << iy1 << std::endl;
     if(debug) std::cout << "xsize " << xsize  << " ysize " << ysize << std::endl;
+    */
 
     fy = 1.0f - fy;
     fx = 1.0f - fx;
@@ -52,14 +54,41 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     Color c0s = fx * c00 + (1.0f - fx) * c01;
     Color c1s = fx * c10 + (1.0f - fx) * c11;
 
+    /*
     if(debug) std::cout << c00 << std::endl;
     if(debug) std::cout << c01 << std::endl;
     if(debug) std::cout << c10 << std::endl;
     if(debug) std::cout << c11 << std::endl;
+    */
 
     Color css = fy * c0s + (1.0f - fy) * c1s;
 
     return css;
+}
+
+float Texture::GetSlopeRight(glm::vec2 pos){
+    int x = glm::repeat(pos.x) * xsize - 0.5f;
+    int y = glm::repeat(pos.y) * ysize - 0.5f;
+    int x2 = (x != int(xsize) - 1)? x + 1 : x;
+    if(x == -1) x = 0;
+    if(y == -1) y = 0;
+    Color  here = data[y * xsize + x];
+    Color there = data[y * xsize + x2];
+    float a = ( here.r +  here.g +  here.b)/3;
+    float b = (there.r + there.g + there.b)/3;
+    return a-b;
+};
+float Texture::GetSlopeBottom(glm::vec2 pos){
+    int x = glm::repeat(pos.x) * xsize - 0.5f;
+    int y = glm::repeat(pos.y) * ysize - 0.5f;
+    int y2 = (y != int(ysize) - 1)? y + 1 : y;
+    if(x == -1) x = 0;
+    if(y == -1) y = 0;
+    Color  here = data[y * xsize + x];
+    Color there = data[y2 * xsize + x];
+    float a = ( here.r +  here.g +  here.b)/3;
+    float b = (there.r + there.g + there.b)/3;
+    return a-b;
 }
 
 inline float clamp( float f )
@@ -194,35 +223,61 @@ Texture* Texture::CreateNewFromJPEG(std::string path){
     int w = info.output_width;
     int h = info.output_height;
     int channels = info.num_components;
-    if(channels != 3){
-        std::cout << "Unsupported number of channels in JPEG file `" << path << "`, only 3-channel files are supported" << std::endl;
+    if(channels == 3){
+        unsigned char* buf = new unsigned char[w * h * 3];
+        unsigned char * rowptr[1];
+        while (info.output_scanline < info.output_height){
+            // Enable jpeg_read_scanlines() to fill our jdata array
+            rowptr[0] = (unsigned char *)buf +
+                3* info.output_width * info.output_scanline;
+            jpeg_read_scanlines(&info, rowptr, 1);
+        }
+        jpeg_finish_decompress(&info);
+        fclose(file);
+
+        Texture* t = new Texture(w,h);
+        for(int y = 0; y < h; y++){
+            for(int x = 0; x < w; x++){
+                int p = (y * w + x) * 3;
+                t->SetPixel(x, h-y-1, Color(buf[p+0]/255.0f,
+                                            buf[p+1]/255.0f,
+                                            buf[p+2]/255.0f));
+            }
+        }
+
+        delete[] buf;
+        return t;
+
+    }else if(channels == 1){
+        unsigned char* buf = new unsigned char[w * h];
+        unsigned char * rowptr[1];
+        while (info.output_scanline < info.output_height){
+            // Enable jpeg_read_scanlines() to fill our jdata array
+            rowptr[0] = (unsigned char *)buf +
+                info.output_width * info.output_scanline;
+            jpeg_read_scanlines(&info, rowptr, 1);
+        }
+        jpeg_finish_decompress(&info);
+        fclose(file);
+
+        Texture* t = new Texture(w,h);
+        for(int y = 0; y < h; y++){
+            for(int x = 0; x < w; x++){
+                int p = (y * w + x);
+                t->SetPixel(x, h-y-1, Color(buf[p+0]/255.0f,
+                                            buf[p+0]/255.0f,
+                                            buf[p+0]/255.0f));
+            }
+        }
+
+        delete[] buf;
+        return t;
+
+    }else{
+        std::cout << "Unsupported number of channels in JPEG file `" << path << "`, only 3-channel and 1-channel files are supported" << std::endl;
         return nullptr;
     }
 
-    unsigned char* buf = new unsigned char[w * h * 3];
-    unsigned char * rowptr[1];
-    while (info.output_scanline < info.output_height){
-        // Enable jpeg_read_scanlines() to fill our jdata array
-        rowptr[0] = (unsigned char *)buf +
-            3* info.output_width * info.output_scanline;
-        jpeg_read_scanlines(&info, rowptr, 1);
-    }
-    jpeg_finish_decompress(&info);
-    fclose(file);
-
-    Texture* t = new Texture(w,h);
-    for(int y = 0; y < h; y++){
-        for(int x = 0; x < w; x++){
-            int p = (y * w + x) * 3;
-            t->SetPixel(x, h-y-1, Color(buf[p+0]/255.0f,
-                                    buf[p+1]/255.0f,
-                                    buf[p+2]/255.0f));
-        }
-    }
-
-    delete[] buf;
-
-    return t;
 }
 
 

@@ -41,6 +41,7 @@ struct Material{
     Texture* diffuse_texture  = nullptr;
     Texture* specular_texture = nullptr;
     Texture* ambient_texture  = nullptr;
+    Texture* bump_texture  = nullptr;
 };
 
 class Triangle{
@@ -66,6 +67,9 @@ public:
     const glm::vec2 GetTexCoordsA()  const;
     const glm::vec2 GetTexCoordsB()  const;
     const glm::vec2 GetTexCoordsC()  const;
+    const glm::vec3 GetTangentA()  const;
+    const glm::vec3 GetTangentB()  const;
+    const glm::vec3 GetTangentC()  const;
 
     bool TestIntersection(const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
 };

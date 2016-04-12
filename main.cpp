@@ -55,6 +55,19 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
         Color specular = mat.specular_texture ? mat.specular_texture->GetPixelInterpolated(texUV,debug) : mat.specular;
         Color ambient  =  mat.ambient_texture ?  mat.ambient_texture->GetPixelInterpolated(texUV,debug) : mat.ambient ;
 
+        if(mat.bump_texture){
+            //diffuse = Color(0.5, 0.5, 0.5);
+
+            float right = mat.bump_texture->GetSlopeRight(texUV);
+            float bottom = mat.bump_texture->GetSlopeBottom(texUV);
+            glm::vec3 tangent = i.Interpolate(i.triangle->GetTangentA(),
+                                              i.triangle->GetTangentB(),
+                                              i.triangle->GetTangentC());
+            glm::vec3 bitangent = glm::normalize(glm::cross(N,tangent));
+            const float scale = 2.0f;
+            N = glm::normalize(N + (tangent*right + bitangent*bottom) * scale);
+        }
+
         if(debug) std::cerr << "Was hit. color is " << diffuse << std::endl;
 
         for(unsigned int qq = 0; qq < lights.size(); qq++){
@@ -179,7 +192,8 @@ void Render(RenderTask task){
                         if(my % 2 == 0) mx = m - mx - 1;
                         r = task.camera->GetSubpixelRay(x, y, task.xres, task.yres, mx, my, m);
                     }else{
-                        r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
+                        //r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
+                        r = task.camera->GetSubpixelRayLens(x, y, task.xres, task.yres, mx, my, m);
                     }
                     pixel_total += trace_ray(*task.scene, r, *task.lights, shadow_cache, task.sky_color, task.recursion_level, d) * factor;
                 }
@@ -283,15 +297,17 @@ int main(int argc, char** argv){
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, NULL);
     const aiScene* scene = importer.ReadFile(modelfile,
                                              aiProcess_Triangulate |
-                                             aiProcess_TransformUVCoords |
+                                             //aiProcess_TransformUVCoords |
+                                             //aiProcess_GenNormals |
                                              aiProcess_GenSmoothNormals |
                                              aiProcess_JoinIdenticalVertices |
                                              aiProcess_RemoveRedundantMaterials |
                                              aiProcess_GenUVCoords |
-                                             aiProcess_SortByPType |
+                                             //aiProcess_SortByPType |
                                              aiProcess_FindDegenerates |
                                              aiProcess_FindInvalidData |
-        aiProcess_ValidateDataStructure |
+                                             aiProcess_CalcTangentSpace |
+                                             //aiProcess_ValidateDataStructure |
                      0 );
 
     if(!scene){
