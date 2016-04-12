@@ -21,6 +21,7 @@
 #include "config.hpp"
 #include "utils.hpp"
 #include "texture.hpp"
+#include "camera.hpp"
 
 static bool debug_trace = false;
 static unsigned int debug_x, debug_y;
@@ -140,46 +141,13 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
     }
 }
 
-struct CameraConfig{
-public:
-    CameraConfig(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview){
-        camerapos = pos;
-        lookat = la;
-        cameraup = up;
-
-        cameradir = glm::normalize( lookat - camerapos);
-        cameraleft = glm::normalize(glm::cross(cameradir, cameraup));
-        cameraup = glm::normalize(glm::cross(cameradir,cameraleft));
-
-        viewscreen_x = - xview * cameraleft;
-        viewscreen_y =   yview * cameraup;
-        viewscreen = camerapos + cameradir - 0.5f * viewscreen_y - 0.5f * viewscreen_x;
-    }
-    glm::vec3 camerapos;
-    glm::vec3 lookat;
-    glm::vec3 cameraup;
-    glm::vec3 cameradir;
-    glm::vec3 cameraleft;
-
-    glm::vec3 viewscreen;
-    glm::vec3 viewscreen_x;
-    glm::vec3 viewscreen_y;
-
-    glm::vec3 GetViewScreenPoint(int x, int y, int xres, int yres) const {
-        const float off = 0.5f;
-        glm::vec3 xo = (1.0f/xres) * (x + off) * viewscreen_x;
-        glm::vec3 yo = (1.0f/yres) * (y + off) * viewscreen_y;
-        return viewscreen + xo + yo;
-    };
-};
-
 struct RenderTask{
     unsigned int xres, yres;
     unsigned int xrange_start, xrange_end;
     unsigned int yrange_start, yrange_end;
     glm::vec2 midpoint;
     const Scene* scene;
-    const CameraConfig* cconfig;
+    const Camera* camera;
     const std::vector<Light>* lights;
     unsigned int multisample;
     unsigned int recursion_level;
@@ -206,8 +174,8 @@ void Render(RenderTask task){
             float factor = 1.0/(m*m);
             for(unsigned int my = 0; my < m; my++){
                 for(unsigned int mx = 0; mx < m; mx++){
-                    glm::vec3 p = task.cconfig->GetViewScreenPoint(x*m + mx, y*m + my, task.xres*m, task.yres*m);
-                    Ray r(task.cconfig->camerapos, p - task.cconfig->camerapos);
+                    //Ray r = task.camera->GetSubpixelRay(x, y, task.xres, task.yres, mx, my, m);
+                    Ray r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
                     pixel_total += trace_ray(*task.scene, r, *task.lights, shadow_cache, task.sky_color, task.recursion_level, d) * factor;
                 }
             }
@@ -284,6 +252,8 @@ int main(int argc, char** argv){
         std::cout << "Debug mode enabled, will trace pixel " << debug_x << " " << debug_y << std::endl;
     }
 
+    srand(time(nullptr));
+
     std::string configfile = argv[1];
 
     Config cfg;
@@ -333,7 +303,14 @@ int main(int argc, char** argv){
     s.LoadScene(scene);
     s.Commit();
 
-    CameraConfig cconfig(cfg.view_point, cfg.look_at, cfg.up_vector, cfg.yview, cfg.yview*cfg.xres/cfg.yres);
+    Camera camera(cfg.view_point,
+                  cfg.look_at,
+                  cfg.up_vector,
+                  cfg.yview,
+                  cfg.yview*cfg.xres/cfg.yres,
+                  cfg.focus_plane,
+                  cfg.lens_size
+                  );
 
     Texture ob(cfg.xres, cfg.yres);
     ob.FillStripes(15, Color(0.6,0.6,0.6), Color(0.5,0.5,0.5));
@@ -365,7 +342,7 @@ int main(int argc, char** argv){
             task.yrange_start = yp; task.yrange_end = std::min(cfg.yres, yp+tile_size);
             task.midpoint = glm::vec2((task.xrange_start + task.xrange_end)/2.0f, (task.yrange_start + task.yrange_end)/2.0f);
             task.scene = &s;
-            task.cconfig = &cconfig;
+            task.camera = &camera;
             task.lights = &cfg.lights;
             task.multisample = cfg.multisample;
             task.recursion_level = cfg.recursion_level;

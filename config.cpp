@@ -86,6 +86,16 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "sky" || vs[0] == "skycolor"){
             if(vs.size() != 4) throw ConfigFileException("Invalid sky color line.");
             cfg.sky_color = Color(std::stoi(vs[1])/255.0f, std::stoi(vs[2])/255.0f, std::stoi(vs[3])/255.0f);
+        }else if(vs[0] == "lens" || vs[0] == "lenssize" || vs[0] == "lens_size"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid lens size line.");
+            float ls = std::stof(vs[1]);
+            if(ls < 0) throw ConfigFileException("Lens size must be a poositive value.");
+            cfg.lens_size = ls;
+        }else if(vs[0] == "focus" || vs[0] == "focus_plane" || vs[0] == "focus_dist"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid focus plane line.");
+            float fp = std::stof(vs[1]);
+            if(fp < 0) throw ConfigFileException("Focus plane must be a poositive value.");
+            cfg.focus_plane = fp;
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
 
