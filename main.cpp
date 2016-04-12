@@ -174,8 +174,13 @@ void Render(RenderTask task){
             float factor = 1.0/(m*m);
             for(unsigned int my = 0; my < m; my++){
                 for(unsigned int mx = 0; mx < m; mx++){
-                    //Ray r = task.camera->GetSubpixelRay(x, y, task.xres, task.yres, mx, my, m);
-                    Ray r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
+                    Ray r;
+                    if(task.camera->IsSimple()){
+                        if(my % 2 == 0) mx = m - mx - 1;
+                        r = task.camera->GetSubpixelRay(x, y, task.xres, task.yres, mx, my, m);
+                    }else{
+                        r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
+                    }
                     pixel_total += trace_ray(*task.scene, r, *task.lights, shadow_cache, task.sky_color, task.recursion_level, d) * factor;
                 }
             }
