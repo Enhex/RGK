@@ -63,6 +63,9 @@ public:
 
     std::string texture_directory;
 
+    // Dynamically determined by examining scene's diameter
+    float epsilon = 0.0001f;
+
 private:
 
     UncompressedKdNode* uncompressed_root = nullptr;

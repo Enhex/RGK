@@ -38,7 +38,7 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
 
     // This implementation is heavily inspired by the example provided by ANL
 
-    const float EPSILON = 0.00001;
+    const float eps = parent_scene->epsilon;
 
     glm::vec3 planeN = p.xyz();
 
@@ -52,7 +52,7 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
     if(std::isnan(dot)) return false;
 
     /* is ray parallel to plane? */
-    if (dot < EPSILON && dot > -EPSILON)
+    if (dot < eps && dot > -eps)
         return false;
 
     /* find distance to plane and intersection point */
@@ -98,7 +98,7 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
     float alpha, beta;
 
     /* calculate and compare barycentric coordinates */
-    if (q1.x > -EPSILON && q1.x < EPSILON ) {		/* uncommon case */
+    if (q1.x > -eps && q1.x < eps ) {		/* uncommon case */
         //if(debug) std::cout << "UNCOMMON" << std::endl;
         beta = q0.x / q2.x;
         if (beta < 0 || beta > 1)

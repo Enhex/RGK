@@ -77,13 +77,13 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             const Triangle* shadow_triangle = nullptr;
             if(depth > 0){
                 // Search for shadow triangle.
-                Ray ray_to_light(ipos, l.pos, 0.0001f * glm::length(ipos - l.pos));
+                Ray ray_to_light(ipos, l.pos, scene.epsilon * glm::length(ipos - l.pos));
                 // First, try looking within shadow cache.
                 if(debug) std::cout << "raytolight origin:" << ray_to_light.origin << ", dir" << ray_to_light.direction << std::endl;
                 for(const Triangle* tri : shadow_cache[qq]){
                     float t,a,b;
                     if(tri->TestIntersection(ray_to_light, t, a, b, debug)){
-                        if(t < ray_to_light.near - 0.00001f || t > ray_to_light.far + 0.0001f) continue;
+                        if(t < ray_to_light.near - scene.epsilon || t > ray_to_light.far + scene.epsilon) continue;
                         // Intersection found.
                         if(debug) std::cout << "Shadow found in cache at " << tri << "." << std::endl;
                         if(debug) std::cout << "Triangle " << tri->GetVertexA() << std::endl;

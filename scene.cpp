@@ -268,10 +268,18 @@ void Scene::Commit(){
     auto p = std::minmax_element(xevents.begin(), xevents.end());
     auto q = std::minmax_element(yevents.begin(), yevents.end());
     auto r = std::minmax_element(zevents.begin(), zevents.end());
-    const float BB_epsilon = 0.001f;
-    xBB = std::make_pair(*p.first - BB_epsilon, *p.second + BB_epsilon);
-    yBB = std::make_pair(*q.first - BB_epsilon, *q.second + BB_epsilon);
-    zBB = std::make_pair(*r.first - BB_epsilon, *r.second + BB_epsilon);
+
+    float xsize = *p.second - *p.first;
+    float ysize = *q.second - *q.first;
+    float zsize = *r.second - *r.first;
+    float diameter = glm::sqrt(xsize*xsize + ysize*ysize + zsize*zsize);
+
+    epsilon = 0.00001f * diameter;
+    std::cout << "Using dynamic epsilon: " << epsilon << std::endl;
+
+    xBB = std::make_pair(*p.first - epsilon, *p.second + epsilon);
+    yBB = std::make_pair(*q.first - epsilon, *q.second + epsilon);
+    zBB = std::make_pair(*r.first - epsilon, *r.second + epsilon);
 
     std::cout << "The scene is bounded by [" << xBB.first << ", " << xBB.second << "], " <<
                                          "[" << yBB.first << ", " << yBB.second << "], " <<
@@ -608,7 +616,7 @@ Intersection Scene::FindIntersectKd(const Ray& __restrict__ r, bool debug) __res
                 float t, a, b;
                 //  ... test for an intersection
                 if(tri.TestIntersection(r, t, a, b)){
-                    if(t < tmin - 0.00001f || t > tmax + 0.0001f){
+                    if(t < tmin - epsilon || t > tmax + epsilon){
                         continue;
                     }
                     if(t < res.t){
@@ -717,7 +725,7 @@ const Triangle* Scene::FindIntersectKdAny(const Ray& __restrict__ r, bool debug)
                 float t, a, b;
                 //  ... test for an intersection
                 if(tri.TestIntersection(r, t, a, b)){
-                    if(t < tmin - 0.00001f || t > tmax + 0.0001f){
+                    if(t < tmin - epsilon || t > tmax + epsilon){
                         continue;
                     }
                     // Ignore whether this is the nearest intersection, we are looking for ANY.
