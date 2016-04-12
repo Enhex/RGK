@@ -187,21 +187,20 @@ void Render(RenderTask task){
             bool d = false;
             if(debug_trace && x == debug_x && y == debug_y) d = true;
             Color pixel_total(0.0, 0.0, 0.0);
-            float factor = 1.0/(m*m);
             for(unsigned int my = 0; my < m; my++){
                 for(unsigned int mx = 0; mx < m; mx++){
                     Ray r;
+                    unsigned int mx2 = (my % 2 == 0) ? (m - mx -1) : mx;
                     if(task.camera->IsSimple()){
-                        if(my % 2 == 0) mx = m - mx - 1;
-                        r = task.camera->GetSubpixelRay(x, y, task.xres, task.yres, mx, my, m);
+                        r = task.camera->GetSubpixelRay(x, y, task.xres, task.yres, mx2, my, m);
                     }else{
-                        //r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
-                        r = task.camera->GetSubpixelRayLens(x, y, task.xres, task.yres, mx, my, m);
+                        r = task.camera->GetRandomRayLens(x, y, task.xres, task.yres);
+                        //r = task.camera->GetSubpixelRayLens(x, y, task.xres, task.yres, mx2, my, m);
                     }
-                    pixel_total += trace_ray(*task.scene, r, *task.lights, shadow_cache, task.sky_color, task.recursion_level, d) * factor;
+                    pixel_total += trace_ray(*task.scene, r, *task.lights, shadow_cache, task.sky_color, task.recursion_level, d);
                 }
             }
-            task.output->SetPixel(x, y, pixel_total);
+            task.output->SetPixel(x, y, pixel_total * (1.0f / (m*m)));
             pxdone++;
             if(pxdone % 100 == 0){
                 pixels_done += 100;
