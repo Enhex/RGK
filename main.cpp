@@ -111,10 +111,12 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                 kD = glm::max(0.0f, kD);
                 total += intens_factor * l.color * diffuse * kD;
 
+                /*
                 if(debug) std::cerr << "N " << N << std::endl;
                 if(debug) std::cerr << "L " << L << std::endl;
                 if(debug) std::cerr << "kD " << kD << std::endl;
                 if(debug) std::cerr << "Total: " << total << std::endl;
+                */
 
                 if(mat.exponent > 1.0f){
                     glm::vec3 R = 2.0f * glm::dot(L, N) * N - L;
@@ -306,7 +308,7 @@ int main(int argc, char** argv){
                                              aiProcess_GenUVCoords |
                                              //aiProcess_SortByPType |
                                              aiProcess_FindDegenerates |
-                                             aiProcess_FindInvalidData |
+                                             // DO NOT ENABLE THIS CLEARLY BUGGED SEE SIBENIK MODEL aiProcess_FindInvalidData |
                                              //aiProcess_ValidateDataStructure |
                      0 );
 
