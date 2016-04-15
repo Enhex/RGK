@@ -44,7 +44,7 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
 
     double dot = glm::dot(r.direction, planeN);
 
-    //if(debug) std::cout << "triangle " << std::setprecision(16) << GetVertexA() << " " << GetVertexB() << " " << GetVertexC() << " " << std::endl;
+    //if(debug) std::cout << "triangle " << GetVertexA() << " " << GetVertexB() << " " << GetVertexC() << " " << std::endl;
     //if(debug) std::cout << "dot : " << dot << std::endl;
 
     // TODO: Is it possible to elliminate such triangles during preprocessing?

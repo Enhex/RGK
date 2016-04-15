@@ -96,6 +96,10 @@ Config Config::CreateFromFile(std::string path){
             float fp = std::stof(vs[1]);
             if(fp < 0) throw ConfigFileException("Focus plane must be a poositive value.");
             cfg.focus_plane = fp;
+        }else if(vs[0] == "bump_scale" || vs[0] == "bumpmap_scale" || vs[0] == "bump" || vs[0] == "bumpscale"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid bump scale config line.");
+            float bs = std::stof(vs[1]);
+            cfg.bumpmap_scale = bs;
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
 

@@ -11,8 +11,8 @@ Camera::Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xvi
     lens_size = ls;
 
     direction = glm::normalize( lookat - origin);
-    cameraleft = glm::normalize(glm::cross(direction, cameraup));
-    cameraup = glm::normalize(glm::cross(direction,cameraleft));
+    cameraleft = glm::normalize(glm::cross(cameraup, direction));
+    cameraup = glm::normalize(glm::cross(cameraleft, direction));
 
     viewscreen_x = - xview * cameraleft * focus_plane;
     viewscreen_y =   yview * cameraup * focus_plane;

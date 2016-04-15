@@ -31,6 +31,7 @@ public:
     unsigned int multisample = 1;
     float lens_size = 0.0f;
     float focus_plane = 1.0f;
+    float bumpmap_scale = 10.0f;
 };
 
 #endif // __CONFIG_HPP__
