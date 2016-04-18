@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <fstream>
+#include <locale>
+#include <sstream>
 
 static inline std::string& ltrim(std::string& s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
@@ -78,4 +80,20 @@ bool Utils::GetFileExists(std::string name)
   // For C++17:
   // std::filesystem::exists(name);
   return (bool)std::ifstream(name);
+}
+
+
+std::string Utils::FormatIntThousands(unsigned int value){
+    class comma_sep
+        : public std::numpunct<char>
+    {
+        virtual char do_thousands_sep() const { return '\''; }
+        virtual std::string do_grouping() const { return "\03"; }
+    };
+
+    std::stringstream ss;
+    std::locale comma(std::locale(), new comma_sep());
+    ss.imbue(comma);
+    ss << value;
+    return ss.str();
 }

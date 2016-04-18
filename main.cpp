@@ -30,9 +30,10 @@ static unsigned int debug_x, debug_y;
 
 #define SHADOW_CACHE_SIZE 5
 
-Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, std::vector<LRUBuffer<const Triangle*>>& shadow_cache, const Config& cfg, int depth, bool debug = false){
+Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& lights, std::vector<LRUBuffer<const Triangle*>>& shadow_cache, const Config& cfg, int depth, unsigned int& raycount, bool debug = false){
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
     if(debug) std::cerr << r.origin << " " << r.direction << std::endl;
+    raycount++;
     Intersection i = scene.FindIntersectKd(r, debug);
 
     if(i.triangle){
@@ -83,6 +84,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                 if(debug) std::cout << "raytolight origin:" << ray_to_light.origin << ", dir" << ray_to_light.direction << std::endl;
                 for(const Triangle* tri : shadow_cache[qq]){
                     float t,a,b;
+                    raycount++;
                     if(tri->TestIntersection(ray_to_light, t, a, b, debug)){
                         if(t < ray_to_light.near - scene.epsilon || t > ray_to_light.far + scene.epsilon) continue;
                         // Intersection found.
@@ -96,8 +98,10 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
                     }
                 }
                 // Skip manual search when a shadow triangle was found in cache
-                if(!shadow_triangle)
+                if(!shadow_triangle){
+                    raycount++;
                     shadow_triangle = scene.FindIntersectKdAny(ray_to_light);
+                }
             }
             if(!shadow_triangle){ // no intersection found
                 //TODO: use interpolated normals
@@ -161,7 +165,7 @@ Color trace_ray(const Scene& scene, const Ray& r, const std::vector<Light>& ligh
             glm::vec3 refl = 2.0f * glm::dot(V, N) * N - V;
             Ray refl_ray(ipos, ipos + refl, 0.01);
             refl_ray.far = 1000.0f;
-            Color reflection = trace_ray(scene, refl_ray, lights, shadow_cache, cfg, depth-1);
+            Color reflection = trace_ray(scene, refl_ray, lights, shadow_cache, cfg, depth-1, raycount);
             total = mat.exponent * reflection + (1.0f - mat.exponent) * total;
         }
         if(debug) std::cout << "Total: " << total << std::endl;
@@ -186,11 +190,12 @@ struct RenderTask{
 
 std::atomic<int> tasks_done(0);
 std::atomic<int> pixels_done(0);
+std::atomic<unsigned int> raycount(0);
 std::atomic<bool> stop_monitor(false);
 int total_pixels;
 
 void Render(RenderTask task, const Scene& scene, const Camera& camera, const std::vector<Light>& lights, const Config& config, Texture* output){
-    unsigned int pxdone = 0;
+    unsigned int pxdone = 0, raysdone = 0;
     unsigned int m = config.multisample;
     // Per-thread shadow cache
     std::vector<LRUBuffer<const Triangle*>> shadow_cache(lights.size(), LRUBuffer<const Triangle*>(SHADOW_CACHE_SIZE));
@@ -210,7 +215,7 @@ void Render(RenderTask task, const Scene& scene, const Camera& camera, const std
                         r = camera.GetRandomRayLens(x, y, task.xres, task.yres);
                         //r = camera.GetSubpixelRayLens(x, y, task.xres, task.yres, mx2, my, m);
                     }
-                    pixel_total += trace_ray(scene, r, lights, shadow_cache, config, config.recursion_level, d);
+                    pixel_total += trace_ray(scene, r, lights, shadow_cache, config, config.recursion_level, raysdone, d);
                 }
             }
             output->SetPixel(x, y, pixel_total * (1.0f / (m*m)));
@@ -222,6 +227,7 @@ void Render(RenderTask task, const Scene& scene, const Camera& camera, const std
         }
     }
     pixels_done += pxdone;
+    raycount += raysdone;
     tasks_done++;
 }
 
@@ -270,7 +276,13 @@ void Monitor(const Texture* output_buffer, std::string preview_path){
     output_buffer->Write(preview_path);
 
     std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-    std::cout << "Total rendering time: " << std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f << "s" << std::endl;
+    float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
+    unsigned int total_rays = raycount;
+
+    std::cout << "Total rendering time: " << total_seconds << "s" << std::endl;
+    std::cout << "Total pixels: " << total_pixels << ", total rays: " << total_rays << std::endl;
+    std::cout << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
+    std::cout << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
 
 }
 
