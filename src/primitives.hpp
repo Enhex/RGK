@@ -25,6 +25,15 @@ inline Color operator*(float q, const Color& c){
     return Color(q*c.r, q*c.g, q*c.b);
 }
 
+struct Radiance{
+    Radiance() : r(0.0), g(0.0), b(0.0) {}
+    Radiance(float r, float g, float b) : r(r), g(g), b(b) {}
+    explicit Radiance(const Color& c): r(c.r), g(c.g), b(c.b) {}
+    float r,g,b; // unbounded, positive
+    Radiance  operator+ (const Radiance& o) const {return Radiance(r+o.r,g+o.g,b+o.b);}
+    Radiance& operator+=(const Radiance& o) {*this = *this + o; return *this;}
+};
+
 struct Light{
     glm::vec3 pos;
     Color color;

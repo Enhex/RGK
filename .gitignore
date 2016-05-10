@@ -1,6 +1,7 @@
 # The build dir
 build
 outs
+out
 
 # Binaries
 *.so

@@ -10,7 +10,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 
 include(FindPackageHandleStandardArgs)
 
-## find_package(OpenGL REQUIRED)
+## Assimp
 find_package(assimp REQUIRED)
 
 ## GLM
@@ -40,36 +40,8 @@ find_package_handle_standard_args(
 ## libjpeg
 find_package(JPEG REQUIRED)
 
-include_directories(
-  ${GLM_INCLUDE_DIRS}
-  ${png++_INCLUDE_DIRS}
-  ${assimp_INCLUDE_DIRS}
-  ${JPEG_INCLUDE_DIRS}
-  )
+## OpenEXR
+find_package(OpenEXR REQUIRED)
 
-add_definitions(
-  -std=c++11
-  -Wall
-  -Wextra
-  -Werror
-  -O3
-  )
 
-file(GLOB SOURCES
-  ./*.cpp
-  )
-
-add_executable(
-  RGK
-  ${SOURCES}
-  )
-
-## SET_TARGET_PROPERTIES(RGK PROPERTIES LINK_FLAGS -pg)
-
-target_link_libraries(
-  RGK
-  ${assimp_LIBRARIES}
-  ${PNG_LIBRARY}
-  ${JPEG_LIBRARY}
-  pthread
-  )
+add_subdirectory(src)
