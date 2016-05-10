@@ -10,6 +10,8 @@
 
 #include <glm/gtx/wrap.hpp>
 
+#include <OpenEXR/ImfRgbaFile.h>
+
 Texture::Texture(int xsize, int ysize):
     xsize(xsize), ysize(ysize)
 {
@@ -289,4 +291,44 @@ void Texture::FillStripes(unsigned int size, Color a, Color b){
             else         SetPixel(x, y, b);
         }
     }
+}
+
+
+EXRTexture::EXRTexture(int xsize, int ysize):
+    xsize(xsize), ysize(ysize)
+{
+    data.resize(xsize*ysize);
+    set.resize(xsize*ysize, false);
+}
+
+void EXRTexture::SetPixel(int x, int y, Radiance c)
+{
+    data[y*xsize + x] = c;
+    set [y*xsize + x] = true;
+}
+
+bool EXRTexture::Write(std::string path) const{
+    Imf::RgbaOutputFile file(path.c_str(), xsize, ysize, Imf::WRITE_RGBA);
+    // Create Rgba data
+    Imf::Rgba* buffer = new Imf::Rgba[xsize*ysize];
+    for(unsigned int y = 0; y < ysize; y++)
+        for(unsigned int x = 0; x < xsize; x++){
+            int n = y*xsize + x;
+            if(set[n]){
+                buffer[n].a = 1.0;
+                buffer[n].r = data[n].r;
+                buffer[n].g = data[n].g;
+                buffer[n].b = data[n].b;
+            }else{
+                buffer[n].a = 0.0;
+                buffer[n].r = 0.0;
+                buffer[n].g = 0.0;
+                buffer[n].b = 0.0;
+            }
+        }
+
+    file.setFrameBuffer(buffer, 1, xsize);
+    file.writePixels(ysize);
+    delete[] buffer;
+    return true;
 }

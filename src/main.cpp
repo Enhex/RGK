@@ -194,7 +194,7 @@ std::atomic<unsigned int> raycount(0);
 std::atomic<bool> stop_monitor(false);
 int total_pixels;
 
-void Render(RenderTask task, const Scene& scene, const Camera& camera, const std::vector<Light>& lights, const Config& config, Texture* output){
+void Render(RenderTask task, const Scene& scene, const Camera& camera, const std::vector<Light>& lights, const Config& config, EXRTexture* output){
     unsigned int pxdone = 0, raysdone = 0;
     unsigned int m = config.multisample;
     // Per-thread shadow cache
@@ -218,7 +218,7 @@ void Render(RenderTask task, const Scene& scene, const Camera& camera, const std
                     pixel_total += trace_ray(scene, r, lights, shadow_cache, config, config.recursion_level, raysdone, d);
                 }
             }
-            output->SetPixel(x, y, pixel_total * (1.0f / (m*m)));
+            output->SetPixel(x, y, Radiance(pixel_total * (1.0f / (m*m))));
             pxdone++;
             if(pxdone % 100 == 0){
                 pixels_done += 100;
@@ -237,7 +237,7 @@ std::string float_to_percent_string(float f){
     return ss.str();
 }
 
-void Monitor(const Texture* output_buffer, std::string preview_path){
+void Monitor(const EXRTexture* output_buffer, std::string preview_path){
     std::cout << "Monitor thread started" << std::endl;
     int counter = 0;
 
@@ -367,8 +367,8 @@ int main(int argc, char** argv){
                   cfg.lens_size
                   );
 
-    Texture ob(cfg.xres, cfg.yres);
-    ob.FillStripes(15, Color(0.6,0.6,0.6), Color(0.5,0.5,0.5));
+    EXRTexture ob(cfg.xres, cfg.yres);
+    //ob.FillStripes(15, Color(0.6,0.6,0.6), Color(0.5,0.5,0.5));
 
     unsigned int concurrency = std::thread::hardware_concurrency();
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.

@@ -35,4 +35,16 @@ private:
     Texture();
 };
 
+class EXRTexture{
+public:
+    EXRTexture(int xsize, int ysize);
+    bool Write(std::string path) const;
+    void SetPixel(int x, int y, Radiance c);
+
+private:
+    std::vector<Radiance> data;
+    std::vector<bool> set;
+    unsigned int xsize, ysize;
+};
+
 #endif // __TEXTURE_HPP__

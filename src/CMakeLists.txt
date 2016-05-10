@@ -35,6 +35,7 @@ target_link_libraries(
   ${assimp_LIBRARIES}
   ${PNG_LIBRARY}
   ${JPEG_LIBRARY}
+  ${OPENEXR_LIBRARIES}
   pthread
   )
 
