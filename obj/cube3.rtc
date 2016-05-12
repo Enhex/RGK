@@ -8,4 +8,4 @@ cube3.exr
 0.0 1.0 0.0
 1.6
 L 3.0 6.0 -2.0  255 255 200 400.0
-multisample 10
+multisample 100

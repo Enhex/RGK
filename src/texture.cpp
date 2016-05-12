@@ -335,23 +335,20 @@ bool EXRTexture::Write(std::string path) const{
 
 EXRTexture EXRTexture::Normalize() const{
     EXRTexture out = *this;
-    float total = 0.0f;
+    float m = 0.0f;
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){
-            total += data[y*xsize + x].r;
-            total += data[y*xsize + x].g;
-            total += data[y*xsize + x].b;
+            m = std::max(m, data[y*xsize + x].r);
+            m = std::max(m, data[y*xsize + x].g);
+            m = std::max(m, data[y*xsize + x].b);
         }
-    float mean = total * (1.0f / xsize / ysize / 3.0);
-    std::cerr << "Normalizing output, mean: " << mean << std::endl;
-
-    mean *= 4.0f; // normalize to 0.25
+    std::cerr << "Normalizing output, max: " << m << std::endl;
 
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){
-            out.data[y*xsize + x].r /= mean;
-            out.data[y*xsize + x].g /= mean;
-            out.data[y*xsize + x].b /= mean;
+            out.data[y*xsize + x].r /= m;
+            out.data[y*xsize + x].g /= m;
+            out.data[y*xsize + x].b /= m;
         }
     return out;
 }

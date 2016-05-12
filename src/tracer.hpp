@@ -14,7 +14,7 @@ struct RenderTask{
     RenderTask(unsigned int xres, unsigned int yres, unsigned int x1, unsigned int x2, unsigned int y1, unsigned int y2)
         : xres(xres), yres(yres), xrange_start(x1), xrange_end(x2), yrange_start(y1), yrange_end(y2)
     {
-        glm::vec2((xrange_start + xrange_end)/2.0f, (yrange_start + yrange_end)/2.0f);
+        midpoint = glm::vec2((xrange_start + xrange_end)/2.0f, (yrange_start + yrange_end)/2.0f);
     }
     unsigned int xres, yres;
     unsigned int xrange_start, xrange_end;

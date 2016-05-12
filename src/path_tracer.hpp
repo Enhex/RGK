@@ -23,7 +23,7 @@ protected:
     Radiance RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
 
 private:
-    Radiance TraceRay(const Ray& r, unsigned int& raycount, bool debug = false);
+    Radiance TracePath(const Ray& r, unsigned int& raycount, bool debug = false);
 
     unsigned int depth;
     Color sky_color;
