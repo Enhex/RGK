@@ -42,6 +42,14 @@ Ray Camera::GetRandomRay(int x, int y, int xres, int yres) const{
     return Ray(o, p - o);
 }
 
+Ray Camera::GetCenterRay(int x, int y, int xres, int yres) const{
+    glm::vec2 off(0.5f, 0.5f);
+    glm::vec3 p = GetViewScreenPoint( (x + off.x) / (float)(xres),
+                                      (y + off.y) / (float)(yres) );
+    glm::vec3 o = origin;
+    return Ray(o, p - o);
+}
+
 Ray Camera::GetRandomRayLens(int x, int y, int xres, int yres) const{
     glm::vec2 off(glm::linearRand(0.0f,1.0f), glm::linearRand(0.0f, 1.0f));
     glm::vec3 p = GetViewScreenPoint( (x + off.x) / (float)(xres),

@@ -36,6 +36,10 @@ public:
     Intersection    FindIntersectKd   (const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
     const Triangle* FindIntersectKdAny(const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
 
+    // Returns true IFF the two points are visible from each other.
+    // Incorporates no cache of any kind.
+    bool Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const __attribute__((hot));
+
 
     // TODO: have triangle access these, and keep these fields private
     glm::vec3*     vertices  = nullptr;

@@ -21,6 +21,10 @@ inline std::ostream& operator<<(std::ostream& stream, const Color& c){
     stream << "{" << c.r << ", " << c.g << ", " << c.b << "}";
     return stream;
 }
+inline std::ostream& operator<<(std::ostream& stream, const Radiance& c){
+    stream << "{" << c.r << ", " << c.g << ", " << c.b << "}";
+    return stream;
+}
 
 class Utils{
 public:

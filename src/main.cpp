@@ -24,7 +24,7 @@
 #include "utils.hpp"
 #include "texture.hpp"
 #include "camera.hpp"
-#include "ray_tracer.hpp"
+#include "path_tracer.hpp"
 
 bool debug_trace = false;
 unsigned int debug_x, debug_y;
@@ -213,7 +213,7 @@ int main(int argc, char** argv){
 
     for(const RenderTask& task : tasks){
         tpool.push( [&, task](int){
-                RayTracer rt(s, camera, cfg.lights,
+                PathTracer rt(s, camera, cfg.lights,
                              task.xres, task.yres,
                              cfg.multisample,
                              cfg.recursion_level,

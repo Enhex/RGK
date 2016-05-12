@@ -18,6 +18,7 @@ public:
 
     Ray GetRandomRay(int x, int y, int xres, int yres) const;
     Ray GetRandomRayLens(int x, int y, int xres, int yres) const;
+    Ray GetCenterRay(int x, int y, int xres, int yres) const;
 
     bool IsSimple() const {return lens_size == 0.0f;}
 private:

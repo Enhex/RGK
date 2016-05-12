@@ -766,3 +766,8 @@ const Triangle* Scene::FindIntersectKdAny(const Ray& __restrict__ r, bool debug)
     // No hit found at all.
     return nullptr;
 }
+
+bool Scene::Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const {
+    Ray r(a, b, epsilon * 20.0f);
+    return !FindIntersectKd(r).triangle;
+}
