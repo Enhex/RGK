@@ -231,7 +231,8 @@ int main(int argc, char** argv){
     stop_monitor = true;
     if(monitor_thread.joinable()) monitor_thread.join();
 
-    ob.Write(cfg.output_file);
+    auto ob2 = ob.Normalize();
+    ob2.Write(cfg.output_file);
 
     return 0;
 }

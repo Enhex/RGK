@@ -332,3 +332,26 @@ bool EXRTexture::Write(std::string path) const{
     delete[] buffer;
     return true;
 }
+
+EXRTexture EXRTexture::Normalize() const{
+    EXRTexture out = *this;
+    float total = 0.0f;
+    for(unsigned int y = 0; y < ysize; y++)
+        for(unsigned int x = 0; x < xsize; x++){
+            total += data[y*xsize + x].r;
+            total += data[y*xsize + x].g;
+            total += data[y*xsize + x].b;
+        }
+    float mean = total * (1.0f / xsize / ysize / 3.0);
+    std::cerr << "Normalizing output, mean: " << mean << std::endl;
+
+    mean *= 4.0f; // normalize to 0.25
+
+    for(unsigned int y = 0; y < ysize; y++)
+        for(unsigned int x = 0; x < xsize; x++){
+            out.data[y*xsize + x].r /= mean;
+            out.data[y*xsize + x].g /= mean;
+            out.data[y*xsize + x].b /= mean;
+        }
+    return out;
+}

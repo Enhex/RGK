@@ -7,9 +7,22 @@
 #include <glm/gtx/norm.hpp>
 
 Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
-    // Temporarily just one ray per pixel
-    Ray r = camera.GetCenterRay(x, y, xres, yres);
+    Radiance total;
 
+    // N - rooks
+    std::vector<unsigned int> V(multisample);
+    for(unsigned int i = 0; i < V.size(); i++) V[i] = i;
+    std::random_shuffle(V.begin(), V.end());
+
+    for(unsigned int i = 0; i < V.size(); i++){
+        Ray r = camera.GetSubpixelRay(x, y, xres, yres, i, V[i], multisample);
+        total += TraceRay(r, raycount, debug);
+    }
+
+    return total * (1.0f / multisample);
+}
+
+Radiance PathTracer::TraceRay(const Ray& r, unsigned int& raycount, bool debug){
     raycount++;
     Intersection i = scene.FindIntersectKd(r, debug);
 

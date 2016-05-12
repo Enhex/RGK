@@ -40,6 +40,7 @@ public:
     EXRTexture(int xsize, int ysize);
     bool Write(std::string path) const;
     void SetPixel(int x, int y, Radiance c);
+    EXRTexture Normalize() const;
 
 private:
     std::vector<Radiance> data;

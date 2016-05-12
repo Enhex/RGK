@@ -37,7 +37,9 @@ struct Radiance{
     Radiance  operator* (float q)           const {return Radiance(q*r, q*g, q*b);}
     Radiance  operator* (const Color& c)    const {return Radiance(r*c.r, g*c.g, b*c.b);}
     Radiance  operator+ (const Radiance& o) const {return Radiance(r+o.r,g+o.g,b+o.b);}
+    Radiance  operator- (const Radiance& o) const {return Radiance(r-o.r,g-o.g,b-o.b);}
     Radiance& operator+=(const Radiance& o) {*this = *this + o; return *this;}
+    Radiance& operator-=(const Radiance& o) {*this = *this - o; return *this;}
 };
 
 struct Light{
