@@ -12,7 +12,7 @@
 // Returns a cosine-distributed random vector on a hemisphere, such that y > 0.
 glm::vec3 HSRandCos(){
     glm::vec2 p = glm::diskRand(1.0f);
-    float y = glm::sqrt(1- p.x*p.x - p.y*p.y);
+    float y = glm::sqrt(glm::max(0.0f, 1- p.x*p.x - p.y*p.y));
     return glm::vec3(p.x, y, p.y);
 }
 
