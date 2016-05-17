@@ -61,7 +61,7 @@ Radiance BRDF::CookTorr(glm::vec3 N, Color Kd, Color Ks, glm::vec3 Vi, glm::vec3
     float F = F0 + (1.0f - F0) * cb*cb*cb*cb*cb;
 
     // Converting specular to roughness using Brian Karis' formula:
-    float m = glm::pow(2.0f / (2.0f + exponent), 0.25);
+    float m = glm::pow(2.0f / (2.0f + exponent), 0.25f);
 
     // Beckman dist
     float ce = glm::cos(th_h);
