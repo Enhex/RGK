@@ -73,6 +73,8 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     float f;
     mat->Get(AI_MATKEY_SHININESS, f);
     m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
+    mat->Get(AI_MATKEY_REFRACTI, f);
+    m.refraction_index = f;
 
     aiString as; std::string s;
     Texture* tex;
@@ -115,7 +117,8 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     }
 
     //m.brdf = BRDF::Diffuse;
-    m.brdf = BRDF::PhongEnergyConserving;
+    //m.brdf = BRDF::PhongEnergyConserving;
+    m.brdf = BRDF::CookTorr;
 
     materials_buffer.push_back(m);
     std::cout << "Read material: " << m.name << std::endl;

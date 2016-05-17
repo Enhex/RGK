@@ -135,7 +135,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             path.push_back(p);
 
-            current_ray = Ray(p.pos + dir  * scene.epsilon * 0.00001f, dir);
+            current_ray = Ray(p.pos + p.faceN * scene.epsilon * 0.1f, dir);
 
             last_triangle = i.triangle;
             // Continue for next ray
@@ -176,7 +176,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 // Incoming direction
                 glm::vec3 Vi = glm::normalize(lightpos - pp.pos);
 
-                Radiance f = mat.brdf(pp.lightN, diffuse, specular, Vi, pp.Vr, mat.exponent);
+                Radiance f = mat.brdf(pp.lightN, diffuse, specular, Vi, pp.Vr, mat.exponent, 1.0, mat.refraction_index);
 
                 if(debug) std::cout << "f = " << f << std::endl;
 
@@ -206,7 +206,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                 if(debug) std::cout << "Indirect incoming from: " << Vi << std::endl;
 
-                Radiance f = mat.brdf(pp.lightN, diffuse, specular, Vi, pp.Vr, mat.exponent);
+                Radiance f = mat.brdf(pp.lightN, diffuse, specular, Vi, pp.Vr, mat.exponent, 1.0, mat.refraction_index);
 
                 if(debug) std::cout << "BRDF: " << f << std::endl;
 

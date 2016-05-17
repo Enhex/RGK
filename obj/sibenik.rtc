@@ -1,19 +1,21 @@
 # The sibenik model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
 sibenik/sibenik.obj
 sibenik.exr
-2
-1200 900
+5
+600 450
 -12.0 -10.0 2.0
 0.0 -8.0 0.0
 0.0 1.0 0.0
 1.6
-L  5.0 -1.0 0.0 255 250 210 150.0
-L  6.5 -9.0 0.0 255 250 210 80.0
-L  -5.0 0.0 0.0 255 250 210 100.0
-L  -5.0 -12.0 0.0 255 250 210 60.0
-L  -9.0 -12.0 0.0 255 250 210 60.0
+L  5.0 -1.0 0.0 255 250 210 150.0 0.8
+# L  6.5 -9.0 0.0 255 250 210 80.0
+# L  -5.0 0.0 0.0 255 250 210 100.0
+# L  -5.0 -12.0 0.0 255 250 210 60.0
+# L  -9.0 -12.0 0.0 255 250 210 60.0
 
-multisample 500
+multisample 200
 lens_size 0.035
 focus_plane 14.0
 sky 145 200 235
+russian 0.8
+clamp 4.0

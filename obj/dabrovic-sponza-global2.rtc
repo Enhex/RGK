@@ -8,10 +8,10 @@ dabrovic-sponza-global.exr
 0.0 1.0 0.0
 1.6
 # Sun lightning
-L  -16.0 100.0 -10.0 255 240 200 20000.0
+L  -16.0 100.0 -10.0 255 240 200 20000.0 1.0
 
 multisample 800
-sky 145 200 235 1.7
+sky 185 220 240 1.2
 bumpscale 10
 clamp 5.0
 russian 0.75

@@ -29,6 +29,7 @@ struct Material{
     Color specular;
     Color ambient;
     float exponent;
+    float refraction_index;
     Texture* diffuse_texture  = nullptr;
     Texture* specular_texture = nullptr;
     Texture* ambient_texture  = nullptr;
