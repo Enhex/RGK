@@ -135,7 +135,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             path.push_back(p);
 
-            current_ray = Ray(p.pos + p.faceN * scene.epsilon * 0.1f, dir);
+            current_ray = Ray(p.pos + p.faceN * scene.epsilon * 10.0f, dir);
 
             last_triangle = i.triangle;
             // Continue for next ray
@@ -223,6 +223,12 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             if(total.r > clamp) total.r = clamp;
             if(total.g > clamp) total.g = clamp;
             if(total.b > clamp) total.b = clamp;
+
+            // Whoops.
+            if(glm::isnan(total.r) || total.r < 0.0f) total.r = 0.0f;
+            if(glm::isnan(total.g) || total.g < 0.0f) total.g = 0.0f;
+            if(glm::isnan(total.b) || total.b < 0.0f) total.b = 0.0f;
+
 
             pp.to_prev = total;
         }

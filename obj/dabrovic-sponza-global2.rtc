@@ -2,7 +2,7 @@
 dabrovic-sponza/sponza.obj
 dabrovic-sponza-global.exr
 4
-800 600
+1200 900
 -9.5 1.5 -1.5
 3.0 3.0 -0.5
 0.0 1.0 0.0
@@ -14,7 +14,7 @@ multisample 800
 sky 185 220 240 1.2
 bumpscale 10
 clamp 5.0
-russian 0.75
+russian 0.8
 
 # WARNING!
 # The original darbovic-sponza files from http://graphics.cs.williams.edu/data/meshes.xml
