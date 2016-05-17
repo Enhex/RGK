@@ -6,18 +6,24 @@
 class PathTracer : public Tracer{
 public:
     PathTracer(const Scene& scene,
-              const Camera& camera,
-              const std::vector<Light>& lights,
-              unsigned int xres,
-              unsigned int yres,
-              unsigned int multisample,
-              unsigned int depth = 1,
-              Color sky_color = Color(0.0,0.0,0.0),
-              float bumpmap_scale = 10.0)
+               const Camera& camera,
+               const std::vector<Light>& lights,
+               unsigned int xres,
+               unsigned int yres,
+               unsigned int multisample,
+               unsigned int depth,
+               Color sky_color,
+               float sky_brightness,
+               float clamp,
+               float russian,
+               float bumpmap_scale)
         : Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
-          depth(depth),
-          sky_color(sky_color)
-    {}
+          clamp(clamp),
+          russian(russian),
+          depth(depth)
+    {
+        sky_radiance = Radiance(sky_color) * sky_brightness;
+    }
 
 protected:
     Radiance RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
@@ -25,8 +31,10 @@ protected:
 private:
     Radiance TracePath(const Ray& r, unsigned int& raycount, bool debug = false);
 
+    Radiance sky_radiance;
+    float clamp;
+    float russian;
     unsigned int depth;
-    Color sky_color;
 };
 
 #endif // __PATH_TRACER_HPP__

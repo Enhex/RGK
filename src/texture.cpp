@@ -342,7 +342,7 @@ EXRTexture EXRTexture::Normalize() const{
             m = std::max(m, data[y*xsize + x].g);
             m = std::max(m, data[y*xsize + x].b);
         }
-    std::cerr << "Normalizing output, max: " << m << std::endl;
+    // std::cerr << "Normalizing output, max: " << m << std::endl;
 
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){

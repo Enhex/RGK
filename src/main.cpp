@@ -69,7 +69,8 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
 
         if(counter % 10 == 0){
             // Each second
-            output_buffer->Write(preview_path);
+            auto ob2 = output_buffer->Normalize();
+            ob2.Write(preview_path);
         }
 
         usleep(1000*100); // 100ms
@@ -214,11 +215,14 @@ int main(int argc, char** argv){
     for(const RenderTask& task : tasks){
         tpool.push( [&, task](int){
                 PathTracer rt(s, camera, cfg.lights,
-                             task.xres, task.yres,
-                             cfg.multisample,
-                             cfg.recursion_level,
-                             cfg.sky_color,
-                             cfg.bumpmap_scale);
+                              task.xres, task.yres,
+                              cfg.multisample,
+                              cfg.recursion_level,
+                              cfg.sky_color,
+                              cfg.sky_brightness,
+                              cfg.clamp,
+                              cfg.russian,
+                              cfg.bumpmap_scale);
 
                 rt.Render(task, &ob, pixels_done, raycount);
 

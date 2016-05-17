@@ -33,8 +33,12 @@ public:
     // Prints the entire buffer to stdout.
     void Dump() const;
 
-    Intersection    FindIntersectKd   (const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
-    const Triangle* FindIntersectKdAny(const Ray& r, bool debug = false) __restrict__ const __attribute__((hot));
+    Intersection    FindIntersectKd   (const Ray& r, bool debug = false)
+        __restrict__ const __attribute__((hot));
+    const Triangle* FindIntersectKdAny(const Ray& r, bool debug = false)
+        __restrict__ const __attribute__((hot));
+    Intersection    FindIntersectKdOtherThan(const Ray& r, const Triangle* ignored, bool debug = false)
+        __restrict__ const __attribute__((hot));
 
     // Returns true IFF the two points are visible from each other.
     // Incorporates no cache of any kind.

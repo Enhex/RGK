@@ -28,10 +28,13 @@ public:
     float yview;
     std::vector<Light> lights;
     Color sky_color = Color(0.0, 0.0, 0.0);
+    float sky_brightness = 2.0;
     unsigned int multisample = 1;
     float lens_size = 0.0f;
     float focus_plane = 1.0f;
     float bumpmap_scale = 10.0f;
+    float clamp = 100.0f;
+    float russian = 0.0f;
 };
 
 #endif // __CONFIG_HPP__

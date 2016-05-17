@@ -73,19 +73,22 @@ Config Config::CreateFromFile(std::string path){
         if(vs[0] == "") continue;
         if(vs[0] == "L"){
             // Light info
-            if(vs.size() != 8) throw ConfigFileException("Invalid light line.");
+            if(vs.size() < 8 || vs.size() > 9) throw ConfigFileException("Invalid light line.");
             float l1 = std::stof(vs[1]), l2 = std::stof(vs[2]), l3 = std::stof(vs[3]);
             float c1 = std::stof(vs[4])/255, c2 = std::stof(vs[5])/255, c3 = std::stof(vs[6])/255;
             float i = std::stof(vs[7]);
-            cfg.lights.push_back(Light{glm::vec3(l1,l2,l3), Color(c1,c2,c3), i});
+            float s = 0.0f;
+            if(vs.size() == 9) s = std::stof(vs[8]);
+            cfg.lights.push_back(Light{glm::vec3(l1,l2,l3), Color(c1,c2,c3), i, s});
         }else if(vs[0] == "multisample" || vs[0] == "ms"){
             if(vs.size() != 2) throw ConfigFileException("Invalid multisample line.");
             int ms = std::stoi(vs[1]);
             if(ms == 0) throw ConfigFileException("Invalid multisample value.");
             cfg.multisample = ms;
         }else if(vs[0] == "sky" || vs[0] == "skycolor"){
-            if(vs.size() != 4) throw ConfigFileException("Invalid sky color line.");
+            if(vs.size() < 4 || vs.size() > 5) throw ConfigFileException("Invalid sky color line.");
             cfg.sky_color = Color(std::stoi(vs[1])/255.0f, std::stoi(vs[2])/255.0f, std::stoi(vs[3])/255.0f);
+            if(vs.size() == 5) cfg.sky_brightness = std::stof(vs[4]);
         }else if(vs[0] == "lens" || vs[0] == "lenssize" || vs[0] == "lens_size"){
             if(vs.size() != 2) throw ConfigFileException("Invalid lens size line.");
             float ls = std::stof(vs[1]);
@@ -100,6 +103,12 @@ Config Config::CreateFromFile(std::string path){
             if(vs.size() != 2) throw ConfigFileException("Invalid bump scale config line.");
             float bs = std::stof(vs[1]);
             cfg.bumpmap_scale = bs;
+        }else if(vs[0] == "clamp"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid clamp config line.");
+            cfg.clamp = std::stof(vs[1]);
+        }else if(vs[0] == "russian" || vs[0] == "roulette"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid russian roulette config line.");
+            cfg.russian = std::stof(vs[1]);
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
 
