@@ -2,6 +2,7 @@ link_directories(
   ${png++_LIBRARY_DIRS}
   ${assimp_LIBRARY_DIRS}
   ${JPEG_LIBRARY_DIRS}
+  ${OPENEXR_LIBRARY_DIRS}
   )
 
 include_directories(
@@ -9,6 +10,7 @@ include_directories(
   ${png++_INCLUDE_DIRS}
   ${assimp_INCLUDE_DIRS}
   ${JPEG_INCLUDE_DIRS}
+  ${OPENEXR_INCLUDE_DIRS}
   )
 
 add_definitions(
