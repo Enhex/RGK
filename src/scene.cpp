@@ -47,66 +47,7 @@ void Scene::FreeCompressedTree(){
 void Scene::LoadScene(const aiScene* scene){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
-        const aiMaterial* mat = scene->mMaterials[i];
-
-        Material m;
-        m.parent_scene = this;
-        aiString name;
-        mat->Get(AI_MATKEY_NAME, name);
-        m.name = name.C_Str();
-        aiColor3D c;
-        mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
-        m.diffuse = c;
-        mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
-        m.specular = c;
-        mat->Get(AI_MATKEY_COLOR_AMBIENT,c);
-        m.ambient = c;
-        float f;
-        mat->Get(AI_MATKEY_SHININESS, f);
-        m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
-
-        aiString as; std::string s;
-        Texture* tex;
-        int n;
-        n = mat->GetTextureCount(aiTextureType_DIFFUSE);
-        if(n > 0){
-            mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
-            if(s != ""){
-                // std::cout << "Material has diffuse texture " << s << std::endl;
-                tex = GetTexture(s);
-                m.diffuse_texture = tex;
-            }
-        }
-        n = mat->GetTextureCount(aiTextureType_SPECULAR);
-        if(n > 0){
-            mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
-            if(s != ""){
-                // std::cout << "Material has specular texture " << s << std::endl;
-                tex = GetTexture(s);
-                m.specular_texture = tex;
-            }
-        }
-        n = mat->GetTextureCount(aiTextureType_AMBIENT);
-        if(n > 0){
-            mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
-            if(s != ""){
-                // std::cout << "Material has ambient texture " << s << std::endl;
-                tex = GetTexture(s);
-                m.ambient_texture = tex;
-            }
-        }
-        n = mat->GetTextureCount(aiTextureType_HEIGHT);
-        if(n > 0){
-            mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
-            if(s != ""){
-                std::cout << "Material has bump texture " << s << std::endl;
-                tex = GetTexture(s);
-                m.bump_texture = tex;
-            }
-        }
-
-        materials_buffer.push_back(m);
-        std::cout << "Read material: " << m.name << std::endl;
+        LoadMaterial(scene->mMaterials[i]);
     }
 
     // Load root node
@@ -114,9 +55,75 @@ void Scene::LoadScene(const aiScene* scene){
     LoadNode(scene,root);
 }
 
+
+void Scene::LoadMaterial(const aiMaterial* mat){
+
+    Material m;
+    m.parent_scene = this;
+    aiString name;
+    mat->Get(AI_MATKEY_NAME, name);
+    m.name = name.C_Str();
+    aiColor3D c;
+    mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
+    m.diffuse = c;
+    mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
+    m.specular = c;
+    mat->Get(AI_MATKEY_COLOR_AMBIENT,c);
+    m.ambient = c;
+    float f;
+    mat->Get(AI_MATKEY_SHININESS, f);
+    m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
+
+    aiString as; std::string s;
+    Texture* tex;
+    int n;
+    n = mat->GetTextureCount(aiTextureType_DIFFUSE);
+    if(n > 0){
+        mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
+        if(s != ""){
+            // std::cout << "Material has diffuse texture " << s << std::endl;
+            tex = GetTexture(s);
+            m.diffuse_texture = tex;
+        }
+    }
+    n = mat->GetTextureCount(aiTextureType_SPECULAR);
+    if(n > 0){
+        mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
+        if(s != ""){
+            // std::cout << "Material has specular texture " << s << std::endl;
+            tex = GetTexture(s);
+            m.specular_texture = tex;
+        }
+    }
+    n = mat->GetTextureCount(aiTextureType_AMBIENT);
+    if(n > 0){
+        mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
+        if(s != ""){
+            // std::cout << "Material has ambient texture " << s << std::endl;
+            tex = GetTexture(s);
+            m.ambient_texture = tex;
+        }
+    }
+    n = mat->GetTextureCount(aiTextureType_HEIGHT);
+    if(n > 0){
+        mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
+        if(s != ""){
+            std::cout << "Material has bump texture " << s << std::endl;
+            tex = GetTexture(s);
+            m.bump_texture = tex;
+        }
+    }
+
+    //m.brdf = BRDF::Diffuse;
+    m.brdf = BRDF::PhongEnergyConserving;
+
+    materials_buffer.push_back(m);
+    std::cout << "Read material: " << m.name << std::endl;
+}
+
 void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
-    std::cout << "Loading node \"" << ainode->mName.C_Str() << "\", it has " << ainode->mNumMeshes << " meshes and " <<
-        ainode->mNumChildren << " children" << std::endl;
+    // std::cout << "Loading node \"" << ainode->mName.C_Str() << "\", it has " << ainode->mNumMeshes << " meshes and " <<
+    //    ainode->mNumChildren << " children" << std::endl;
 
     aiMatrix4x4 transform = current_transform * ainode->mTransformation;
 
@@ -131,8 +138,8 @@ void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 cur
 }
 
 void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
-    std::cout << "-- Loading mesh \"" << mesh->mName.C_Str() << "\" with " << mesh->mNumFaces <<
-        " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
+    // std::cout << "-- Loading mesh \"" << mesh->mName.C_Str() << "\" with " << mesh->mNumFaces <<
+    //    " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
     // Keep the current vertex buffer size.
     unsigned int vertex_index_offset = vertices_buffer.size();

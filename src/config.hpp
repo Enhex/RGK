@@ -34,7 +34,7 @@ public:
     float focus_plane = 1.0f;
     float bumpmap_scale = 10.0f;
     float clamp = 100.0f;
-    float russian = 0.0f;
+    float russian = -1.0f;
 };
 
 #endif // __CONFIG_HPP__

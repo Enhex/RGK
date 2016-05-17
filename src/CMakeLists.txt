@@ -18,6 +18,8 @@ add_definitions(
   -Wall
   -Wextra
   -Werror
+  #-O3
+  #-Ofast # Includes unsafe-math
   -O3
   )
 

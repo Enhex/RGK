@@ -11,7 +11,9 @@ typedef Radiance (*BRDF_fptr)(glm::vec3, Color, Color, glm::vec3, glm::vec3, flo
 class BRDF{
 public:
     static Radiance Diffuse(glm::vec3, Color, Color, glm::vec3, glm::vec3, float);
-    static Radiance Phong  (glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp);
+    static Radiance Phong(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp);
+    static Radiance Phong2(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp);
+    static Radiance PhongEnergyConserving(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp);
 };
 
 void TestBRDF(BRDF_fptr);
