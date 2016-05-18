@@ -105,10 +105,9 @@ void usage(const char* prog){
     std::cout << "\n";
     std::cout << "Runs the RGK Ray Tracer using configuration from FILE.\n";
     std::cout << " -h, --help         Prints out this message.\n";
-    std::cout << " -d, --debug X Y    Prints verbose debug information about rendering\n";
-    std::cout << "                     the X Y pixel.\n";
-    std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times\n";
-    std::cout << "                     less rays per pixel, yielding " << PREVIEW_SPEED_RATIO << " times faster render time).\n";
+    std::cout << " -d, --debug X Y    Prints verbose debug information about rendering the X Y pixel.\n";
+    std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times less rays per pixel,\n";
+    std::cout << "                     yielding " << PREVIEW_SPEED_RATIO << " times faster render time).\n";
     std::cout << "\n";
     exit(0);
 }
