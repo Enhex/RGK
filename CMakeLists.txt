@@ -1,7 +1,10 @@
 cmake_minimum_required(VERSION 3.0)
 
+set(PROJECT_NAME "RGKrt")
+set(EXECUTABLE_NAME ${PROJECT_NAME})
+
 project(
-  RGK
+  ${PROJECT_NAME}
   VERSION 1.0
   LANGUAGES CXX
   )
