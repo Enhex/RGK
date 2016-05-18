@@ -73,6 +73,12 @@ std::pair<std::string, std::string> Utils::GetFileExtension(std::string fname){
     return {name, ext};
 }
 
+
+std::string Utils::InsertFileSuffix(std::string path, std::string suffix){
+    auto p = GetFileExtension(path);
+    return p.first + "." + suffix + "." +  p.second;
+}
+
 bool Utils::GetFileExists(std::string name)
 {
   // For compilers that support C++14 experimental TS:

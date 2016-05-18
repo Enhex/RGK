@@ -37,6 +37,7 @@ public:
     static std::string GetFilename(std::string path);
     // Splits filename into name and extension
     static std::pair<std::string, std::string> GetFileExtension(std::string fname);
+    static std::string InsertFileSuffix(std::string path, std::string suffix);
     static bool GetFileExists(std::string path);
 };
 

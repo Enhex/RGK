@@ -15,6 +15,8 @@
 
 #include "../external/ctpl_stl.h"
 
+#include <getopt.h>
+
 #include "LRU.hpp"
 
 #include "scene.hpp"
@@ -93,30 +95,93 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
 
 }
 
+#define PREVIEW_DIMENTIONS_RATIO 3
+#define PREVIEW_RAYS_RATIO 3
+#define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
+
+void usage(const char* prog) __attribute__((noreturn));
+void usage(const char* prog){
+    std::cout << "Usage: " << prog << " [OPTIONS]... [FILE] \n";
+    std::cout << "\n";
+    std::cout << "Runs the RGK Ray Tracer using configuration from FILE.\n";
+    std::cout << " -h, --help         Prints out this message.\n";
+    std::cout << " -d, --debug X Y    Prints verbose debug information about rendering\n";
+    std::cout << "                     the X Y pixel.\n";
+    std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times\n";
+    std::cout << "                     less rays per pixel, yielding " << PREVIEW_SPEED_RATIO << " times faster render time).\n";
+    std::cout << "\n";
+    exit(0);
+}
+
 int main(int argc, char** argv){
 
-    if(argc < 2){
-        std::cout << "No input file, aborting." << std::endl;
-        return 0;
-    }
-
-    if(argc >= 4){
-        debug_trace = true;
-        debug_x = std::stoi(argv[2]);
-        debug_y = std::stoi(argv[3]);
-        std::cout << "Debug mode enabled, will trace pixel " << debug_x << " " << debug_y << std::endl;
-    }
-
     srand(time(nullptr));
+    bool preview_mode = false;
 
-    std::string configfile = argv[1];
+    static struct option long_opts[] =
+        {
+            {"debug", no_argument, 0, 'd'},
+            {"preview", no_argument, 0, 'p'},
+            {"help", no_argument, 0, 'h'},
+            {0,0,0,0}
+        };
 
+    int c;
+    int opt_index = 0;
+    while((c = getopt_long(argc,argv,"hpd:",long_opts,&opt_index)) != -1){
+        switch (c){
+        case 'h':
+            usage(argv[0]);
+            break;
+        case 'd':
+            debug_trace = true;
+            debug_x = std::stoi(optarg);
+            if (optind < argc && *argv[optind] != '-'){
+                debug_y = std::stoi(argv[optind]);
+                optind++;
+            } else {
+                std::cout << "ERROR: Not enough arguments for --debug.\n";
+                usage(argv[0]);
+            }
+            break;
+        case 'p':
+            preview_mode = true;
+            break;
+        default:
+            std::cout << "ERROR: Unrecognized option " << (char)c << std::endl;
+            /* FALLTHROUGH */
+        case 0:
+            usage(argv[0]);
+        }
+    }
+
+    std::vector<std::string> infiles;
+    while(optind < argc){
+        infiles.push_back(argv[optind]);
+        optind++;
+    }
+    if(infiles.size() < 1){
+        std::cout << "ERROR: Missing FILE argument." << std::endl;
+        usage(argv[0]);
+    }else if(infiles.size() > 1){
+        std::cout << "ERROR: Working with multiple config files is not yet supported." << std::endl;
+        usage(argv[0]);
+    }
+    std::string configfile = infiles[0];
+
+    // Load render config file
     Config cfg;
     try{
         cfg = Config::CreateFromFile(configfile);
     }catch(ConfigFileException ex){
         std::cout << "Failed to load config file: " << ex.what() << std::endl;
         return 1;
+    }
+
+    if(preview_mode){
+        cfg.xres /= PREVIEW_DIMENTIONS_RATIO;
+        cfg.yres /= PREVIEW_DIMENTIONS_RATIO;
+        cfg.multisample /= PREVIEW_RAYS_RATIO;
     }
 
     Assimp::Importer importer;
@@ -130,7 +195,7 @@ int main(int argc, char** argv){
     }
 
     std::cout << "Loading scene... " << std::endl;
-    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, NULL);
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
     const aiScene* scene = importer.ReadFile(modelfile,
                                              aiProcess_Triangulate |
                                              //aiProcess_TransformUVCoords |
@@ -191,8 +256,7 @@ int main(int argc, char** argv){
 
     total_pixels = cfg.xres * cfg.yres;
 
-    auto p = Utils::GetFileExtension(cfg.output_file);
-    std::thread monitor_thread(Monitor, &ob, p.first + ".preview." + p.second);
+    std::thread monitor_thread(Monitor, &ob, Utils::InsertFileSuffix(cfg.output_file, "preview"));
 
     const int tile_size = TILE_SIZE;
     // Split rendering into smaller (tile_size x tile_size) tasks.
