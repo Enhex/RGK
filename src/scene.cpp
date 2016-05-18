@@ -116,6 +116,12 @@ void Scene::LoadMaterial(const aiMaterial* mat){
         }
     }
 
+    if(m.name.find("refl") != std::string::npos){
+        m.reflective = true;
+        m.reflection_strength = m.exponent / 100.0f;
+        m.exponent = 0;
+    }
+
     //m.brdf = BRDF::Diffuse;
     //m.brdf = BRDF::PhongEnergyConserving;
     m.brdf = BRDF::CookTorr;

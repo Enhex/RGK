@@ -33,6 +33,10 @@ unsigned int debug_x, debug_y;
 
 #define TILE_SIZE 50
 
+#define PREVIEW_DIMENTIONS_RATIO 3
+#define PREVIEW_RAYS_RATIO 2
+#define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
+
 std::atomic<int> tasks_done(0);
 std::atomic<int> pixels_done(0);
 std::atomic<unsigned int> raycount(0);
@@ -94,10 +98,6 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
     std::cout << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
 
 }
-
-#define PREVIEW_DIMENTIONS_RATIO 3
-#define PREVIEW_RAYS_RATIO 3
-#define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
 
 void usage(const char* prog) __attribute__((noreturn));
 void usage(const char* prog){
