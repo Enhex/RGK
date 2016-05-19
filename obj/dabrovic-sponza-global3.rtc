@@ -1,18 +1,18 @@
 # The dabrovic sponza model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
 dabrovic-sponza/sponza.obj
-dabrovic-sponza-global2.exr
+dabrovic-sponza-global3.exr
 4
 1200 900
--9.5 1.5 -1.5
-3.0 3.0 -0.5
+-1.8 7.2 -4.7
+3.0 6.7 1.2
 0.0 1.0 0.0
-1.6
+1.4
 # Sun lightning
 L  -16.0 100.0 -10.0 255 240 200 20000.0 1.0
 
 multisample 40
 rounds 40
-sky 185 220 240 1.2
+sky 185 220 240 0.9
 bumpscale 20
 clamp 5.0
 russian 0.6

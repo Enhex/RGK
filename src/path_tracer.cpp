@@ -116,19 +116,18 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             // Prepare incoming direction
             p.Vr = -current_ray.direction;
 
+            const Material& mat = i.triangle->GetMaterial();
+
             bool fromInside = false;
             if(glm::dot(p.faceN, p.Vr) < 0){
                 fromInside = true;
             }
 
             // Interpolate textures
-            const Material& mat = i.triangle->GetMaterial();
             if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture || mat.bump_texture){
                 p.texUV = i.Interpolate(i.triangle->GetTexCoordsA(),
                                         i.triangle->GetTexCoordsB(),
                                         i.triangle->GetTexCoordsC());
-                if(debug) std::cout << "diff texture " << mat.diffuse_texture << std::endl;
-                if(debug) std::cout << "texUV " << p.texUV << std::endl;
             }
             // Tilt normal using bump texture
             if(mat.bump_texture){
