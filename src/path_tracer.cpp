@@ -33,6 +33,24 @@ Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool deb
     return total / multisample;
 }
 
+float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
+    float cosi = glm::dot(I, N);
+    float etai = 1.0f, etat = ior;
+    if (cosi > 0) { std::swap(etai, etat); }
+    // Compute sini using Snell's law
+    float sint = etai / etat * glm::sqrt(glm::max(0.f, 1.0f - cosi * cosi));
+    if(sint >= 1){
+        // Total internal reflection
+        return 1.0f;
+    }else{
+        float cost = sqrtf(std::max(0.f, 1 - sint * sint));
+        cosi = fabsf(cosi);
+        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
+        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
+        return (Rs * Rs + Rp * Rp) / 2.0f;
+    }
+}
+
 Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
 
     // First, generate a path.
@@ -105,10 +123,12 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             // Interpolate textures
             const Material& mat = i.triangle->GetMaterial();
-            if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture){
+            if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture || mat.bump_texture){
                 p.texUV = i.Interpolate(i.triangle->GetTexCoordsA(),
                                         i.triangle->GetTexCoordsB(),
                                         i.triangle->GetTexCoordsC());
+                if(debug) std::cout << "diff texture " << mat.diffuse_texture << std::endl;
+                if(debug) std::cout << "texUV " << p.texUV << std::endl;
             }
             // Tilt normal using bump texture
             if(mat.bump_texture){
@@ -119,23 +139,41 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                                                   i.triangle->GetTangentC());
                 glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
                 p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
+                if(debug) std::cout << "lightN " << p.lightN << std::endl;
             }else{
                 p.lightN = p.faceN;
             }
 
+
             // Determine point type
-            if(fromInside && mat.translucency > 0.0001f){
-                // Ray leaves the object
-                p.type = PathPoint::LEFT;
-                // Do not count this point into depth. Never russian-terminate path at this point.
-                n--; skip_russian = true;
-            }else if(rnd.Get01() < mat.translucency){
-                // Ray enters the object
-                p.type = PathPoint::ENTERED;
-                // Do not count this point into depth. Never russian-terminate path at this point.
-                n--; skip_russian = true;
+            if(mat.translucency > 0.001f){
+                // This is a translucent material.
+                if(fromInside){
+                    // Ray leaves the object
+                    p.type = PathPoint::LEFT;
+                    // Do not count this point into depth. Never russian-terminate path at this point.
+                    n--; skip_russian = true;
+                }else{
+                    if(rnd.Get01() < mat.translucency){
+                        // Fresnell refraction/reflection
+                        // TODO: The fresnell function assumes eta1 = 1.0. For eg. underwater reflections this is
+                        // not correct, really.
+                        float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
+                        if(debug) std::cout << "Angle = " << glm::angle(p.Vr, p.lightN)*180.0f/glm::pi<float>() << std::endl;
+                        if(debug) std::cout << "Fresnel = " << q << std::endl;
+                        if(rnd.Get01() < q){
+                            p.type = PathPoint::REFLECTED;
+                        }else{
+                            p.type = PathPoint::ENTERED;
+                        }
+                        // Do not count this point into depth. Never russian-terminate path at this point.
+                        n--; skip_russian = true;
+                    }else{
+                        p.type = PathPoint::SCATTERED;
+                    }
+                }
             }else{
-                // Ray stays on the surface
+                // Not a translucent material.
                 if(mat.reflective){
                     if(rnd.Get01() < mat.reflection_strength){
                         p.type = PathPoint::REFLECTED;
@@ -167,23 +205,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 // TODO: Refraction
                 dir = glm::refract(p.Vr, p.lightN, 1.0f/mat.refraction_index);
                 if(debug) std::cout << "ENTERED medium." << std::endl;
-                if(debug) std::cout << "Coming from " << p.Vr << std::endl;
-                if(debug) std::cout << "Normal " << p.lightN << std::endl;
-                if(debug) std::cout << "index " << mat.refraction_index << std::endl;
-                if(debug) std::cout << "dir = " << dir << std::endl;
-                if(debug){
-
-                    std::cout << " <<<<<<<<<<<<<<<<<<<< " << std::endl;
-                    float eta = 1.0f/mat.refraction_index;
-                    float k = 1.0 - eta * eta * (1.0 - glm::dot(p.lightN, -p.Vr) * dot(p.lightN, -p.Vr));
-                    std::cout << " k = " << k << std::endl;
-                    if (k < 0.0)
-                        std::cout << "INTERNAL" << std::endl;
-                    else{
-                        auto R = eta * (-p.Vr) - (eta * glm::dot(p.lightN, -p.Vr) + glm::sqrt(k)) * p.lightN;
-                        std::cout << "R = " << R << std::endl;
-                    }
-                }
                 if(glm::length(dir) < 0.001f || glm::isnan(dir.x)){
                     // Internal reflection
                     if(debug) std::cout << "internally reflected." << std::endl;
@@ -235,6 +256,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             const Material& mat = pp.i.triangle->GetMaterial();
 
             if(debug) std::cout << "Hit material: " << mat.name << std::endl;
+
+            if(debug) std::cout << "texUV " << pp.texUV << std::endl;
 
             Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(pp.texUV,debug) : mat.diffuse ;
             Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(pp.texUV,debug): mat.specular;

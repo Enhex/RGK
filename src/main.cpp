@@ -74,7 +74,8 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
 
-        if(counter % 50 == 0){
+        // TODO: Maybe save just once per round, after it's done?
+        if(counter % 50 == 49){
             // Each 5 seconds
             auto ob2 = output_buffer->Normalize();
             ob2.Write(preview_path);
@@ -201,7 +202,11 @@ int main(int argc, char** argv){
                                              //aiProcess_GenNormals |
                                              aiProcess_GenSmoothNormals |
                                              aiProcess_JoinIdenticalVertices |
+
+                                             // The option below is odd. Enabling it messes up half of my models.
+                                             // Enabling it messes up the other half.
                                              aiProcess_RemoveRedundantMaterials |
+
                                              aiProcess_GenUVCoords |
                                              //aiProcess_SortByPType |
                                              aiProcess_FindDegenerates |
