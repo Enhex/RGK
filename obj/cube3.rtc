@@ -2,13 +2,13 @@
 cubes/cube3.obj
 cube3.exr
 4
-400 300
+1200 900
 1.5 2.85 -4.0
 0.0 1.0 0.0
 0.0 1.0 0.0
 1.6
 L 3.0 6.0 -2.0  255 255 200 400.0 0.4
 
-multisample 80
+multisample 300
 russian 0.75
 clamp 10.0

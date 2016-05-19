@@ -31,7 +31,8 @@ struct Material{
     float exponent;
     float refraction_index;
     bool reflective = false;
-    float reflection_strength = 0.0;
+    float reflection_strength = 0.0f;
+    float translucency = 0.0f;
     Texture* diffuse_texture  = nullptr;
     Texture* specular_texture = nullptr;
     Texture* ambient_texture  = nullptr;

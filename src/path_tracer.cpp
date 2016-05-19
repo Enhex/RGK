@@ -58,7 +58,9 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
     struct PathPoint{
         enum Type{
             SCATTERED,
-            REFLECTED
+            REFLECTED,
+            ENTERED,
+            LEFT,
         };
         Type type;
         bool infinity = false;
@@ -74,12 +76,15 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
     std::vector<PathPoint> path;
 
     Ray current_ray = r;
-    unsigned int n = 0;
+    unsigned int n = 0, n2 = 0;
     // Temporarily setting this to true ensures that russian roulette will not terminate (once).
     bool skip_russian = false;
+    // Used for tracking index of refraction
+    // float current_ior = 1.0f;
     const Triangle* last_triangle = nullptr;
     while(true){
-        n++;
+        n++; n2++;
+        if(n2 >= 20) break; // hard limit
         if(russian >= 0.0f){
             // Russian roulette path termination
             if(n > 1 && !skip_russian && glm::linearRand(0.0f, 1.0f) > russian) break;
@@ -92,17 +97,17 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         if(debug) std::cout << "Generating path, n = " << n << std::endl;
 
         raycount++;
-        Intersection i = scene.FindIntersectKdOtherThan(current_ray, last_triangle, debug);
+        Intersection i = scene.FindIntersectKdOtherThan(current_ray, /* last_triangle */ nullptr, debug);
         PathPoint p;
         p.i = i;
         if(!i.triangle){
             p.infinity = true;
-            p.Vr = -r.direction;
+            p.Vr = -current_ray.direction;
             path.push_back(p);
             break;
         }else{
             if(i.triangle == last_triangle){
-                std::cerr << "Ray collided with source triangle. This should never happen." << std::endl;
+                // std::cerr << "Ray collided with source triangle. This should never happen." << std::endl;
             }
             // Prepare normal
             p.pos = current_ray[i.t];
@@ -110,10 +115,15 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                                     i.triangle->GetNormalB(),
                                     i.triangle->GetNormalC());
             // Prepare incoming direction
-            p.Vr = glm::normalize(-r.direction);
+            p.Vr = -current_ray.direction;
 
-            // Flip normal if ray comes from face's inside
-            // if(glm::dot(p.faceN, p.Vr) < 0) p.faceN = -p.faceN;
+            bool fromInside = false;
+            if(glm::dot(p.faceN, p.Vr) < 0){
+                fromInside = true;
+                if(debug) std::cout << "FROM INSIDE!!!!" << std::endl;
+                if(debug) std::cout << p.faceN << std::endl;
+                if(debug) std::cout << p.Vr << std::endl;
+            }
 
             // Interpolate textures
             const Material& mat = i.triangle->GetMaterial();
@@ -136,37 +146,98 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             }
 
             // Determine point type
-            if(mat.reflective){
-                if(glm::linearRand(0.0f, 1.0f) < mat.reflection_strength){
-                    p.type = PathPoint::REFLECTED;
-                    // Do not count this point into depth.
-                    n--;
-                    // Never russian-terminate path at this point.
-                    skip_russian = true;
+            if(fromInside && mat.translucency > 0.0001f){
+                // Ray leaves the object
+                p.type = PathPoint::LEFT;
+                // Do not count this point into depth. Never russian-terminate path at this point.
+                n--; skip_russian = true;
+            }else if(glm::linearRand(0.0f, 1.0f) < mat.translucency){
+                // Ray enters the object
+                p.type = PathPoint::ENTERED;
+                // Do not count this point into depth. Never russian-terminate path at this point.
+                n--; skip_russian = true;
+            }else{
+                // Ray stays on the surface
+                if(mat.reflective){
+                    if(glm::linearRand(0.0f, 1.0f) < mat.reflection_strength){
+                        p.type = PathPoint::REFLECTED;
+                        // Do not count this point into depth. Never russian-terminate path at this point.
+                        n--; skip_russian = true;
+                    }else{
+                        p.type = PathPoint::SCATTERED;
+                    }
                 }else{
                     p.type = PathPoint::SCATTERED;
                 }
-            }else{
-                p.type = PathPoint::SCATTERED;
             }
 
+            if(debug) std::cout << "Ray hit material " << mat.name << " and ";
             // Generate next ray direction
             glm::vec3 dir;
             switch(p.type){
             case PathPoint::SCATTERED:
+                if(debug) std::cout << "SCATTERED." << std::endl;
                 dir = HSRandCosDir(p.faceN);
                 while(glm::angle(dir, p.lightN) > glm::pi<float>()/2.0f)
                     dir = HSRandCosDir(p.faceN);
                 break;
             case PathPoint::REFLECTED:
+                if(debug) std::cout << "REFLECTED." << std::endl;
                 dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
+                break;
+            case PathPoint::ENTERED:
+                // TODO: Refraction
+                dir = glm::refract(p.Vr, p.lightN, 1.0f/mat.refraction_index);
+                if(debug) std::cout << "ENTERED medium." << std::endl;
+                if(debug) std::cout << "Coming from " << p.Vr << std::endl;
+                if(debug) std::cout << "Normal " << p.lightN << std::endl;
+                if(debug) std::cout << "index " << mat.refraction_index << std::endl;
+                if(debug) std::cout << "dir = " << dir << std::endl;
+                if(debug){
+
+                    std::cout << " <<<<<<<<<<<<<<<<<<<< " << std::endl;
+                    float eta = 1.0f/mat.refraction_index;
+                    float k = 1.0 - eta * eta * (1.0 - glm::dot(p.lightN, -p.Vr) * dot(p.lightN, -p.Vr));
+                    std::cout << " k = " << k << std::endl;
+                    if (k < 0.0)
+                        std::cout << "INTERNAL" << std::endl;
+                    else{
+                        auto R = eta * (-p.Vr) - (eta * glm::dot(p.lightN, -p.Vr) + glm::sqrt(k)) * p.lightN;
+                        std::cout << "R = " << R << std::endl;
+                    }
+                }
+                if(glm::length(dir) < 0.001f || glm::isnan(dir.x)){
+                    // Internal reflection
+                    if(debug) std::cout << "internally reflected." << std::endl;
+                    p.type = PathPoint::REFLECTED;
+                    dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
+                }
+                // current_ior *= mat.refraction_index
+                break;
+            case PathPoint::LEFT:
+                // TODO: Refraction
+                if(debug) std::cout << "LEFT medium." << std::endl;
+                dir = glm::refract(p.Vr, p.lightN, mat.refraction_index);
+                if(glm::length(dir) < 0.001f){
+                    // Internal reflection
+                    if(debug) std::cout << "internally reflected." << std::endl;
+                    p.type = PathPoint::REFLECTED;
+                    dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
+                }
+                dir = -p.Vr;
+                // current_ior /= mat.refraction_index;
                 break;
             }
             p.Vi = dir;
 
             path.push_back(p);
 
-            current_ray = Ray(p.pos + p.faceN * scene.epsilon * 10.0f, dir);
+            current_ray = Ray(p.pos +
+                              p.faceN * scene.epsilon * 10.0f *
+                              ((p.type == PathPoint::ENTERED)?-1.0f:1.0f)
+                              , glm::normalize(dir));
+
+            if(debug) std::cout << "Next ray will be from " << p. pos << " dir " << dir << std::endl;
 
             last_triangle = i.triangle;
             // Continue for next ray
@@ -249,7 +320,9 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                     total += inc;
                 }
-            }else if(pp.type == PathPoint::REFLECTED){
+            }else if(pp.type == PathPoint::REFLECTED ||
+                     pp.type == PathPoint::ENTERED ||
+                     pp.type == PathPoint::LEFT){
                 Radiance incoming = path[n+1].to_prev;
                 total += incoming;
             }

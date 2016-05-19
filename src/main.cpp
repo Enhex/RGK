@@ -73,8 +73,8 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
 
-        if(counter % 10 == 0){
-            // Each second
+        if(counter % 50 == 0){
+            // Each 5 seconds
             auto ob2 = output_buffer->Normalize();
             ob2.Write(preview_path);
         }
