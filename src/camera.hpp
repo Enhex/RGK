@@ -3,6 +3,7 @@
 
 #include "glm.hpp"
 #include "ray.hpp"
+#include "random.hpp"
 
 class Camera{
 public:
@@ -14,10 +15,10 @@ public:
        subx, suby - the coordinates of subpixel within (x,y) pixel for requesting ray
      */
     Ray GetSubpixelRay(int x, int y, int xres, int yres, int subx, int suby, int subres) const;
-    Ray GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int suby, int subres) const;
+    Ray GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
 
-    Ray GetRandomRay(int x, int y, int xres, int yres) const;
-    Ray GetRandomRayLens(int x, int y, int xres, int yres) const;
+    Ray GetRandomRay(int x, int y, int xres, int yres, Random& rnd) const;
+    Ray GetRandomRayLens(int x, int y, int xres, int yres, Random& rnd) const;
     Ray GetCenterRay(int x, int y, int xres, int yres) const;
 
     bool IsSimple() const {return lens_size == 0.0f;}

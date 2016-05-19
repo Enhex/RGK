@@ -109,6 +109,9 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "russian" || vs[0] == "roulette"){
             if(vs.size() != 2) throw ConfigFileException("Invalid russian roulette config line.");
             cfg.russian = std::stof(vs[1]);
+        }else if(vs[0] == "rounds"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid rounds config line.");
+            cfg.rounds = std::stoi(vs[1]);
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
 

@@ -34,10 +34,11 @@ unsigned int debug_x, debug_y;
 #define TILE_SIZE 50
 
 #define PREVIEW_DIMENTIONS_RATIO 3
-#define PREVIEW_RAYS_RATIO 2
+#define PREVIEW_RAYS_RATIO 1
 #define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
 
-std::atomic<int> tasks_done(0);
+std::atomic<int> rounds_done(0);
+unsigned int total_rounds;
 std::atomic<int> pixels_done(0);
 std::atomic<unsigned int> raycount(0);
 std::atomic<bool> stop_monitor(false);
@@ -65,7 +66,7 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
         std::cout << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
         for(unsigned int i = 0; i <  fill; i++) std::cout << "#";
         for(unsigned int i = 0; i < empty; i++) std::cout << "-";
-        std::cout << "] " <<  float_to_percent_string(percent) << " done.";
+        std::cout << "] " <<  float_to_percent_string(percent) << " done; round " << rounds_done + 1 << "/" << total_rounds;
         std::flush(std::cout);
     };
 
@@ -114,7 +115,6 @@ void usage(const char* prog){
 
 int main(int argc, char** argv){
 
-    srand(time(nullptr));
     bool preview_mode = false;
 
     static struct option long_opts[] =
@@ -243,7 +243,6 @@ int main(int argc, char** argv){
 
     unsigned int concurrency = std::thread::hardware_concurrency();
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
-    ctpl::thread_pool tpool(concurrency);
 
     std::cout << "Using thread pool of size " << concurrency << std::endl;
 
@@ -253,7 +252,8 @@ int main(int argc, char** argv){
 
     std::vector<RenderTask> tasks;
 
-    total_pixels = cfg.xres * cfg.yres;
+    total_pixels = cfg.xres * cfg.yres * cfg.rounds;
+    total_rounds = cfg.rounds;
 
     std::thread monitor_thread(Monitor, &ob, Utils::InsertFileSuffix(cfg.output_file, "preview"));
 
@@ -269,31 +269,44 @@ int main(int argc, char** argv){
 
     std::cout << "Rendering in " << tasks.size() << " tiles." << std::endl;
 
-    // Sorting tasks by their distance to the middle
+    // Sorting tasks by their distance to the middle.
     glm::vec2 middle(cfg.xres/2.0f, cfg.yres/2.0f);
+    // However, if debug is enabled, sort tiles so that the debugged point gets rendered earliest.
+    if(debug_trace) middle = glm::vec2(debug_x, debug_y);
     std::sort(tasks.begin(), tasks.end(), [&middle](const RenderTask& a, const RenderTask& b){
             return glm::length(middle - a.midpoint) < glm::length(middle - b.midpoint);
         });
 
-    for(const RenderTask& task : tasks){
-        tpool.push( [&, task](int){
-                PathTracer rt(s, camera, cfg.lights,
-                              task.xres, task.yres,
-                              cfg.multisample,
-                              cfg.recursion_level,
-                              cfg.sky_color,
-                              cfg.sky_brightness,
-                              cfg.clamp,
-                              cfg.russian,
-                              cfg.bumpmap_scale);
+    unsigned int seedcount = 0, seedstart = time(nullptr);
+    for(unsigned int roundno = 0; roundno < cfg.rounds; roundno++){
+        ctpl::thread_pool tpool(concurrency);
 
-                rt.Render(task, &ob, pixels_done, raycount);
+        for(const RenderTask& task : tasks){
+            unsigned int c = seedcount++;
+            tpool.push( [&ob, seedstart, camera, &s, cfg, task, c](int){
 
-                tasks_done++;
-            });
+                    Random rnd(seedstart + c);
+                    PathTracer rt(s, camera, cfg.lights,
+                                  task.xres, task.yres,
+                                  cfg.multisample,
+                                  cfg.recursion_level,
+                                  cfg.sky_color,
+                                  cfg.sky_brightness,
+                                  cfg.clamp,
+                                  cfg.russian,
+                                  cfg.bumpmap_scale,
+                                  rnd);
+
+                    rt.Render(task, &ob, pixels_done, raycount);
+
+                });
+        }
+
+        tpool.stop(true); // Waits for all remaining worker threads to complete.
+
+        rounds_done++;
     }
 
-    tpool.stop(true); // Waits for all remaining worker threads to complete.
 
     stop_monitor = true;
     if(monitor_thread.joinable()) monitor_thread.join();

@@ -12,7 +12,7 @@ Radiance RayTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debu
             if(camera.IsSimple()){
                 r = camera.GetSubpixelRay(x, y, xres, yres, mx2, my, multisample);
             }else{
-                r = camera.GetRandomRayLens(x, y, xres, yres);
+                r = camera.GetRandomRayLens(x, y, xres, yres, rnd);
                 //r = camera.GetSubpixelRayLens(x, y, task.xres, task.yres, mx2, my, m);
             }
             pixel_total += Radiance(TraceRay(r, depth, raycount, debug));

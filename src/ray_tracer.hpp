@@ -3,6 +3,7 @@
 
 #include "tracer.hpp"
 
+#include "random.hpp"
 #include "LRU.hpp"
 #define SHADOW_CACHE_SIZE 5
 
@@ -14,13 +15,15 @@ public:
               unsigned int xres,
               unsigned int yres,
               unsigned int multisample,
-              unsigned int depth = 1,
-              Color sky_color = Color(0.0,0.0,0.0),
-              float bumpmap_scale = 10.0)
+              unsigned int depth,
+              Color sky_color,
+              float bumpmap_scale,
+              Random rnd)
         : Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
           depth(depth),
           sky_color(sky_color),
-          shadow_cache(lights.size(), LRUBuffer<const Triangle*>(SHADOW_CACHE_SIZE))
+          shadow_cache(lights.size(), LRUBuffer<const Triangle*>(SHADOW_CACHE_SIZE)),
+          rnd(rnd)
     {}
 
 protected:
@@ -33,6 +36,8 @@ private:
     Color sky_color;
 
     mutable std::vector<LRUBuffer<const Triangle*>> shadow_cache;
+
+    mutable Random rnd;
 };
 
 #endif // __RAY_TRACER_HPP__

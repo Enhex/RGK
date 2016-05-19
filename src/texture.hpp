@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
 
 #include "primitives.hpp"
 #include "ray.hpp"
@@ -38,14 +39,20 @@ private:
 class EXRTexture{
 public:
     EXRTexture(int xsize, int ysize);
+    EXRTexture(const EXRTexture& other) :
+        xsize(other.xsize), ysize(other.ysize),
+        data(other.data),  count(other.count) {}
     bool Write(std::string path) const;
-    void SetPixel(int x, int y, Radiance c);
+    void AddPixel(int x, int y, Radiance c);
+    Radiance GetPixel(int x, int y) const;
     EXRTexture Normalize() const;
 
 private:
-    std::vector<Radiance> data;
-    std::vector<bool> set;
     unsigned int xsize, ysize;
+    std::vector<Radiance> data;
+    std::vector<unsigned int> count;
+
+    mutable std::mutex mx;
 };
 
 #endif // __TEXTURE_HPP__

@@ -5,27 +5,8 @@
 
 #include <glm/gtx/vector_angle.hpp>
 #include <glm/gtx/norm.hpp>
-#include <glm/gtc/random.hpp>
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtc/constants.hpp>
-
-// Returns a cosine-distributed random vector on a hemisphere, such that y > 0.
-glm::vec3 HSRandCos(){
-    glm::vec2 p = glm::diskRand(1.0f);
-    float y = glm::sqrt(glm::max(0.0f, 1- p.x*p.x - p.y*p.y));
-    return glm::vec3(p.x, y, p.y);
-}
-
-// Returns a cosine-distributed random vector in direction of V.
-glm::vec3 HSRandCosDir(glm::vec3 V){
-    glm::vec3 r = HSRandCos();
-    glm::vec3 axis = glm::cross(glm::vec3(0.0,1.0,0.0), V);
-    // TODO: What if V = -up?
-    if(glm::length(axis) < 0.0001f) return (V.y > 0) ? r : -r;
-    axis = glm::normalize(axis);
-    float angle = glm::angle(glm::vec3(0.0,1.0,0.0), V);
-    return glm::rotate(r, angle, axis);
-}
 
 Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
     Radiance total;
@@ -42,7 +23,7 @@ Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool deb
         if(camera.IsSimple()){
             r = camera.GetSubpixelRay(x, y, xres, yres, i, V[i], multisample);
         }else{
-            r = camera.GetSubpixelRayLens(x, y, xres, yres, i, V[i], multisample);
+            r = camera.GetSubpixelRayLens(x, y, xres, yres, i, V[i], multisample, rnd);
         }
         total += TracePath(r, raycount, debug);
     }
@@ -87,7 +68,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         if(n2 >= 20) break; // hard limit
         if(russian >= 0.0f){
             // Russian roulette path termination
-            if(n > 1 && !skip_russian && glm::linearRand(0.0f, 1.0f) > russian) break;
+            if(n > 1 && !skip_russian && rnd.Get01() > russian) break;
             skip_russian = false;
         }else{
             // Fixed depth path termination
@@ -120,9 +101,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             bool fromInside = false;
             if(glm::dot(p.faceN, p.Vr) < 0){
                 fromInside = true;
-                if(debug) std::cout << "FROM INSIDE!!!!" << std::endl;
-                if(debug) std::cout << p.faceN << std::endl;
-                if(debug) std::cout << p.Vr << std::endl;
             }
 
             // Interpolate textures
@@ -151,7 +129,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 p.type = PathPoint::LEFT;
                 // Do not count this point into depth. Never russian-terminate path at this point.
                 n--; skip_russian = true;
-            }else if(glm::linearRand(0.0f, 1.0f) < mat.translucency){
+            }else if(rnd.Get01() < mat.translucency){
                 // Ray enters the object
                 p.type = PathPoint::ENTERED;
                 // Do not count this point into depth. Never russian-terminate path at this point.
@@ -159,7 +137,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             }else{
                 // Ray stays on the surface
                 if(mat.reflective){
-                    if(glm::linearRand(0.0f, 1.0f) < mat.reflection_strength){
+                    if(rnd.Get01() < mat.reflection_strength){
                         p.type = PathPoint::REFLECTED;
                         // Do not count this point into depth. Never russian-terminate path at this point.
                         n--; skip_russian = true;
@@ -177,9 +155,9 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             switch(p.type){
             case PathPoint::SCATTERED:
                 if(debug) std::cout << "SCATTERED." << std::endl;
-                dir = HSRandCosDir(p.faceN);
+                dir = rnd.GetHSCosDir(p.faceN);
                 while(glm::angle(dir, p.lightN) > glm::pi<float>()/2.0f)
-                    dir = HSRandCosDir(p.faceN);
+                    dir = rnd.GetHSCosDir(p.faceN);
                 break;
             case PathPoint::REFLECTED:
                 if(debug) std::cout << "REFLECTED." << std::endl;
@@ -265,9 +243,9 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             if(pp.type == PathPoint::SCATTERED){
                 // Direct lighting, random light
-                int light_n = rand()%(lights.size());
+                int light_n = rnd.GetInt(0, lights.size() -1 );
                 const Light& l = lights[light_n];
-                glm::vec3 lightpos = l.pos + glm::sphericalRand(l.size);
+                glm::vec3 lightpos = l.pos + rnd.GetSphere(l.size);
 
                 if(debug) std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
 
@@ -320,9 +298,13 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                     total += inc;
                 }
-            }else if(pp.type == PathPoint::REFLECTED ||
-                     pp.type == PathPoint::ENTERED ||
-                     pp.type == PathPoint::LEFT){
+            }else if(pp.type == PathPoint::REFLECTED){
+                Radiance incoming = path[n+1].to_prev;
+                total += incoming;
+            }else if(pp.type == PathPoint::ENTERED){
+                Radiance incoming = path[n+1].to_prev;
+                total += incoming * diffuse;
+            }else if(pp.type == PathPoint::LEFT){
                 Radiance incoming = path[n+1].to_prev;
                 total += incoming;
             }

@@ -2,6 +2,7 @@
 #define __PATH_TRACER_HPP__
 
 #include "tracer.hpp"
+#include "random.hpp"
 
 class PathTracer : public Tracer{
 public:
@@ -16,11 +17,13 @@ public:
                float sky_brightness,
                float clamp,
                float russian,
-               float bumpmap_scale)
+               float bumpmap_scale,
+               Random rnd)
         : Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
           clamp(clamp),
           russian(russian),
-          depth(depth)
+          depth(depth),
+          rnd(rnd)
     {
         sky_radiance = Radiance(sky_color) * sky_brightness;
     }
@@ -35,6 +38,7 @@ private:
     float clamp;
     float russian;
     unsigned int depth;
+    mutable Random rnd;
 };
 
 #endif // __PATH_TRACER_HPP__

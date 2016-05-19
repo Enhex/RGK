@@ -9,6 +9,7 @@ cube3.exr
 1.6
 L 3.0 6.0 -2.0  255 255 200 400.0 0.4
 
-multisample 300
-russian 0.75
+multisample 2
+rounds 20
+russian 0.5
 clamp 10.0

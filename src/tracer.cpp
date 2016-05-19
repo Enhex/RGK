@@ -13,7 +13,7 @@ void Tracer::Render(const RenderTask& task, EXRTexture* output, std::atomic<int>
 
             Radiance px = RenderPixel(x, y, raysdone, d);
 
-            output->SetPixel(x, y, px);
+            output->AddPixel(x, y, px);
             pxdone++;
             if(pxdone % 100 == 0){
                 pixel_count += 100;

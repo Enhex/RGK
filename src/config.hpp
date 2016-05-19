@@ -35,6 +35,7 @@ public:
     float bumpmap_scale = 10.0f;
     float clamp = 100.0f;
     float russian = -1.0f;
+    unsigned int rounds = 1;
 };
 
 #endif // __CONFIG_HPP__

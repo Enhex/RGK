@@ -298,13 +298,20 @@ EXRTexture::EXRTexture(int xsize, int ysize):
     xsize(xsize), ysize(ysize)
 {
     data.resize(xsize*ysize);
-    set.resize(xsize*ysize, false);
+    count.resize(xsize*ysize, 0);
 }
 
-void EXRTexture::SetPixel(int x, int y, Radiance c)
+void EXRTexture::AddPixel(int x, int y, Radiance c)
 {
-    data[y*xsize + x] = c;
-    set [y*xsize + x] = true;
+    std::lock_guard<std::mutex> lk(mx);
+    data[y*xsize + x] += c;
+    count[y*xsize + x] += 1;
+}
+Radiance EXRTexture::GetPixel(int x, int y) const{
+    std::lock_guard<std::mutex> lk(mx);
+    int n = y*xsize + x;
+    if(count[n] == 0) return Radiance();
+    return data[n]/count[n];
 }
 
 bool EXRTexture::Write(std::string path) const{
@@ -314,17 +321,11 @@ bool EXRTexture::Write(std::string path) const{
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){
             int n = y*xsize + x;
-            if(set[n]){
-                buffer[n].a = 1.0;
-                buffer[n].r = data[n].r;
-                buffer[n].g = data[n].g;
-                buffer[n].b = data[n].b;
-            }else{
-                buffer[n].a = 0.0;
-                buffer[n].r = 0.0;
-                buffer[n].g = 0.0;
-                buffer[n].b = 0.0;
-            }
+            auto q = GetPixel(x, y);
+            buffer[n].a = 1.0;
+            buffer[n].r = q.r;
+            buffer[n].g = q.g;
+            buffer[n].b = q.b;
         }
 
     file.setFrameBuffer(buffer, 1, xsize);
@@ -334,15 +335,17 @@ bool EXRTexture::Write(std::string path) const{
 }
 
 EXRTexture EXRTexture::Normalize() const{
-    EXRTexture out = *this;
+    EXRTexture out(xsize, ysize);
+    out.data = data;
+    out.count = count;
     float m = 0.0f;
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){
-            m = std::max(m, data[y*xsize + x].r);
-            m = std::max(m, data[y*xsize + x].g);
-            m = std::max(m, data[y*xsize + x].b);
+            auto q = GetPixel(x, y);
+            m = std::max(m, q.r);
+            m = std::max(m, q.g);
+            m = std::max(m, q.b);
         }
-    // std::cerr << "Normalizing output, max: " << m << std::endl;
 
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){
