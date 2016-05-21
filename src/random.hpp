@@ -2,9 +2,9 @@
 #define __RANDOM_HPP_
 
 #include <random>
+#include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
 
-#include "glm.hpp"
 
 class Random{
 public:

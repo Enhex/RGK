@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "scene.hpp"
 
+#include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
 #include <glm/gtx/norm.hpp>
 #include <glm/gtx/rotate_vector.hpp>

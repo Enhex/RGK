@@ -1,5 +1,6 @@
 #include "camera.hpp"
 
+#include "glm.hpp"
 #include <glm/gtx/polar_coordinates.hpp>
 
 Camera::Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview, float focus_plane, float ls){

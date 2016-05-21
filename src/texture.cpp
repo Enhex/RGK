@@ -9,6 +9,7 @@
 #include "utils.hpp"
 #include "out.hpp"
 
+#include "glm.hpp"
 #include <glm/gtx/wrap.hpp>
 
 #include <OpenEXR/ImfRgbaFile.h>

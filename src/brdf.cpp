@@ -1,5 +1,6 @@
 #include "brdf.hpp"
 
+#include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
 
 Radiance BRDF::Diffuse(glm::vec3, Color Kd, Color, glm::vec3, glm::vec3, float, float, float){
