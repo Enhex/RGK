@@ -4,6 +4,8 @@
 /* This file does nothing more than including glm headers. The sole
    purpose of it is to keep glm configuration in a single place. */
 
+#define NDEBUG
+
 #define GLM_FORCE_RADIANS
 #define GLM_SWIZZLE
 #include <glm/gtx/transform.hpp>
