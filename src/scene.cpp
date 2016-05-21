@@ -46,10 +46,10 @@ void Scene::FreeCompressedTree(){
     compressed_array_size = 0;
 }
 
-void Scene::LoadScene(const aiScene* scene){
+void Scene::LoadScene(const aiScene* scene, const Config& cfg){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
-        LoadMaterial(scene->mMaterials[i]);
+        LoadMaterial(scene->mMaterials[i], cfg);
     }
 
     // Load root node
@@ -58,7 +58,7 @@ void Scene::LoadScene(const aiScene* scene){
 }
 
 
-void Scene::LoadMaterial(const aiMaterial* mat){
+void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
 
     Material m;
     m.parent_scene = this;
@@ -128,9 +128,8 @@ void Scene::LoadMaterial(const aiMaterial* mat){
         m.reflection_strength = 0.0f;
     }
 
-    //m.brdf = BRDF::Diffuse;
-    //m.brdf = BRDF::PhongEnergyConserving;
-    m.brdf = BRDF::CookTorr;
+    // Supposedly we may support different brdfs for each material.
+    m.brdf = cfg.brdf;
 
     materials_buffer.push_back(m);
     out::cout(4) << "Read material: " << m.name << std::endl;

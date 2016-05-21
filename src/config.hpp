@@ -6,8 +6,8 @@
 #include <exception>
 
 #include "glm.hpp"
-
-#include "scene.hpp"
+#include "brdf.hpp"
+#include "primitives.hpp"
 
 struct ConfigFileException : public std::runtime_error{
     ConfigFileException(const std::string& what ) : std::runtime_error(what) {}
@@ -36,6 +36,7 @@ public:
     float clamp = 100.0f;
     float russian = -1.0f;
     unsigned int rounds = 1;
+    BRDF_fptr brdf = BRDF::CookTorr;
 };
 
 #endif // __CONFIG_HPP__

@@ -112,6 +112,21 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "rounds"){
             if(vs.size() != 2) throw ConfigFileException("Invalid rounds config line.");
             cfg.rounds = std::stoi(vs[1]);
+        }else if(vs[0] == "brdf"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid brdf config line.");
+            if(vs[1] == "cooktorr"){
+                cfg.brdf = BRDF::CookTorr;
+            }else if(vs[1] == "phong"){
+                cfg.brdf = BRDF::Phong;
+            }else if(vs[1] == "phong2"){
+                cfg.brdf = BRDF::Phong2;
+            }else if(vs[1] == "phongenergy"){
+                cfg.brdf = BRDF::PhongEnergyConserving;
+            }else if(vs[1] == "diffuse"){
+                cfg.brdf = BRDF::Diffuse;
+            }else{
+                throw ConfigFileException("Unknown BRDF type: " + vs[1]);
+            }
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
 

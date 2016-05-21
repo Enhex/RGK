@@ -12,6 +12,7 @@
 #include "primitives.hpp"
 #include "utils.hpp"
 #include "texture.hpp"
+#include "config.hpp"
 
 struct UncompressedKdNode;
 struct CompressedKdNode;
@@ -23,8 +24,8 @@ public:
 
     void LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
     void LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform);
-    void LoadMaterial(const aiMaterial* mat);
-    void LoadScene(const aiScene* scene);
+    void LoadMaterial(const aiMaterial* mat, const Config& cfg);
+    void LoadScene(const aiScene* scene, const Config& cfg);
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();

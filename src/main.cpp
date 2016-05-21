@@ -84,7 +84,7 @@ void Monitor(){
     float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
     unsigned int total_rays = raycount;
 
-    out::cout(1) << "Total rendering time: " << total_seconds << "s" << std::endl;
+    out::cout(2) << "Total rendering time: " << total_seconds << "s" << std::endl;
     out::cout(3) << "Total rays: " << total_rays << std::endl;
     out::cout(3) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
     out::cout(3) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
@@ -230,7 +230,7 @@ int main(int argc, char** argv){
 
     Scene s;
     s.texture_directory = modeldir + "/";
-    s.LoadScene(scene);
+    s.LoadScene(scene, cfg);
     s.Commit();
 
     Camera camera(cfg.view_point,
