@@ -168,9 +168,18 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 glm::vec3 tangent = i.Interpolate(i.triangle->GetTangentA(),
                                                   i.triangle->GetTangentB(),
                                                   i.triangle->GetTangentC());
-                glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
-                p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
-                if(debug) std::cout << "lightN " << p.lightN << std::endl;
+                if(tangent.x*tangent.x + tangent.y*tangent.y + tangent.z*tangent.z < 0.001f){
+                    // Well, so, apparently, sometimes assimp generates invalid tangents. They seem okay
+                    // on their own, but they interpolate weird, because tangents at two coincident vertices
+                    // are opposite. Thus if it happens that interpolated tangent is zero, and therefore can't be
+                    // normalized, we just silently ignore the bump map in this point. I'll have little effect on the
+                    // entire pixel anyway.
+                }else{
+                    tangent = glm::normalize(tangent);
+                    glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
+                    p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
+                    if(debug) std::cout << "lightN " << p.lightN << std::endl;
+                }
             }else{
                 p.lightN = p.faceN;
             }
