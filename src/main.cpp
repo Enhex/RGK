@@ -34,7 +34,7 @@ unsigned int debug_x, debug_y;
 #define TILE_SIZE 50
 
 #define PREVIEW_DIMENTIONS_RATIO 3
-#define PREVIEW_RAYS_RATIO 1
+#define PREVIEW_RAYS_RATIO 2
 #define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
 
 std::atomic<int> rounds_done(0);
@@ -50,7 +50,7 @@ std::string float_to_percent_string(float f){
     return ss.str();
 }
 
-void Monitor(const EXRTexture* output_buffer, std::string preview_path){
+void Monitor(){
     std::cout << "Monitor thread started" << std::endl;
     int counter = 0;
 
@@ -66,7 +66,7 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
         std::cout << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
         for(unsigned int i = 0; i <  fill; i++) std::cout << "#";
         for(unsigned int i = 0; i < empty; i++) std::cout << "-";
-        std::cout << "] " <<  float_to_percent_string(percent) << " done; round " << rounds_done + 1 << "/" << total_rounds;
+        std::cout << "] " <<  float_to_percent_string(percent) << " done; round " << std::max((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds;
         std::flush(std::cout);
     };
 
@@ -75,11 +75,12 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
         if(pixels_done >= total_pixels) break;
 
         // TODO: Maybe save just once per round, after it's done?
-        if(counter % 50 == 49){
+        /*if(counter % 50 == 49){
             // Each 5 seconds
             auto ob2 = output_buffer->Normalize();
             ob2.Write(preview_path);
         }
+        */
 
         usleep(1000*100); // 100ms
         counter++;
@@ -88,7 +89,6 @@ void Monitor(const EXRTexture* output_buffer, std::string preview_path){
     // Display the message one more time to output "100%"
     print_progress_f();
     std::cout << std::endl;
-    output_buffer->Write(preview_path);
 
     std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
     float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
@@ -260,7 +260,9 @@ int main(int argc, char** argv){
     total_pixels = cfg.xres * cfg.yres * cfg.rounds;
     total_rounds = cfg.rounds;
 
-    std::thread monitor_thread(Monitor, &ob, Utils::InsertFileSuffix(cfg.output_file, "preview"));
+    std::string output_file = (preview_mode) ? Utils::InsertFileSuffix(cfg.output_file, "preview") : cfg.output_file;
+
+    std::thread monitor_thread(Monitor);
 
     const int tile_size = TILE_SIZE;
     // Split rendering into smaller (tile_size x tile_size) tasks.
@@ -310,14 +312,13 @@ int main(int argc, char** argv){
         tpool.stop(true); // Waits for all remaining worker threads to complete.
 
         rounds_done++;
+
+        ob.Normalize().Write(output_file);
     }
 
 
     stop_monitor = true;
     if(monitor_thread.joinable()) monitor_thread.join();
-
-    auto ob2 = ob.Normalize();
-    ob2.Write(cfg.output_file);
 
     return 0;
 }
