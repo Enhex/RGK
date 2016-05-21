@@ -87,7 +87,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
         if(s != ""){
-            out::cout(4) << "Material has diffuse texture " << s << std::endl;
+            out::cout(5) << "Material has diffuse texture " << s << std::endl;
             tex = GetTexture(s);
             m.diffuse_texture = tex;
         }
@@ -96,7 +96,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
         if(s != ""){
-            out::cout(4) << "Material has specular texture " << s << std::endl;
+            out::cout(5) << "Material has specular texture " << s << std::endl;
             tex = GetTexture(s);
             m.specular_texture = tex;
         }
@@ -105,7 +105,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
         if(s != ""){
-            out::cout(4) << "Material has ambient texture " << s << std::endl;
+            out::cout(5) << "Material has ambient texture " << s << std::endl;
             tex = GetTexture(s);
             m.ambient_texture = tex;
         }
@@ -114,7 +114,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
         if(s != ""){
-            out::cout(4) << "Material has bump texture " << s << std::endl;
+            out::cout(5) << "Material has bump texture " << s << std::endl;
             tex = GetTexture(s);
             m.bump_texture = tex;
         }
@@ -133,7 +133,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     m.brdf = BRDF::CookTorr;
 
     materials_buffer.push_back(m);
-    out::cout(3) << "Read material: " << m.name << std::endl;
+    out::cout(4) << "Read material: " << m.name << std::endl;
 }
 
 void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
@@ -151,7 +151,7 @@ void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 cur
 }
 
 void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
-    out::cout(3) << "-- Loading mesh \"" << mesh->mName.C_Str() << "\" with " << mesh->mNumFaces <<
+    out::cout(4) << "-- Loading a mesh with " << mesh->mNumFaces <<
        " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
     // Keep the current vertex buffer size.

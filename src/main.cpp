@@ -65,7 +65,7 @@ void Monitor(){
         out::cout(1) << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
         for(unsigned int i = 0; i <  fill; i++) out::cout(1) << "#";
         for(unsigned int i = 0; i < empty; i++) out::cout(1) << "-";
-        out::cout(1) << "] " <<  float_to_percent_string(percent) << " done; round " << std::max((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds;
+        out::cout(1) << "] " <<  float_to_percent_string(percent) << " done; round " << std::min((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds;
         out::cout(1).flush();
     };
 
@@ -85,9 +85,9 @@ void Monitor(){
     unsigned int total_rays = raycount;
 
     out::cout(1) << "Total rendering time: " << total_seconds << "s" << std::endl;
-    out::cout(2) << "Total pixels: " << total_pixels << ", total rays: " << total_rays << std::endl;
-    out::cout(2) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
-    out::cout(2) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
+    out::cout(3) << "Total rays: " << total_rays << std::endl;
+    out::cout(3) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
+    out::cout(3) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
 
 }
 
@@ -102,7 +102,7 @@ void usage(const char* prog){
     std::cout << "                     yielding " << PREVIEW_SPEED_RATIO << " times faster render time).\n";
     std::cout << " -v                 Each occurence of this option increases verbosity by 1.\n";
     std::cout << " -q                 Each occurence of this option decreases verbosity by 1.\n";
-    std::cout << "                      Default verbosity level is 1. At 0, the program operates quietly.\n";
+    std::cout << "                      Default verbosity level is 2. At 0, the program operates quietly.\n";
     std::cout << "                      Increasing verbosity makes the program output more statistics and diagnostic details.\n";
     std::cout << "\n";
     exit(0);
@@ -260,6 +260,7 @@ int main(int argc, char** argv){
     total_rounds = cfg.rounds;
 
     std::string output_file = (preview_mode) ? Utils::InsertFileSuffix(cfg.output_file, "preview") : cfg.output_file;
+    out::cout(2) << "Writing to file " << output_file << std::endl;
 
     std::thread monitor_thread(Monitor);
 

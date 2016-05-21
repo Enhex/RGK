@@ -1,3 +1,3 @@
 #include "out.hpp"
 
-unsigned int out::verbosity_level = 1;
+unsigned int out::verbosity_level = 2;
