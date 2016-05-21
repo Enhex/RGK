@@ -27,6 +27,7 @@
 #include "texture.hpp"
 #include "camera.hpp"
 #include "path_tracer.hpp"
+#include "out.hpp"
 
 bool debug_trace = false;
 unsigned int debug_x, debug_y;
@@ -51,8 +52,6 @@ std::string float_to_percent_string(float f){
 }
 
 void Monitor(){
-    std::cout << "Monitor thread started" << std::endl;
-    int counter = 0;
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
@@ -63,27 +62,18 @@ void Monitor(){
         const unsigned int barsize = 60;
         unsigned int fill = fraction * barsize;
         unsigned int empty = barsize - fill;
-        std::cout << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
-        for(unsigned int i = 0; i <  fill; i++) std::cout << "#";
-        for(unsigned int i = 0; i < empty; i++) std::cout << "-";
-        std::cout << "] " <<  float_to_percent_string(percent) << " done; round " << std::max((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds;
-        std::flush(std::cout);
+        out::cout(1) << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
+        for(unsigned int i = 0; i <  fill; i++) out::cout(1) << "#";
+        for(unsigned int i = 0; i < empty; i++) out::cout(1) << "-";
+        out::cout(1) << "] " <<  float_to_percent_string(percent) << " done; round " << std::max((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds;
+        out::cout(1).flush();
     };
 
     while(!stop_monitor){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
 
-        // TODO: Maybe save just once per round, after it's done?
-        /*if(counter % 50 == 49){
-            // Each 5 seconds
-            auto ob2 = output_buffer->Normalize();
-            ob2.Write(preview_path);
-        }
-        */
-
         usleep(1000*100); // 100ms
-        counter++;
     }
 
     // Display the message one more time to output "100%"
@@ -94,10 +84,10 @@ void Monitor(){
     float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
     unsigned int total_rays = raycount;
 
-    std::cout << "Total rendering time: " << total_seconds << "s" << std::endl;
-    std::cout << "Total pixels: " << total_pixels << ", total rays: " << total_rays << std::endl;
-    std::cout << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
-    std::cout << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
+    out::cout(1) << "Total rendering time: " << total_seconds << "s" << std::endl;
+    out::cout(2) << "Total pixels: " << total_pixels << ", total rays: " << total_rays << std::endl;
+    out::cout(2) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
+    out::cout(2) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
 
 }
 
@@ -110,6 +100,10 @@ void usage(const char* prog){
     std::cout << " -d, --debug X Y    Prints verbose debug information about rendering the X Y pixel.\n";
     std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times less rays per pixel,\n";
     std::cout << "                     yielding " << PREVIEW_SPEED_RATIO << " times faster render time).\n";
+    std::cout << " -v                 Each occurence of this option increases verbosity by 1.\n";
+    std::cout << " -q                 Each occurence of this option decreases verbosity by 1.\n";
+    std::cout << "                      Default verbosity level is 1. At 0, the program operates quietly.\n";
+    std::cout << "                      Increasing verbosity makes the program output more statistics and diagnostic details.\n";
     std::cout << "\n";
     exit(0);
 }
@@ -128,7 +122,7 @@ int main(int argc, char** argv){
 
     int c;
     int opt_index = 0;
-    while((c = getopt_long(argc,argv,"hpd:",long_opts,&opt_index)) != -1){
+    while((c = getopt_long(argc,argv,"hpd:vq",long_opts,&opt_index)) != -1){
         switch (c){
         case 'h':
             usage(argv[0]);
@@ -146,6 +140,12 @@ int main(int argc, char** argv){
             break;
         case 'p':
             preview_mode = true;
+            break;
+        case 'v':
+            out::verbosity_level++;
+            break;
+        case 'q':
+            if(out::verbosity_level > 0) out::verbosity_level--;
             break;
         default:
             std::cout << "ERROR: Unrecognized option " << (char)c << std::endl;
@@ -194,7 +194,7 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    std::cout << "Loading scene... " << std::endl;
+    out::cout(2) << "Loading scene... " << std::endl;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
     const aiScene* scene = importer.ReadFile(modelfile,
                                              aiProcess_Triangulate |
@@ -225,9 +225,8 @@ int main(int argc, char** argv){
     scene = importer.ApplyPostProcessing(aiProcess_CalcTangentSpace);
     //aiApplyPostProcessing(scene, aiProcess_CalcTangentSpace);
 
-    std::cout << "Loaded scene with " << scene->mNumMeshes << " meshes, " <<
-        scene->mNumMaterials << " materials and " << scene->mNumLights <<
-        " lights." << std::endl;
+    out::cout(2) << "Loaded scene with " << scene->mNumMeshes << " meshes and " <<
+        scene->mNumMaterials << " materials." << std::endl;
 
     Scene s;
     s.texture_directory = modeldir + "/";
@@ -249,7 +248,7 @@ int main(int argc, char** argv){
     unsigned int concurrency = std::thread::hardware_concurrency();
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
 
-    std::cout << "Using thread pool of size " << concurrency << std::endl;
+    out::cout(2) << "Using thread pool of size " << concurrency << std::endl;
 
     if(cfg.recursion_level == 0){
         cfg.lights.clear();
@@ -274,7 +273,7 @@ int main(int argc, char** argv){
         }
     }
 
-    std::cout << "Rendering in " << tasks.size() << " tiles." << std::endl;
+    out::cout(3) << "Rendering in " << tasks.size() << " tiles." << std::endl;
 
     // Sorting tasks by their distance to the middle.
     glm::vec2 middle(cfg.xres/2.0f, cfg.yres/2.0f);

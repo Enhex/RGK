@@ -1,10 +1,12 @@
 #include "scene.hpp"
-#include "utils.hpp"
 
 #include <iostream>
 #include <limits>
 #include <cmath>
 #include <stack>
+
+#include "utils.hpp"
+#include "out.hpp"
 
 // #define NO_COMPRESS
 
@@ -85,7 +87,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
         if(s != ""){
-            // std::cout << "Material has diffuse texture " << s << std::endl;
+            out::cout(4) << "Material has diffuse texture " << s << std::endl;
             tex = GetTexture(s);
             m.diffuse_texture = tex;
         }
@@ -94,7 +96,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
         if(s != ""){
-            // std::cout << "Material has specular texture " << s << std::endl;
+            out::cout(4) << "Material has specular texture " << s << std::endl;
             tex = GetTexture(s);
             m.specular_texture = tex;
         }
@@ -103,7 +105,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
         if(s != ""){
-            // std::cout << "Material has ambient texture " << s << std::endl;
+            out::cout(4) << "Material has ambient texture " << s << std::endl;
             tex = GetTexture(s);
             m.ambient_texture = tex;
         }
@@ -112,7 +114,7 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     if(n > 0){
         mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
         if(s != ""){
-            std::cout << "Material has bump texture " << s << std::endl;
+            out::cout(4) << "Material has bump texture " << s << std::endl;
             tex = GetTexture(s);
             m.bump_texture = tex;
         }
@@ -131,12 +133,10 @@ void Scene::LoadMaterial(const aiMaterial* mat){
     m.brdf = BRDF::CookTorr;
 
     materials_buffer.push_back(m);
-    std::cout << "Read material: " << m.name << std::endl;
+    out::cout(3) << "Read material: " << m.name << std::endl;
 }
 
 void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
-    // std::cout << "Loading node \"" << ainode->mName.C_Str() << "\", it has " << ainode->mNumMeshes << " meshes and " <<
-    //    ainode->mNumChildren << " children" << std::endl;
 
     aiMatrix4x4 transform = current_transform * ainode->mTransformation;
 
@@ -151,8 +151,8 @@ void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 cur
 }
 
 void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
-    // std::cout << "-- Loading mesh \"" << mesh->mName.C_Str() << "\" with " << mesh->mNumFaces <<
-    //    " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
+    out::cout(3) << "-- Loading mesh \"" << mesh->mName.C_Str() << "\" with " << mesh->mNumFaces <<
+       " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
     // Keep the current vertex buffer size.
     unsigned int vertex_index_offset = vertices_buffer.size();
@@ -257,7 +257,7 @@ void Scene::Commit(){
     for(unsigned int i = 0; i < n_texcoords; i++)
         texcoords[i] = glm::vec2(texcoords_buffer[i].x, texcoords_buffer[i].y);
 
-    std::cout << "Commited " << n_vertices << " vertices, " << n_normals << " normals,  " << n_triangles <<
+    out::cout(2) << "Commited " << n_vertices << " vertices, " << n_normals << " normals, " << n_triangles <<
         " triangles with " << n_materials << " materials and " << textures.size() <<  " textures to the scene." << std::endl;
 
     // Clearing vectors this way forces memory to be freed.
@@ -295,17 +295,15 @@ void Scene::Commit(){
     float diameter = glm::sqrt(xsize*xsize + ysize*ysize + zsize*zsize);
 
     epsilon = 0.00001f * diameter;
-    std::cout << "Using dynamic epsilon: " << epsilon << std::endl;
+    out::cout(3) << "Using dynamic epsilon: " << epsilon << std::endl;
 
     xBB = std::make_pair(*p.first - epsilon, *p.second + epsilon);
     yBB = std::make_pair(*q.first - epsilon, *q.second + epsilon);
     zBB = std::make_pair(*r.first - epsilon, *r.second + epsilon);
 
-    std::cout << "The scene is bounded by [" << xBB.first << ", " << xBB.second << "], " <<
+    out::cout(3) << "The scene is bounded by [" << xBB.first << ", " << xBB.second << "], " <<
                                          "[" << yBB.first << ", " << yBB.second << "], " <<
                                          "[" << zBB.first << ", " << zBB.second << "]."  << std::endl;
-
-    std::cout << "Total avg cost with no kd-tree: " << ISECT_COST * n_triangles << std::endl;
 
     uncompressed_root = new UncompressedKdNode;
     uncompressed_root->parent_scene = this;
@@ -317,16 +315,18 @@ void Scene::Commit(){
     // Prepare kd-tree
     int l = std::log2(n_triangles) + 8;
     //l = 1;
-    std::cout << "Building kD-tree with max depth " << l << std::endl;
+    out::cout(2) << "Building kD-tree with max depth " << l << "..." << std::endl;
     uncompressed_root->Subdivide(l);
 
     auto totals = uncompressed_root->GetTotals();
-    std::cout << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
-    std::cout << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
+    out::cout(3) << "Total triangles in tree: " << std::get<0>(totals) << ", total leafs: " << std::get<1>(totals) << ", total nodes: " << std::get<2>(totals) << ", total dups: " << std::get<3>(totals) << std::endl;
+    out::cout(3) << "Average triangles per leaf: " << std::get<0>(totals)/(float)std::get<1>(totals) << std::endl;
 
-    std::cout << "Total avg cost with kd-tree: " << uncompressed_root->GetCost() << std::endl;
+    out::cout(3) << "Total avg cost with no kd-tree: " << ISECT_COST * n_triangles << std::endl;
+    out::cout(3) << "Total avg cost with kd-tree: " << uncompressed_root->GetCost() << std::endl;
 
 #ifndef NO_COMPRESS
+    out::cout(2) << "Compressing kD-tree..." << std::endl;
     Compress();
 
     uncompressed_root->FreeRecursivelly();
@@ -342,10 +342,10 @@ void Scene::Dump() const{
         const glm::vec3 vb = vertices[tr.vb];
         const glm::vec3 vc = vertices[tr.vc];
         const Color& color = materials[tr.mat].diffuse;
-        std::cout << va.x << " " << va.y << " " << va.z << " | ";
-        std::cout << vb.x << " " << vb.y << " " << vb.z << " | ";
-        std::cout << vc.x << " " << vc.y << " " << vc.z << " [" ;
-        std::cout << color.r << " " << color.g << " " << color.b << "]\n" ;
+        out::cout(4) << va.x << " " << va.y << " " << va.z << " | ";
+        out::cout(4) << vb.x << " " << vb.y << " " << vb.z << " | ";
+        out::cout(4) << vc.x << " " << vc.y << " " << vc.z << " [" ;
+        out::cout(4) << color.r << " " << color.g << " " << color.b << "]\n" ;
     }
 }
 
@@ -548,10 +548,10 @@ void Scene::Compress(){
         std::cout << "Compression failed, triangle_pos = " << triangle_pos << ", triangles_size = " << compressed_triangles_size << std::endl;
         return;
     }
-    std::cout << "Compression appears successful!" << std::endl;
-    std::cout << "Uncompressed node size: " << sizeof(UncompressedKdNode) << "B " << std::endl;
-    std::cout << "Compressed node size: " << sizeof(CompressedKdNode) << "B " << std::endl;
-    std::cout << "Total compressed Kd tree size: " << sizeof(CompressedKdNode)*compressed_array_size/1024 << "kiB " << std::endl;
+    out::cout(3) << "Compression appears successful!" << std::endl;
+    out::cout(3) << "Uncompressed node size: " << sizeof(UncompressedKdNode) << "B " << std::endl;
+    out::cout(3) << "Compressed node size: " << sizeof(CompressedKdNode) << "B " << std::endl;
+    out::cout(2) << "Total compressed Kd tree size: " << sizeof(CompressedKdNode)*compressed_array_size/1024 << "kiB " << std::endl;
 
 }
 
