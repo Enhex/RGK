@@ -26,7 +26,7 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
     if(debug) std::cerr << "Debugging a ray. " << std::endl;
     if(debug) std::cerr << r.origin << " " << r.direction << std::endl;
     raycount++;
-    Intersection i = scene.FindIntersectKd(r, debug);
+    Intersection i = scene.FindIntersectKd(r);
 
     if(i.triangle){
         if(debug) std::cerr << "Intersection found. " << std::endl;

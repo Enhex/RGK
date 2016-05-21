@@ -4,6 +4,7 @@
 #include <assimp/scene.h>
 
 #include <vector>
+#include <set>
 #include <unordered_map>
 
 #include "glm.hpp"
@@ -35,17 +36,30 @@ public:
     // Prints the entire buffer to stdout.
     void Dump() const;
 
-    Intersection    FindIntersectKd   (const Ray& r, bool debug = false)
+    // Searches for the nearest intersection in the diretion specified by ray.
+    Intersection    FindIntersectKd   (const Ray& r)
         __restrict__ const __attribute__((hot));
-    const Triangle* FindIntersectKdAny(const Ray& r, bool debug = false)
+    // Searches for any interection (not necessarily nearest). Slightly faster than FindIntersectKd.
+    const Triangle* FindIntersectKdAny(const Ray& r)
         __restrict__ const __attribute__((hot));
-    Intersection    FindIntersectKdOtherThan(const Ray& r, const Triangle* ignored, bool debug = false)
+    // Searches for the nearest intersection, but ignores all intersections with the specified ignored triangle.
+    Intersection    FindIntersectKdOtherThan(const Ray& r, const Triangle* ignored)
+        __restrict__ const __attribute__((hot));
+    // Searches for the nearest intersection, but ignores both the specified ignored triangle, as well as all triangles
+    //  that use material specified in thinglass set. However, such materials are gathered into a list (ordered) in the
+    //  returned value. Useful for simulating thin colored glass.
+    Intersection    FindIntersectKdOtherThanWithThinglass(const Ray& r, const Triangle* ignored, const std::set<const Material*>& thinglass)
         __restrict__ const __attribute__((hot));
 
     // Returns true IFF the two points are visible from each other.
     // Incorporates no cache of any kind.
     bool Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const __attribute__((hot));
+    bool VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, const std::set<const Material*>& thinglass,
+                                 /*out*/ std::vector<std::pair<const Triangle*, float>>&)
+        __restrict__ const __attribute__((hot));
 
+    // Makes a set of material references that match any of given substrings.
+    std::set<const Material*> MakeMaterialSet(std::vector<std::string>) const;
 
     // TODO: have triangle access these, and keep these fields private
     glm::vec3*     vertices  = nullptr;

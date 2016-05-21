@@ -76,6 +76,11 @@ struct Intersection{
     float a,b,c;
     template <typename T>
     T Interpolate(const T& x, const T& y, const T& z) {return a*x + b*y + c*z;}
+    // An ordered list of intersections with materials that are considered to be a thin glass.
+    // The first element of pair is the triangle intersecting. The second is the distance from ray origin
+    // to the intersection. The second parameter is used because triangles may get cloned during kD-tree
+    // construction, and we need to apply a filter just once.
+    std::vector<std::pair<const Triangle*, float>> thinglass;
 };
 
 

@@ -1,6 +1,7 @@
 #ifndef __PATH_TRACER_HPP__
 #define __PATH_TRACER_HPP__
 
+#include <set>
 #include "tracer.hpp"
 #include "random.hpp"
 
@@ -18,15 +19,8 @@ public:
                float clamp,
                float russian,
                float bumpmap_scale,
-               Random rnd)
-        : Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
-          clamp(clamp),
-          russian(russian),
-          depth(depth),
-          rnd(rnd)
-    {
-        sky_radiance = Radiance(sky_color) * sky_brightness;
-    }
+               std::set<const Material *> thinglass_names,
+               Random rnd);
 
 protected:
     Radiance RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
@@ -38,6 +32,7 @@ private:
     float clamp;
     float russian;
     unsigned int depth;
+    std::set<const Material*> thinglass;
     mutable Random rnd;
 };
 

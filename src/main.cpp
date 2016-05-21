@@ -84,9 +84,9 @@ void Monitor(){
     float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
     unsigned int total_rays = raycount;
 
-    out::cout(2) << "Total rendering time: " << total_seconds << "s" << std::endl;
+    out::cout(2) << "Total rendering time: " << total_seconds << "s = " << (int)(0.5 + total_seconds/60.0) << " min" << std::endl;
     out::cout(3) << "Total rays: " << total_rays << std::endl;
-    out::cout(3) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
+    out::cout(2) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
     out::cout(3) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
 
 }
@@ -262,6 +262,8 @@ int main(int argc, char** argv){
     std::string output_file = (preview_mode) ? Utils::InsertFileSuffix(cfg.output_file, "preview") : cfg.output_file;
     out::cout(2) << "Writing to file " << output_file << std::endl;
 
+    auto thinglass_materialset = s.MakeMaterialSet(cfg.thinglass);
+
     std::thread monitor_thread(Monitor);
 
     const int tile_size = TILE_SIZE;
@@ -290,7 +292,7 @@ int main(int argc, char** argv){
 
         for(const RenderTask& task : tasks){
             unsigned int c = seedcount++;
-            tpool.push( [&ob, seedstart, camera, &s, cfg, task, c](int){
+            tpool.push( [&ob, seedstart, camera, &s, cfg, task, c, &thinglass_materialset](int){
 
                     Random rnd(seedstart + c);
                     PathTracer rt(s, camera, cfg.lights,
@@ -302,6 +304,7 @@ int main(int argc, char** argv){
                                   cfg.clamp,
                                   cfg.russian,
                                   cfg.bumpmap_scale,
+                                  thinglass_materialset,
                                   rnd);
 
                     rt.Render(task, &ob, pixels_done, raycount);

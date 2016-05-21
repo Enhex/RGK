@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "utils.hpp"
+#include "out.hpp"
 
 #include <glm/gtx/wrap.hpp>
 
@@ -186,7 +187,7 @@ Texture* Texture::CreateNewFromPNG(std::string path){
     png::image< png::rgb_pixel > image(path);
     unsigned int w = image.get_width(), h = image.get_height();
 
-    std::cerr << "Opened image '" << path << "', " << w << "x" << h << std::endl;
+    out::cout(5) << "Opened image '" << path << "', " << w << "x" << h << std::endl;
 
     Texture* t = new Texture(w,h);
     for(unsigned int y = 0; y < h; y++){

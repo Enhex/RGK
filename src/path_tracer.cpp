@@ -8,6 +8,30 @@
 #include <glm/gtx/rotate_vector.hpp>
 #include <glm/gtc/constants.hpp>
 
+PathTracer::PathTracer(const Scene& scene,
+                       const Camera& camera,
+                       const std::vector<Light>& lights,
+                       unsigned int xres,
+                       unsigned int yres,
+                       unsigned int multisample,
+                       unsigned int depth,
+                       Color sky_color,
+                       float sky_brightness,
+                       float clamp,
+                       float russian,
+                       float bumpmap_scale,
+                       std::set<const Material*> thinglass,
+                       Random rnd)
+: Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
+  clamp(clamp),
+  russian(russian),
+  depth(depth),
+  thinglass(thinglass),
+  rnd(rnd)
+{
+    sky_radiance = Radiance(sky_color) * sky_brightness;
+}
+
 Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
     Radiance total;
 
@@ -71,6 +95,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         glm::vec3 Vi; // incoming direction (pointing towards next path point)
         glm::vec2 texUV;
         Radiance to_prev;
+        std::vector<std::pair<const Triangle*,float>> thinglass_isect;
     };
     std::vector<PathPoint> path;
 
@@ -96,9 +121,16 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         if(debug) std::cout << "Generating path, n = " << n << std::endl;
 
         raycount++;
-        Intersection i = scene.FindIntersectKdOtherThan(current_ray, /* last_triangle */ nullptr, debug);
+        Intersection i;
+        if(thinglass.size() == 0){
+            // This variant is a bit faster.
+            i = scene.FindIntersectKdOtherThan(current_ray, last_triangle);
+        }else{
+            i = scene.FindIntersectKdOtherThanWithThinglass(current_ray, last_triangle, thinglass);
+        }
         PathPoint p;
         p.i = i;
+        p.thinglass_isect = i.thinglass; // This is only used in 2nd phase.
         if(!i.triangle){
             p.infinity = true;
             p.Vr = -current_ray.direction;
@@ -271,8 +303,10 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                 if(debug) std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
 
+                std::vector<std::pair<const Triangle*, float>> thinglass_isect;
                 // Visibility factor
-                if(scene.Visibility(lightpos, pp.pos)){
+                if((thinglass.size() == 0 && scene.Visibility(lightpos, pp.pos)) ||
+                   (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, pp.pos, thinglass, thinglass_isect))){
 
                     if(debug) std::cout << "Light is visible" << std::endl;
 
@@ -289,9 +323,39 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                     Radiance inc_l = Radiance(l.color) * l.intensity;
 
+                    if(debug) std::cout << "incoming light: " << inc_l << std::endl;
+                    if(debug) std::cout << "filters: " << thinglass_isect.size() << std::endl;
+
+                    float ct = -1.0f;
+                    for(int n = thinglass_isect.size()-1; n >= 0; n--){
+                        const Triangle* trig = thinglass_isect[n].first;
+                        if(debug) std::cout << trig << std::endl;
+                        if(debug) std::cout << "ct " <<  ct << std::endl;
+                        // Ignore repeated triangles within epsillon radius from previous
+                        // thinglass - they are probably clones of the same triangle in kd-tree.
+                        float newt = thinglass_isect[n].second;
+                        if(debug) std::cout << "newt " << newt << std::endl;
+                        if(newt <= ct + scene.epsilon) continue;
+                        if(debug) std::cout << "can apply." << std::endl;
+                        ct = newt;
+                        // This is just to check triangle orientation,
+                        // so that we only apply color filter when the
+                        // ray is entering glass.
+                        glm::vec3 N = trig->generic_normal();
+                        if(glm::dot(N,Vi) > 0){
+                            if(debug) std::cout << "APPLYING" << std::endl;
+                            // TODO: Use translucency filter instead of diffuse!
+                            inc_l = inc_l * trig->GetMaterial().diffuse;
+                        }
+                    }
+
+                    if(debug) std::cout << "incoming light with filters: " << inc_l << std::endl;
+
                     Radiance out = inc_l * f * G;
                     if(debug) std::cout << "total direct lighting: " << out << std::endl;
                     total += out;
+                }else{
+                    if(debug) std::cout << "Light not visible" << std::endl;
                 }
 
                 // indirect lighting
@@ -342,6 +406,28 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             if(glm::isnan(total.g) || total.g < 0.0f) total.g = 0.0f;
             if(glm::isnan(total.b) || total.b < 0.0f) total.b = 0.0f;
 
+            // Finally, apply thinglass filters that were encountered
+            // when we were looking for intersection and stumbled upon this particular PP.
+
+            float ct = -1.0f;
+            for(int n = pp.thinglass_isect.size()-1; n >= 0; n--){
+                const Triangle* trig = pp.thinglass_isect[n].first;
+                // Ignore repeated triangles within epsillon radius from previous
+                // thinglass - they are probably clones of the same triangle in kd-tree.
+                float newt = pp.thinglass_isect[n].second;
+                if(newt <= ct + scene.epsilon) continue;
+                ct = newt;
+                // This is just to check triangle orientation,
+                // so that we only apply color filter when the
+                // ray is entering glass.
+                glm::vec3 N = trig->generic_normal();
+                if(glm::dot(N,pp.Vr) >= 0){
+                    // TODO: Use translucency filter instead of diffuse!
+                    total = total * trig->GetMaterial().diffuse;
+                }
+            }
+
+            if(debug) std::cerr << "total with thinglass filters: " << total << std::endl;
 
             pp.to_prev = total;
         }
