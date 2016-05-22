@@ -1,5 +1,5 @@
 
-#define ENABLE_DEBUG 1
+#define ENABLE_DEBUG 0
 
 #define TILE_SIZE 50
 
