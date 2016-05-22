@@ -296,6 +296,9 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         PathPoint& p = path[n];
         if(p.infinity){
             IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
+
+            // TODO: Apply filtering
+
             p.to_prev = sky_radiance;
         }else{
             const Material& mat = p.i.triangle->GetMaterial();
