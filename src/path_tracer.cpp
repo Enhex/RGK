@@ -194,8 +194,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 if(fromInside){
                     // Ray leaves the object
                     p.type = PathPoint::LEFT;
-                    // Do not count this point into depth. Never russian-terminate path at this point.
-                    n--; skip_russian = true;
                 }else{
                     if(rnd.Get01() < mat.translucency){
                         // Fresnell refraction/reflection
@@ -209,8 +207,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                         }else{
                             p.type = PathPoint::ENTERED;
                         }
-                        // Do not count this point into depth. Never russian-terminate path at this point.
-                        n--; skip_russian = true;
                     }else{
                         p.type = PathPoint::SCATTERED;
                     }
@@ -220,14 +216,22 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 if(mat.reflective){
                     if(rnd.Get01() < mat.reflection_strength){
                         p.type = PathPoint::REFLECTED;
-                        // Do not count this point into depth. Never russian-terminate path at this point.
-                        n--; skip_russian = true;
                     }else{
                         p.type = PathPoint::SCATTERED;
                     }
+                    // TODO: Fresnel reflecion on opaque surfaces
+                    //}else if(rnd.Get01() < Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index)){
+                    //p.type = PathPoint::REFLECTED;
                 }else{
                     p.type = PathPoint::SCATTERED;
                 }
+            }
+
+            if(p.type == PathPoint::REFLECTED ||
+               p.type == PathPoint::ENTERED ||
+               p.type == PathPoint::LEFT){
+                // Do not count this point into depth. Never russian-terminate path at this point.
+                n--; skip_russian = true;
             }
 
             IFDEBUG std::cout << "Ray hit material " << mat.name << " and ";
@@ -310,7 +314,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
             Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
 
-            Radiance total;
+            Radiance total(0.0,0.0,0.0);
 
             if(p.type == PathPoint::SCATTERED){
 
@@ -412,14 +416,20 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     total += inc;
                 }
             }else if(p.type == PathPoint::REFLECTED){
-                Radiance incoming = path[n+1].to_prev;
-                total += incoming;
+                if(path.size() > (unsigned int)n+1){
+                    Radiance incoming = path[n+1].to_prev;
+                    total += incoming;
+                }
             }else if(p.type == PathPoint::ENTERED){
-                Radiance incoming = path[n+1].to_prev;
-                total += incoming * diffuse;
+                if(path.size() > (unsigned int)n+1){
+                    Radiance incoming = path[n+1].to_prev;
+                    total += incoming * diffuse;
+                }
             }else if(p.type == PathPoint::LEFT){
-                Radiance incoming = path[n+1].to_prev;
-                total += incoming;
+                if(path.size() > (unsigned int)n+1){
+                    Radiance incoming = path[n+1].to_prev;
+                    total += incoming;
+                }
             }
 
             if(mat.emissive){
