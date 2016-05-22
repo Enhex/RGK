@@ -72,6 +72,8 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
     m.specular = c;
     mat->Get(AI_MATKEY_COLOR_AMBIENT,c);
     m.ambient = c;
+    mat->Get(AI_MATKEY_COLOR_EMISSIVE,c);
+    m.emission = c;
     float f;
     mat->Get(AI_MATKEY_SHININESS, f);
     m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
@@ -128,6 +130,10 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
         m.reflection_strength = 0.0f;
     }
 
+    if(m.emission.r > 0.0f || m.emission.g > 0.0f || m.emission.b > 0.0f){
+        m.emissive = true;
+    }
+
     // Supposedly we may support different brdfs for each material.
     m.brdf = cfg.brdf;
 
@@ -159,6 +165,10 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
     // Get the material index.
     unsigned int mat = mesh->mMaterialIndex;
 
+    bool light_source = false;
+    if(materials_buffer[mat].emissive) light_source = true;
+    ArealLight al;
+
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
         aiVector3D vertex = mesh->mVertices[v];
         vertex *= current_transform;
@@ -180,13 +190,16 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
         const aiFace& face = mesh->mFaces[f];
         if(face.mNumIndices < 3) continue; // Ignore degenerated faces
         if(face.mNumIndices == 3){
-            triangles_buffer.emplace(
-               triangles_buffer.end(),
-               this,
-               face.mIndices[0] + vertex_index_offset,
-               face.mIndices[1] + vertex_index_offset,
-               face.mIndices[2] + vertex_index_offset,
-               mat);
+            Triangle t(this,
+                       face.mIndices[0] + vertex_index_offset,
+                       face.mIndices[1] + vertex_index_offset,
+                       face.mIndices[2] + vertex_index_offset,
+                       mat);
+            triangles_buffer.push_back(t);
+            int n = triangles_buffer.size() - 1;
+            if(light_source){
+                al.triangles_with_areas.push_back(std::make_pair(0.0f, n));
+            }
         }else{
             std::cerr << "WARNING: Skipping a face that apparently was not triangulated (" << face.mNumIndices << ")." << std::endl;
         }
@@ -196,6 +209,10 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
             aiVector3D uv = mesh->mTextureCoords[0][v];
             texcoords_buffer.push_back(uv);
         }
+    }
+
+    if(light_source && al.triangles_with_areas.size() > 0){
+        areal_lights.push_back(std::make_pair(0.0f, al));
     }
 }
 
@@ -256,8 +273,34 @@ void Scene::Commit(){
     for(unsigned int i = 0; i < n_texcoords; i++)
         texcoords[i] = glm::vec2(texcoords_buffer[i].x, texcoords_buffer[i].y);
 
+    // It is safe now to calculate all light areas.
+    total_areal_power = 0.0f;
+    for(auto& q : areal_lights){
+        ArealLight& al = q.second;
+        for(auto& p : al.triangles_with_areas){
+            Triangle t = triangles[p.second];
+            float area = t.GetArea();
+            p.first = area;
+            al.total_area += area;
+        }
+        al.emission = triangles[al.triangles_with_areas[0].second].GetMaterial().emission;
+        // Sort descending
+        std::sort(al.triangles_with_areas.rbegin(), al.triangles_with_areas.rend());
+        float p = al.total_area * (al.emission.r + al.emission.g + al.emission.b);
+        al.power = p;
+        q.first = p;
+        total_areal_power += p;
+    }
+    total_point_power = 0.0f;
+    for(auto& l : pointlights){
+        total_point_power += l.intensity * 4.0f * glm::pi<float>();
+    }
+
+    out::cout(3) << "Total areal lights power: " << total_areal_power << "W" << std::endl;
+    out::cout(3) << "Total point lights power: " << total_point_power << "W" << std::endl;
+
     out::cout(2) << "Commited " << n_vertices << " vertices, " << n_normals << " normals, " << n_triangles <<
-        " triangles with " << n_materials << " materials and " << textures.size() <<  " textures to the scene." << std::endl;
+        " triangles with " << n_materials << " materials and " << textures.size() <<  " textures, as well as " << pointlights.size() << " pointlights and " << areal_lights.size() << " areal lights to the scene." << std::endl;
 
     // Clearing vectors this way forces memory to be freed.
     vertices_buffer  = std::vector<aiVector3D>();
@@ -608,10 +651,59 @@ void Scene::AddPointLights(std::vector<Light> lights){
         pointlights.push_back(l);
 }
 Light Scene::GetRandomLight(Random& rnd) const{
-    if(pointlights.size() == 0){
-        // Sigh. Return anything for compatibility.
+    float total_power = total_point_power + total_areal_power;
+    if(total_power <= 0.0f){
+        // Sigh. Return just anything for compatibility.
         return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
     }
-    int n = rnd.GetInt(0,pointlights.size());
-    return pointlights[n];
+    float q = rnd.GetFloat(0.0f, total_power);
+    if(q < total_point_power){
+        // Choose pointlight
+        for(unsigned int i = 0; i < pointlights.size(); i++){
+            q -= pointlights[i].intensity * 4.0f * glm::pi<float>();
+            if(q <= 0.0f){
+                Light res = pointlights[i];
+                res.intensity = 1.0f;
+                return res;
+            }
+        }
+        out::cout(4) << "Internal error: GetRandomLight out of bounds for point lights." << std::endl;
+        // Sigh. Return just anything for compatibility.
+        return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+    }else{
+        // Choose areal light
+        q = rnd.GetFloat(0.0f, total_areal_power);
+
+        for(unsigned int i = 0; i < areal_lights.size(); i++){
+            q -= areal_lights[i].first;
+            if(q <= 0.0f){
+                const ArealLight& al = areal_lights[i].second;
+                // Choose a random triangle.
+                al.GetRandomLight(rnd,*this);
+            }
+        }
+        out::cout(4) << "Internal error: GetRandomLight out of bounds for areal lights." << std::endl;
+        // Sigh. Return just anything for compatibility.
+        return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+    }
+}
+
+Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
+    float p = rnd.GetFloat(0.0f, total_area);
+    for(unsigned int j = 0; j < triangles_with_areas.size(); j++){
+        p -= triangles_with_areas[j].first;
+        if(p <= 0.0f){
+            const Triangle& t = parent.triangles[triangles_with_areas[j].second];
+            glm::vec3 p = t.GetRandomPoint(rnd);
+            Light res;
+            res.pos = p;
+            res.color = emission;
+            res.intensity = 1.0f;
+            res.size = 0.0f;
+            return res;
+        }
+    }
+    out::cout(4) << "Internal error: GetRandomLight out of bounds for triangle areas." << std::endl;
+    // Sigh. Return just anything for compatibility.
+    return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
 }

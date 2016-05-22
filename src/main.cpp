@@ -242,9 +242,8 @@ int main(int argc, char** argv){
     Scene s;
     s.texture_directory = modeldir + "/";
     s.LoadScene(scene, cfg);
-    s.Commit();
-
     s.AddPointLights(cfg.lights);
+    s.Commit();
 
     Camera camera(cfg.view_point,
                   cfg.look_at,

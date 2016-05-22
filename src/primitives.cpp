@@ -33,6 +33,27 @@ void Triangle::CalculatePlane(){
     p = glm::vec4(n.x, n.y, n.z, d);
 }
 
+float Triangle::GetArea() const{
+    glm::vec3 a = parent_scene->vertices[va];
+    glm::vec3 b = parent_scene->vertices[vb];
+    glm::vec3 c = parent_scene->vertices[vc];
+    glm::vec3 q = a-b;
+    glm::vec3 r = c-b;
+    return 0.5f * glm::length(glm::cross(q,r));
+}
+
+// According to paper at http://www.cs.princeton.edu/~funk/tog02.pdf
+// page 814, this should give uniform resolution
+glm::vec3 Triangle::GetRandomPoint(Random& rnd) const{
+    float r1 = rnd.Get01();
+    float r2 = rnd.Get01();
+    float sr1 = glm::sqrt(r1);
+    glm::vec3 a = parent_scene->vertices[va];
+    glm::vec3 b = parent_scene->vertices[vb];
+    glm::vec3 c = parent_scene->vertices[vc];
+    return (1.0f-sr1)*a + sr1*(1.0f-r2)*b + sr1*r2*c;
+}
+
 bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, float& a, float& b, bool debug) const{
     // Currently using Badoulel's algorithm
     (void)debug;

@@ -1,5 +1,5 @@
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 
 #define TILE_SIZE 50
 
@@ -12,6 +12,7 @@
 // =======================================
 
 #ifdef NDEBUG
+  #undef ENABLE_DEBUG
   #define ENABLE_DEBUG 0
 #endif
 

@@ -79,6 +79,22 @@ public:
     // Point lights
     std::vector<Light> pointlights;
     void AddPointLights(std::vector<Light>);
+    // Areal lights
+    struct ArealLight{
+        // TODO: Rember to sort this (descending order)
+        std::vector<std::pair<float,unsigned int>> triangles_with_areas;
+        mutable float total_area = 0.0f;
+
+        Color emission;
+        float power;
+
+        Light GetRandomLight(Random&, const Scene& parent) const;
+    };
+    float total_areal_power;
+    float total_point_power;
+    std::vector<std::pair<float,ArealLight>> areal_lights;
+
+
     Light GetRandomLight(Random& rnd) const;
 
 

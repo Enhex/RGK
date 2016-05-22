@@ -311,66 +311,74 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             if(p.type == PathPoint::SCATTERED){
 
-                // ===================================
-                // Direct lighting, random light point
-                const Light& l = scene.GetRandomLight(rnd);
-                glm::vec3 lightpos = l.pos + rnd.GetSphere(l.size);
+                // ==================================
+                // Direct lighting, for each point light and area light, choose a light point
+                std::vector<Light> random_lights;
+                for(const Light& p : scene.pointlights) random_lights.push_back(p);
+                for(const auto& p : scene.areal_lights){
+                    Light l = p.second.GetRandomLight(rnd, scene);
+                    random_lights.push_back(l);
+                }
 
-                IFDEBUG std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
+                for(const Light& l : random_lights){
+                    glm::vec3 lightpos = l.pos + rnd.GetSphere(l.size);
 
-                std::vector<std::pair<const Triangle*, float>> thinglass_isect;
-                // Visibility factor
-                if((thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
-                   (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass, thinglass_isect))){
+                    IFDEBUG std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
 
-                    IFDEBUG std::cout << "Light is visible" << std::endl;
+                    std::vector<std::pair<const Triangle*, float>> thinglass_isect;
+                    // Visibility factor
+                    if((thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
+                       (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass, thinglass_isect))){
 
-                    // Incoming direction
-                    glm::vec3 Vi = glm::normalize(lightpos - p.pos);
+                        IFDEBUG std::cout << "Light is visible" << std::endl;
 
-                    Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
+                        // Incoming direction
+                        glm::vec3 Vi = glm::normalize(lightpos - p.pos);
 
-                    IFDEBUG std::cout << "f = " << f << std::endl;
+                        Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
 
-                    float G = glm::max(0.0f, glm::cos( glm::angle(p.lightN, Vi) )) / glm::distance2(lightpos, p.pos);
-                    IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                    IFDEBUG std::cout << "lightN = " << p.lightN << ", Vi " << Vi << std::endl;
+                        IFDEBUG std::cout << "f = " << f << std::endl;
 
-                    Radiance inc_l = Radiance(l.color) * l.intensity;
+                        float G = glm::max(0.0f, glm::cos( glm::angle(p.lightN, Vi) )) / glm::distance2(lightpos, p.pos);
+                        IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
+                        IFDEBUG std::cout << "lightN = " << p.lightN << ", Vi " << Vi << std::endl;
 
-                    IFDEBUG std::cout << "incoming light: " << inc_l << std::endl;
-                    IFDEBUG std::cout << "filters: " << thinglass_isect.size() << std::endl;
+                        Radiance inc_l = Radiance(l.color) * l.intensity;
 
-                    float ct = -1.0f;
-                    for(int n = thinglass_isect.size()-1; n >= 0; n--){
-                        const Triangle* trig = thinglass_isect[n].first;
-                        IFDEBUG std::cout << trig << std::endl;
-                        IFDEBUG std::cout << "ct " <<  ct << std::endl;
-                        // Ignore repeated triangles within epsillon radius from previous
-                        // thinglass - they are probably clones of the same triangle in kd-tree.
-                        float newt = thinglass_isect[n].second;
-                        IFDEBUG std::cout << "newt " << newt << std::endl;
-                        if(newt <= ct + scene.epsilon) continue;
-                        IFDEBUG std::cout << "can apply." << std::endl;
-                        ct = newt;
-                        // This is just to check triangle orientation,
-                        // so that we only apply color filter when the
-                        // ray is entering glass.
-                        glm::vec3 N = trig->generic_normal();
-                        if(glm::dot(N,Vi) > 0){
-                            IFDEBUG std::cout << "APPLYING" << std::endl;
-                            // TODO: Use translucency filter instead of diffuse!
-                            inc_l = inc_l * trig->GetMaterial().diffuse;
+                        IFDEBUG std::cout << "incoming light: " << inc_l << std::endl;
+                        IFDEBUG std::cout << "filters: " << thinglass_isect.size() << std::endl;
+
+                        float ct = -1.0f;
+                        for(int n = thinglass_isect.size()-1; n >= 0; n--){
+                            const Triangle* trig = thinglass_isect[n].first;
+                            IFDEBUG std::cout << trig << std::endl;
+                            IFDEBUG std::cout << "ct " <<  ct << std::endl;
+                            // Ignore repeated triangles within epsillon radius from previous
+                            // thinglass - they are probably clones of the same triangle in kd-tree.
+                            float newt = thinglass_isect[n].second;
+                            IFDEBUG std::cout << "newt " << newt << std::endl;
+                            if(newt <= ct + scene.epsilon) continue;
+                            IFDEBUG std::cout << "can apply." << std::endl;
+                            ct = newt;
+                            // This is just to check triangle orientation,
+                            // so that we only apply color filter when the
+                            // ray is entering glass.
+                            glm::vec3 N = trig->generic_normal();
+                            if(glm::dot(N,Vi) > 0){
+                                IFDEBUG std::cout << "APPLYING" << std::endl;
+                                // TODO: Use translucency filter instead of diffuse!
+                                inc_l = inc_l * trig->GetMaterial().diffuse;
+                            }
                         }
+
+                        IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
+
+                        Radiance out = inc_l * f * G;
+                        IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
+                        total += out;
+                    }else{
+                        IFDEBUG std::cout << "Light not visible" << std::endl;
                     }
-
-                    IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
-
-                    Radiance out = inc_l * f * G;
-                    IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
-                    total += out;
-                }else{
-                    IFDEBUG std::cout << "Light not visible" << std::endl;
                 }
 
                 // =================
@@ -409,6 +417,10 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             }else if(p.type == PathPoint::LEFT){
                 Radiance incoming = path[n+1].to_prev;
                 total += incoming;
+            }
+
+            if(mat.emissive){
+                total += Radiance(mat.emission);
             }
 
             IFDEBUG std::cerr << "total: " << total << std::endl;

@@ -8,6 +8,7 @@
 #include "radiance.hpp"
 #include "ray.hpp"
 #include "brdf.hpp"
+#include "random.hpp"
 
 class Scene;
 class Texture;
@@ -28,9 +29,11 @@ struct Material{
     Color diffuse;
     Color specular;
     Color ambient;
+    Color emission;
     float exponent;
     float refraction_index;
     bool reflective = false;
+    bool emissive = false;
     float reflection_strength = 0.0f;
     float translucency = 0.0f;
     Texture* diffuse_texture  = nullptr;
@@ -48,6 +51,8 @@ public:
     glm::vec4 p; // plane
     inline glm::vec3 generic_normal() const {return p.xyz();}
     void CalculatePlane() __attribute__((hot));
+    float GetArea() const;
+    glm::vec3 GetRandomPoint(Random& rnd) const;
 
     Triangle(const Scene* parent, unsigned int va, unsigned int vb, unsigned int vc, unsigned int mat) :
         parent_scene(parent), va(va), vb(vb), vc(vc), mat(mat) {}
