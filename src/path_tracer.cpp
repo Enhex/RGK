@@ -182,6 +182,10 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
                     p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
                     IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
+                    // This still happend.
+                    if(glm::isnan(p.lightN.x)){
+                        p.lightN = p.faceN;
+                    }
                 }
             }else{
                 p.lightN = p.faceN;
