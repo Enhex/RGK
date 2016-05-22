@@ -29,13 +29,7 @@
 #include "path_tracer.hpp"
 #include "out.hpp"
 
-#define TILE_SIZE 50
-
-#define PREVIEW_DIMENTIONS_RATIO 3
-#define PREVIEW_RAYS_RATIO 2
-#define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
-
-#define BARSIZE 40
+#include "global_config.hpp"
 
 std::atomic<int> rounds_done(0);
 unsigned int total_rounds;
@@ -44,8 +38,6 @@ std::atomic<unsigned int> raycount(0);
 std::atomic<bool> stop_monitor(false);
 int total_pixels;
 
-bool debug_trace = false;
-unsigned int debug_x, debug_y;
 bool preview_mode = false;
 
 std::string float_to_percent_string(float f){
@@ -99,14 +91,18 @@ void usage(const char* prog){
     std::cout << "Usage: " << prog << " [OPTIONS]... [FILE] \n";
     std::cout << "\n";
     std::cout << "Runs the RGK Ray Tracer using configuration from FILE.\n";
-    std::cout << " -h, --help         Prints out this message.\n";
-    std::cout << " -d, --debug X Y    Prints verbose debug information about rendering the X Y pixel.\n";
-    std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times less rays per pixel,\n";
-    std::cout << "                     yielding " << PREVIEW_SPEED_RATIO << " times faster render time).\n";
+    std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times less rays per pixel, yielding " << PREVIEW_SPEED_RATIO << "\n";
+    std::cout << "                       times faster render time).\n";
     std::cout << " -v                 Each occurence of this option increases verbosity by 1.\n";
     std::cout << " -q                 Each occurence of this option decreases verbosity by 1.\n";
     std::cout << "                      Default verbosity level is 2. At 0, the program operates quietly.\n";
     std::cout << "                      Increasing verbosity makes the program output more statistics and diagnostic details.\n";
+#if ENABLE_DEBUG
+    std::cout << " -d, --debug X Y    Prints verbose debug information about rendering the X Y pixel.\n";
+#else
+    std::cout << " -d                 (unavailable) Debugging support was disabled compile-time.\n";
+#endif // ENABLE_DEBUG
+    std::cout << " -h, --help         Prints out this message.\n";
     std::cout << "\n";
     exit(0);
 }
@@ -115,7 +111,9 @@ int main(int argc, char** argv){
 
     static struct option long_opts[] =
         {
+#if ENABLE_DEBUG
             {"debug", no_argument, 0, 'd'},
+#endif // ENABLE_DEBUG
             {"preview", no_argument, 0, 'p'},
             {"help", no_argument, 0, 'h'},
             {0,0,0,0}
@@ -124,11 +122,17 @@ int main(int argc, char** argv){
     // Recognize command-line arguments
     int c;
     int opt_index = 0;
-    while((c = getopt_long(argc,argv,"hpd:vq",long_opts,&opt_index)) != -1){
+#if ENABLE_DEBUG
+    #define OPTSTRING "hpd:vq"
+#else
+    #define OPTSTRING "hpvq"
+#endif
+    while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
         case 'h':
             usage(argv[0]);
             break;
+#if ENABLE_DEBUG
         case 'd':
             debug_trace = true;
             debug_x = std::stoi(optarg);
@@ -140,6 +144,7 @@ int main(int argc, char** argv){
                 usage(argv[0]);
             }
             break;
+#endif // ENABLE_DEBUG
         case 'p':
             preview_mode = true;
             break;
@@ -274,8 +279,10 @@ int main(int argc, char** argv){
 
     // Sorting tasks by their distance to the middle.
     glm::vec2 middle(cfg.xres/2.0f, cfg.yres/2.0f);
+#if ENABLE_DEBUG
     // However, if debug is enabled, sort tiles so that the debugged point gets rendered earliest.
     if(debug_trace) middle = glm::vec2(debug_x, debug_y);
+#endif
     std::sort(tasks.begin(), tasks.end(), [&middle](const RenderTask& a, const RenderTask& b){
             return glm::length(middle - a.midpoint) < glm::length(middle - b.midpoint);
         });

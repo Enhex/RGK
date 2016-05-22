@@ -46,10 +46,10 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     Color c11 = data[iy1 * xsize + ix1];
 
     /*
-    if(debug) std::cout << "x " << x << " y " << y << std::endl;
-    if(debug) std::cout << "fx " << fx  << " fy " << fy << std::endl;
-    if(debug) std::cout << "ix1 " << ix1  << " iy1 " << iy1 << std::endl;
-    if(debug) std::cout << "xsize " << xsize  << " ysize " << ysize << std::endl;
+    IFDEBUG std::cout << "x " << x << " y " << y << std::endl;
+    IFDEBUG std::cout << "fx " << fx  << " fy " << fy << std::endl;
+    IFDEBUG std::cout << "ix1 " << ix1  << " iy1 " << iy1 << std::endl;
+    IFDEBUG std::cout << "xsize " << xsize  << " ysize " << ysize << std::endl;
     */
 
     fy = 1.0f - fy;
@@ -59,10 +59,10 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     Color c1s = fx * c10 + (1.0f - fx) * c11;
 
     /*
-    if(debug) std::cout << c00 << std::endl;
-    if(debug) std::cout << c01 << std::endl;
-    if(debug) std::cout << c10 << std::endl;
-    if(debug) std::cout << c11 << std::endl;
+    IFDEBUG std::cout << c00 << std::endl;
+    IFDEBUG std::cout << c01 << std::endl;
+    IFDEBUG std::cout << c10 << std::endl;
+    IFDEBUG std::cout << c11 << std::endl;
     */
 
     Color css = fy * c0s + (1.0f - fy) * c1s;

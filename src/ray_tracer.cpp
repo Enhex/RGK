@@ -2,6 +2,7 @@
 
 #include "camera.hpp"
 #include "scene.hpp"
+#include "global_config.hpp"
 
 Radiance RayTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
     Radiance pixel_total(0.0, 0.0, 0.0);
@@ -23,13 +24,13 @@ Radiance RayTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debu
 
 
 Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycount, bool debug){
-    if(debug) std::cerr << "Debugging a ray. " << std::endl;
-    if(debug) std::cerr << r.origin << " " << r.direction << std::endl;
+    IFDEBUG std::cerr << "Debugging a ray. " << std::endl;
+    IFDEBUG std::cerr << r.origin << " " << r.direction << std::endl;
     raycount++;
     Intersection i = scene.FindIntersectKd(r);
 
     if(i.triangle){
-        if(debug) std::cerr << "Intersection found. " << std::endl;
+        IFDEBUG std::cerr << "Intersection found. " << std::endl;
         const Material& mat = i.triangle->GetMaterial();
         Color total(0.0, 0.0, 0.0);
 
@@ -63,7 +64,7 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
             N = glm::normalize(N + (tangent*right + bitangent*bottom) * bumpmap_scale);
         }
 
-        if(debug) std::cerr << "Was hit. color is " << diffuse << std::endl;
+        IFDEBUG std::cerr << "Was hit. color is " << diffuse << std::endl;
 
         for(unsigned int qq = 0; qq < scene.pointlights.size(); qq++){
             const Light& l = scene.pointlights[qq];
@@ -73,18 +74,18 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
                 // Search for shadow triangle.
                 Ray ray_to_light(ipos, l.pos, scene.epsilon * 2.0f * glm::length(ipos - l.pos));
                 // First, try looking within shadow cache.
-                if(debug) std::cout << "raytolight origin:" << ray_to_light.origin << ", dir" << ray_to_light.direction << std::endl;
+                IFDEBUG std::cout << "raytolight origin:" << ray_to_light.origin << ", dir" << ray_to_light.direction << std::endl;
                 for(const Triangle* tri : shadow_cache[qq]){
                     float t,a,b;
                     raycount++;
                     if(tri->TestIntersection(ray_to_light, t, a, b, debug)){
                         if(t < ray_to_light.near - scene.epsilon || t > ray_to_light.far + scene.epsilon) continue;
                         // Intersection found.
-                        if(debug) std::cout << "Shadow found in cache at " << tri << "." << std::endl;
-                        if(debug) std::cout << "Triangle " << tri->GetVertexA() << std::endl;
-                        if(debug) std::cout << "Triangle " << tri->GetVertexB() << std::endl;
-                        if(debug) std::cout << "Triangle " << tri->GetVertexC() << std::endl;
-                        if(debug) std::cout << "t " << t << std::endl;
+                        IFDEBUG std::cout << "Shadow found in cache at " << tri << "." << std::endl;
+                        IFDEBUG std::cout << "Triangle " << tri->GetVertexA() << std::endl;
+                        IFDEBUG std::cout << "Triangle " << tri->GetVertexB() << std::endl;
+                        IFDEBUG std::cout << "Triangle " << tri->GetVertexC() << std::endl;
+                        IFDEBUG std::cout << "t " << t << std::endl;
                         shadow_triangle = tri;
                         break;
                     }
@@ -99,46 +100,46 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
                 //TODO: use interpolated normals
 
                 float distance = glm::length(ipos - l.pos); // The distance to light
-                if(debug) std::cout << "Distance to light : " << distance << std::endl;
+                IFDEBUG std::cout << "Distance to light : " << distance << std::endl;
                 float d = distance * distance;
 
                 /*
                 float dist_func = 1.0f/(2.5f + d); // Light intensity falloff function
-                if(debug) std::cout << "Dist func : " << dist_func << std::endl;
+                IFDEBUG std::cout << "Dist func : " << dist_func << std::endl;
                 float intens_factor = l.intensity * 0.18f * dist_func;
                 */
 
                 float dist_func = 1.0f/(3.0f + d)/4.85f; // Light intensity falloff function
-                if(debug) std::cout << "Dist func : " << dist_func << std::endl;
+                IFDEBUG std::cout << "Dist func : " << dist_func << std::endl;
                 float intens_factor = l.intensity * 1.0f * dist_func;
 
-                if(debug) std::cerr << "No shadow, distance: " << distance << std::endl;
+                IFDEBUG std::cerr << "No shadow, distance: " << distance << std::endl;
 
                 float kD = glm::dot(N, L);
                 kD = glm::max(0.0f, kD);
                 total += intens_factor * l.color * diffuse * kD;
 
 
-                if(debug) std::cerr << "N " << N << std::endl;
-                if(debug) std::cerr << "L " << L << std::endl;
-                if(debug) std::cerr << "kD " << kD << std::endl;
-                if(debug) std::cerr << "Total: " << total << std::endl;
+                IFDEBUG std::cerr << "N " << N << std::endl;
+                IFDEBUG std::cerr << "L " << L << std::endl;
+                IFDEBUG std::cerr << "kD " << kD << std::endl;
+                IFDEBUG std::cerr << "Total: " << total << std::endl;
 
 
                 if(mat.exponent > 1.0f){
                     glm::vec3 R = 2.0f * glm::dot(L, N) * N - L;
                     float a = glm::dot(R, V);
                     a = glm::max(0.0f, a);
-                    if(debug) std::cerr << "a: " << a << std::endl;
-                    if(debug) std::cerr << "specular: " << specular << std::endl;
+                    IFDEBUG std::cerr << "a: " << a << std::endl;
+                    IFDEBUG std::cerr << "specular: " << specular << std::endl;
                     float kS = glm::pow(a, mat.exponent);
                     // if(std::isnan(kS)) std::cout << glm::dot(R,V) << "/" << mat.exponent << std::endl;
-                    if(debug) std::cerr << "spec add: " << intens_factor * l.color * specular * kS * 1.0f << std::endl;
+                    IFDEBUG std::cerr << "spec add: " << intens_factor * l.color * specular * kS * 1.0f << std::endl;
                     total += intens_factor * l.color * specular * kS * 1.0f;
                 }
 
             }else{
-                if(debug) std::cerr << "Shadow found." << std::endl;
+                IFDEBUG std::cerr << "Shadow found." << std::endl;
                 // Update the shadow buffer for this light source
                 shadow_cache[qq].Use(shadow_triangle);
             }
@@ -160,7 +161,7 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
             Color reflection = TraceRay(refl_ray, depth-1, raycount);
             total = mat.exponent * reflection + (1.0f - mat.exponent) * total;
         }
-        if(debug) std::cout << "Total: " << total << std::endl;
+        IFDEBUG std::cout << "Total: " << total << std::endl;
         return total;
     }else{
         // Black background for void spaces

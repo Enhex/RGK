@@ -2,6 +2,7 @@
 
 #include "camera.hpp"
 #include "scene.hpp"
+#include "global_config.hpp"
 
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
@@ -35,7 +36,7 @@ PathTracer::PathTracer(const Scene& scene,
 Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
     Radiance total;
 
-    if(debug) std::cout << std::endl;
+    IFDEBUG std::cout << std::endl;
 
     // N - rooks
     std::vector<unsigned int> V(multisample);
@@ -52,7 +53,7 @@ Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool deb
         total += TracePath(r, raycount, debug);
     }
 
-    if(debug) std::cout << "-----> pixel average: " << total/multisample << std::endl;
+    IFDEBUG std::cout << "-----> pixel average: " << total/multisample << std::endl;
 
     return total / multisample;
 }
@@ -120,7 +121,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             if(n > depth) break;
         }
 
-        if(debug) std::cout << "Generating path, n = " << n << std::endl;
+        IFDEBUG std::cout << "Generating path, n = " << n << std::endl;
 
         raycount++;
         Intersection i;
@@ -180,7 +181,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     tangent = glm::normalize(tangent);
                     glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
                     p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
-                    if(debug) std::cout << "lightN " << p.lightN << std::endl;
+                    IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
                 }
             }else{
                 p.lightN = p.faceN;
@@ -201,8 +202,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                         // TODO: The fresnell function assumes eta1 = 1.0. For eg. underwater reflections this is
                         // not correct, really.
                         float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
-                        if(debug) std::cout << "Angle = " << glm::angle(p.Vr, p.lightN)*180.0f/glm::pi<float>() << std::endl;
-                        if(debug) std::cout << "Fresnel = " << q << std::endl;
+                        IFDEBUG std::cout << "Angle = " << glm::angle(p.Vr, p.lightN)*180.0f/glm::pi<float>() << std::endl;
+                        IFDEBUG std::cout << "Fresnel = " << q << std::endl;
                         if(rnd.Get01() < q){
                             p.type = PathPoint::REFLECTED;
                         }else{
@@ -229,27 +230,27 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 }
             }
 
-            if(debug) std::cout << "Ray hit material " << mat.name << " and ";
+            IFDEBUG std::cout << "Ray hit material " << mat.name << " and ";
             // Generate next ray direction
             glm::vec3 dir;
             switch(p.type){
             case PathPoint::SCATTERED:
-                if(debug) std::cout << "SCATTERED." << std::endl;
+                IFDEBUG std::cout << "SCATTERED." << std::endl;
                 dir = rnd.GetHSCosDir(p.faceN);
                 while(glm::angle(dir, p.lightN) > glm::pi<float>()/2.0f)
                     dir = rnd.GetHSCosDir(p.faceN);
                 break;
             case PathPoint::REFLECTED:
-                if(debug) std::cout << "REFLECTED." << std::endl;
+                IFDEBUG std::cout << "REFLECTED." << std::endl;
                 dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
                 break;
             case PathPoint::ENTERED:
                 // TODO: Refraction
                 dir = glm::refract(p.Vr, p.lightN, 1.0f/mat.refraction_index);
-                if(debug) std::cout << "ENTERED medium." << std::endl;
+                IFDEBUG std::cout << "ENTERED medium." << std::endl;
                 if(glm::length(dir) < 0.001f || glm::isnan(dir.x)){
                     // Internal reflection
-                    if(debug) std::cout << "internally reflected." << std::endl;
+                    IFDEBUG std::cout << "internally reflected." << std::endl;
                     p.type = PathPoint::REFLECTED;
                     dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
                 }
@@ -257,11 +258,11 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 break;
             case PathPoint::LEFT:
                 // TODO: Refraction
-                if(debug) std::cout << "LEFT medium." << std::endl;
+                IFDEBUG std::cout << "LEFT medium." << std::endl;
                 dir = glm::refract(p.Vr, p.lightN, mat.refraction_index);
                 if(glm::length(dir) < 0.001f){
                     // Internal reflection
-                    if(debug) std::cout << "internally reflected." << std::endl;
+                    IFDEBUG std::cout << "internally reflected." << std::endl;
                     p.type = PathPoint::REFLECTED;
                     dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
                 }
@@ -278,7 +279,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                               ((p.type == PathPoint::ENTERED)?-1.0f:1.0f)
                               , glm::normalize(dir));
 
-            if(debug) std::cout << "Next ray will be from " << p. pos << " dir " << dir << std::endl;
+            IFDEBUG std::cout << "Next ray will be from " << p. pos << " dir " << dir << std::endl;
 
             last_triangle = i.triangle;
             // Continue for next ray
@@ -289,19 +290,19 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
     // Calculate light transmitted over path.
 
     for(int n = path.size()-1; n >= 0; n--){
-        if(debug) std::cout << "--- Processing PP " << n << std::endl;
+        IFDEBUG std::cout << "--- Processing PP " << n << std::endl;
 
         bool last = ((unsigned int)n == path.size()-1);
         PathPoint& p = path[n];
         if(p.infinity){
-            if(debug) std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
+            IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
             p.to_prev = sky_radiance;
         }else{
             const Material& mat = p.i.triangle->GetMaterial();
 
-            if(debug) std::cout << "Hit material: " << mat.name << std::endl;
+            IFDEBUG std::cout << "Hit material: " << mat.name << std::endl;
 
-            if(debug) std::cout << "texUV " << p.texUV << std::endl;
+            IFDEBUG std::cout << "texUV " << p.texUV << std::endl;
 
             Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
             Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
@@ -315,61 +316,61 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 const Light& l = scene.GetRandomLight(rnd);
                 glm::vec3 lightpos = l.pos + rnd.GetSphere(l.size);
 
-                if(debug) std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
+                IFDEBUG std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
 
                 std::vector<std::pair<const Triangle*, float>> thinglass_isect;
                 // Visibility factor
                 if((thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
                    (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass, thinglass_isect))){
 
-                    if(debug) std::cout << "Light is visible" << std::endl;
+                    IFDEBUG std::cout << "Light is visible" << std::endl;
 
                     // Incoming direction
                     glm::vec3 Vi = glm::normalize(lightpos - p.pos);
 
                     Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
 
-                    if(debug) std::cout << "f = " << f << std::endl;
+                    IFDEBUG std::cout << "f = " << f << std::endl;
 
                     float G = glm::max(0.0f, glm::cos( glm::angle(p.lightN, Vi) )) / glm::distance2(lightpos, p.pos);
-                    if(debug) std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                    if(debug) std::cout << "lightN = " << p.lightN << ", Vi " << Vi << std::endl;
+                    IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
+                    IFDEBUG std::cout << "lightN = " << p.lightN << ", Vi " << Vi << std::endl;
 
                     Radiance inc_l = Radiance(l.color) * l.intensity;
 
-                    if(debug) std::cout << "incoming light: " << inc_l << std::endl;
-                    if(debug) std::cout << "filters: " << thinglass_isect.size() << std::endl;
+                    IFDEBUG std::cout << "incoming light: " << inc_l << std::endl;
+                    IFDEBUG std::cout << "filters: " << thinglass_isect.size() << std::endl;
 
                     float ct = -1.0f;
                     for(int n = thinglass_isect.size()-1; n >= 0; n--){
                         const Triangle* trig = thinglass_isect[n].first;
-                        if(debug) std::cout << trig << std::endl;
-                        if(debug) std::cout << "ct " <<  ct << std::endl;
+                        IFDEBUG std::cout << trig << std::endl;
+                        IFDEBUG std::cout << "ct " <<  ct << std::endl;
                         // Ignore repeated triangles within epsillon radius from previous
                         // thinglass - they are probably clones of the same triangle in kd-tree.
                         float newt = thinglass_isect[n].second;
-                        if(debug) std::cout << "newt " << newt << std::endl;
+                        IFDEBUG std::cout << "newt " << newt << std::endl;
                         if(newt <= ct + scene.epsilon) continue;
-                        if(debug) std::cout << "can apply." << std::endl;
+                        IFDEBUG std::cout << "can apply." << std::endl;
                         ct = newt;
                         // This is just to check triangle orientation,
                         // so that we only apply color filter when the
                         // ray is entering glass.
                         glm::vec3 N = trig->generic_normal();
                         if(glm::dot(N,Vi) > 0){
-                            if(debug) std::cout << "APPLYING" << std::endl;
+                            IFDEBUG std::cout << "APPLYING" << std::endl;
                             // TODO: Use translucency filter instead of diffuse!
                             inc_l = inc_l * trig->GetMaterial().diffuse;
                         }
                     }
 
-                    if(debug) std::cout << "incoming light with filters: " << inc_l << std::endl;
+                    IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
 
                     Radiance out = inc_l * f * G;
-                    if(debug) std::cout << "total direct lighting: " << out << std::endl;
+                    IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
                     total += out;
                 }else{
-                    if(debug) std::cout << "Light not visible" << std::endl;
+                    IFDEBUG std::cout << "Light not visible" << std::endl;
                 }
 
                 // =================
@@ -377,24 +378,24 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 if(!last){
                     // look at next pp's to_prev and incorporate it here
                     Radiance incoming = path[n+1].to_prev;
-                    if(debug) std::cout << "Incorporating indirect lighting - incoming radiance: " << incoming << std::endl;
+                    IFDEBUG std::cout << "Incorporating indirect lighting - incoming radiance: " << incoming << std::endl;
 
                     if(russian > 0.0f) incoming = incoming / russian;
 
-                    if(debug) std::cout << "With russian: " << incoming << std::endl;
+                    IFDEBUG std::cout << "With russian: " << incoming << std::endl;
 
                     // Incoming direction
                     glm::vec3 Vi = p.Vi;
 
-                    if(debug) std::cout << "Indirect incoming from: " << Vi << std::endl;
+                    IFDEBUG std::cout << "Indirect incoming from: " << Vi << std::endl;
 
                     Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
 
-                    if(debug) std::cout << "BRDF: " << f << std::endl;
+                    IFDEBUG std::cout << "BRDF: " << f << std::endl;
 
                     Radiance inc = incoming * f * glm::pi<float>(); // * glm::dot(pp.lightN, Vi);
 
-                    if(debug) std::cout << "Incoming * brdf * pi = " << inc << std::endl;
+                    IFDEBUG std::cout << "Incoming * brdf * pi = " << inc << std::endl;
 
 
                     total += inc;
@@ -410,7 +411,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 total += incoming;
             }
 
-            if(debug) std::cerr << "total: " << total << std::endl;
+            IFDEBUG std::cerr << "total: " << total << std::endl;
 
             if(total.r > clamp) total.r = clamp;
             if(total.g > clamp) total.g = clamp;
@@ -442,11 +443,11 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 }
             }
 
-            if(debug) std::cerr << "total with thinglass filters: " << total << std::endl;
+            IFDEBUG std::cerr << "total with thinglass filters: " << total << std::endl;
 
             p.to_prev = total;
         }
     }
-    if(debug) std::cerr << "PATH TOTAL" << path[0].to_prev << std::endl << std::endl;
+    IFDEBUG std::cerr << "PATH TOTAL" << path[0].to_prev << std::endl << std::endl;
     return path[0].to_prev;
 }

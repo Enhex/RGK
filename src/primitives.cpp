@@ -1,5 +1,6 @@
 #include "primitives.hpp"
 #include "scene.hpp"
+#include "global_config.hpp"
 
 #include <iomanip>
 
@@ -44,8 +45,8 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
 
     double dot = glm::dot(r.direction, planeN);
 
-    //if(debug) std::cout << "triangle " << GetVertexA() << " " << GetVertexB() << " " << GetVertexC() << " " << std::endl;
-    //if(debug) std::cout << "dot : " << dot << std::endl;
+    //IFDEBUG std::cout << "triangle " << GetVertexA() << " " << GetVertexB() << " " << GetVertexC() << " " << std::endl;
+    //IFDEBUG std::cout << "dot : " << dot << std::endl;
 
     // TODO: Is it possible to elliminate such triangles during preprocessing?
     /* If the triangle is just a line segment, then it's normal will be NAN, and so dot will be nan. Ignore such triangles. */
@@ -71,15 +72,15 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
         i1 = 0; i2 = 1;
     }
 
-    //if(debug) std::cout << i1 << "/" << i2 << " ";
+    //IFDEBUG std::cout << i1 << "/" << i2 << " ";
 
     glm::vec3 vert0 = parent_scene->vertices[va];
     glm::vec3 vert1 = parent_scene->vertices[vb];
     glm::vec3 vert2 = parent_scene->vertices[vc];
 
-    //if(debug) std::cerr << vert0 << " " << vert1 << " " << vert2 << std::endl;
+    //IFDEBUG std::cerr << vert0 << " " << vert1 << " " << vert2 << std::endl;
 
-    //if(debug) std::cerr << "intersection is at: " << r.origin + r.direction*t << std::endl;
+    //IFDEBUG std::cerr << "intersection is at: " << r.origin + r.direction*t << std::endl;
 
     glm::vec2 point(r.origin[i1] + r.direction[i1] * t,
                     r.origin[i2] + r.direction[i2] * t);
@@ -92,14 +93,14 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
     glm::vec2 q2( vert2[i1] - vert0[i1],
                   vert2[i2] - vert0[i2]);
 
-    //if(debug) std::cerr << q0 << " " << q1 << " " << q2 << std::endl;
+    //IFDEBUG std::cerr << q0 << " " << q1 << " " << q2 << std::endl;
 
     // TODO Return these
     float alpha, beta;
 
     /* calculate and compare barycentric coordinates */
     if (q1.x > -eps && q1.x < eps ) {		/* uncommon case */
-        //if(debug) std::cout << "UNCOMMON" << std::endl;
+        //IFDEBUG std::cout << "UNCOMMON" << std::endl;
         beta = q0.x / q2.x;
         if (beta < 0 || beta > 1)
             return false;
@@ -113,7 +114,7 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
         alpha = (q0.x - beta * q2.x) / q1.x;
     }
 
-    //if(debug) std::cout << "A: " << alpha << ", B: " << beta << " A+B: " << alpha+beta << std::endl;
+    //IFDEBUG std::cout << "A: " << alpha << ", B: " << beta << " A+B: " << alpha+beta << std::endl;
 
     if (alpha < 0 || (alpha + beta) > 1.0)
         return false;
