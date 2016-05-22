@@ -26,14 +26,12 @@ class Tracer{
 protected:
     Tracer(const Scene& scene,
            const Camera& camera,
-           const std::vector<Light>& lights,
            unsigned int xres,
            unsigned int yres,
            unsigned int multisample,
            float bumpmap_scale = 10.0)
         : scene(scene),
           camera(camera),
-          lights(lights),
           xres(xres), yres(yres),
           multisample(multisample),
           bumpmap_scale(bumpmap_scale)
@@ -47,7 +45,6 @@ protected:
 
     const Scene& scene;
     const Camera& camera;
-    const std::vector<Light>& lights;
     unsigned int xres, yres;
     unsigned int multisample;
 

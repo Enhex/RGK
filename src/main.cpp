@@ -29,14 +29,13 @@
 #include "path_tracer.hpp"
 #include "out.hpp"
 
-bool debug_trace = false;
-unsigned int debug_x, debug_y;
-
 #define TILE_SIZE 50
 
 #define PREVIEW_DIMENTIONS_RATIO 3
 #define PREVIEW_RAYS_RATIO 2
 #define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
+
+#define BARSIZE 40
 
 std::atomic<int> rounds_done(0);
 unsigned int total_rounds;
@@ -44,6 +43,10 @@ std::atomic<int> pixels_done(0);
 std::atomic<unsigned int> raycount(0);
 std::atomic<bool> stop_monitor(false);
 int total_pixels;
+
+bool debug_trace = false;
+unsigned int debug_x, debug_y;
+bool preview_mode = false;
 
 std::string float_to_percent_string(float f){
     std::stringstream ss;
@@ -55,13 +58,13 @@ void Monitor(){
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
 
+    // Helper function that prints out the progress bar.
     auto print_progress_f = [](){
         int d = pixels_done;
         float fraction = d/(float)total_pixels;
         float percent = int(fraction*1000.0f + 0.5f) / 10.0f;
-        const unsigned int barsize = 60;
-        unsigned int fill = fraction * barsize;
-        unsigned int empty = barsize - fill;
+        unsigned int fill = fraction * BARSIZE;
+        unsigned int empty = BARSIZE - fill;
         out::cout(1) << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
         for(unsigned int i = 0; i <  fill; i++) out::cout(1) << "#";
         for(unsigned int i = 0; i < empty; i++) out::cout(1) << "-";
@@ -72,14 +75,14 @@ void Monitor(){
     while(!stop_monitor){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
-
         usleep(1000*100); // 100ms
     }
 
-    // Display the message one more time to output "100%"
+    // Output the message one more time to display "100%"
     print_progress_f();
     std::cout << std::endl;
 
+    // Measure total wallclock time
     std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
     float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
     unsigned int total_rays = raycount;
@@ -110,8 +113,6 @@ void usage(const char* prog){
 
 int main(int argc, char** argv){
 
-    bool preview_mode = false;
-
     static struct option long_opts[] =
         {
             {"debug", no_argument, 0, 'd'},
@@ -120,6 +121,7 @@ int main(int argc, char** argv){
             {0,0,0,0}
         };
 
+    // Recognize command-line arguments
     int c;
     int opt_index = 0;
     while((c = getopt_long(argc,argv,"hpd:vq",long_opts,&opt_index)) != -1){
@@ -155,6 +157,7 @@ int main(int argc, char** argv){
         }
     }
 
+    // Get the input file name from command line
     std::vector<std::string> infiles;
     while(optind < argc){
         infiles.push_back(argv[optind]);
@@ -178,14 +181,14 @@ int main(int argc, char** argv){
         return 1;
     }
 
+    // Enable preview mode
     if(preview_mode){
         cfg.xres /= PREVIEW_DIMENTIONS_RATIO;
         cfg.yres /= PREVIEW_DIMENTIONS_RATIO;
         cfg.multisample /= PREVIEW_RAYS_RATIO;
     }
 
-    Assimp::Importer importer;
-
+    // Prepare file paths
     std::string configdir = Utils::GetDir(configfile);
     std::string modelfile = configdir + "/" + cfg.model_file;
     std::string modeldir  = Utils::GetDir(modelfile);
@@ -194,6 +197,8 @@ int main(int argc, char** argv){
         return 1;
     }
 
+    // Load the model with assimp
+    Assimp::Importer importer;
     out::cout(2) << "Loading scene... " << std::endl;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
     const aiScene* scene = importer.ReadFile(modelfile,
@@ -228,10 +233,13 @@ int main(int argc, char** argv){
     out::cout(2) << "Loaded scene with " << scene->mNumMeshes << " meshes and " <<
         scene->mNumMaterials << " materials." << std::endl;
 
+    // Prepare the world.
     Scene s;
     s.texture_directory = modeldir + "/";
     s.LoadScene(scene, cfg);
     s.Commit();
+
+    s.AddPointLights(cfg.lights);
 
     Camera camera(cfg.view_point,
                   cfg.look_at,
@@ -242,36 +250,22 @@ int main(int argc, char** argv){
                   cfg.lens_size
                   );
 
-    EXRTexture ob(cfg.xres, cfg.yres);
-    //ob.FillStripes(15, Color(0.6,0.6,0.6), Color(0.5,0.5,0.5));
+    auto thinglass_materialset = s.MakeMaterialSet(cfg.thinglass);
 
+    // Determine thread pool size.
     unsigned int concurrency = std::thread::hardware_concurrency();
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
-
     out::cout(2) << "Using thread pool of size " << concurrency << std::endl;
-
-    if(cfg.recursion_level == 0){
-        cfg.lights.clear();
-    }
-
-    std::vector<RenderTask> tasks;
-
-    total_pixels = cfg.xres * cfg.yres * cfg.rounds;
-    total_rounds = cfg.rounds;
 
     std::string output_file = (preview_mode) ? Utils::InsertFileSuffix(cfg.output_file, "preview") : cfg.output_file;
     out::cout(2) << "Writing to file " << output_file << std::endl;
 
-    auto thinglass_materialset = s.MakeMaterialSet(cfg.thinglass);
-
-    std::thread monitor_thread(Monitor);
-
-    const int tile_size = TILE_SIZE;
     // Split rendering into smaller (tile_size x tile_size) tasks.
-    for(unsigned int yp = 0; yp < cfg.yres; yp += tile_size){
-        for(unsigned int xp = 0; xp < cfg.xres; xp += tile_size){
-            RenderTask task(cfg.xres, cfg.yres, xp, std::min(cfg.xres, xp+tile_size),
-                                                yp, std::min(cfg.yres, yp+tile_size));
+    std::vector<RenderTask> tasks;
+    for(unsigned int yp = 0; yp < cfg.yres; yp += TILE_SIZE){
+        for(unsigned int xp = 0; xp < cfg.xres; xp += TILE_SIZE){
+            RenderTask task(cfg.xres, cfg.yres, xp, std::min(cfg.xres, xp+TILE_SIZE),
+                                                yp, std::min(cfg.yres, yp+TILE_SIZE));
             tasks.push_back(task);
         }
     }
@@ -286,16 +280,26 @@ int main(int argc, char** argv){
             return glm::length(middle - a.midpoint) < glm::length(middle - b.midpoint);
         });
 
+    // Preapare output buffer
+    EXRTexture ob(cfg.xres, cfg.yres);
+
+    // Start monitor thread.
+    total_pixels = cfg.xres * cfg.yres * cfg.rounds;
+    total_rounds = cfg.rounds;
+    std::thread monitor_thread(Monitor);
+
+    // Repeat for each rendering round.
     unsigned int seedcount = 0, seedstart = time(nullptr);
     for(unsigned int roundno = 0; roundno < cfg.rounds; roundno++){
         ctpl::thread_pool tpool(concurrency);
 
+        // Push all render tasks to thread pool
         for(const RenderTask& task : tasks){
             unsigned int c = seedcount++;
             tpool.push( [&ob, seedstart, camera, &s, cfg, task, c, &thinglass_materialset](int){
 
                     Random rnd(seedstart + c);
-                    PathTracer rt(s, camera, cfg.lights,
+                    PathTracer rt(s, camera,
                                   task.xres, task.yres,
                                   cfg.multisample,
                                   cfg.recursion_level,
@@ -312,14 +316,16 @@ int main(int argc, char** argv){
                 });
         }
 
-        tpool.stop(true); // Waits for all remaining worker threads to complete.
+        // Wait for all remaining worker threads to complete.
+        tpool.stop(true);
 
         rounds_done++;
 
+        // Write out current progress to the output file.
         ob.Normalize().Write(output_file);
     }
 
-
+    // Shutdown monitor thread.
     stop_monitor = true;
     if(monitor_thread.joinable()) monitor_thread.join();
 

@@ -5,13 +5,13 @@
 
 #include "random.hpp"
 #include "LRU.hpp"
+#include "scene.hpp"
 #define SHADOW_CACHE_SIZE 5
 
 class RayTracer : public Tracer{
 public:
     RayTracer(const Scene& scene,
               const Camera& camera,
-              const std::vector<Light>& lights,
               unsigned int xres,
               unsigned int yres,
               unsigned int multisample,
@@ -19,10 +19,10 @@ public:
               Color sky_color,
               float bumpmap_scale,
               Random rnd)
-        : Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
+        : Tracer(scene, camera, xres, yres, multisample, bumpmap_scale),
           depth(depth),
           sky_color(sky_color),
-          shadow_cache(lights.size(), LRUBuffer<const Triangle*>(SHADOW_CACHE_SIZE)),
+          shadow_cache(scene.pointlights.size(), LRUBuffer<const Triangle*>(SHADOW_CACHE_SIZE)),
           rnd(rnd)
     {}
 

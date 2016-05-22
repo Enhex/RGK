@@ -14,6 +14,7 @@
 #include "utils.hpp"
 #include "texture.hpp"
 #include "config.hpp"
+#include "random.hpp"
 
 struct UncompressedKdNode;
 struct CompressedKdNode;
@@ -74,6 +75,12 @@ public:
     unsigned int n_tangents  = 0;
     glm::vec2*     texcoords = nullptr;
     unsigned int n_texcoords = 0;
+
+    // Point lights
+    std::vector<Light> pointlights;
+    void AddPointLights(std::vector<Light>);
+    Light GetRandomLight(Random& rnd) const;
+
 
     // Indexed by triangles.
     std::vector<float> xevents;

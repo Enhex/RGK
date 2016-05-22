@@ -587,7 +587,6 @@ std::set<const Material*> Scene::MakeMaterialSet(std::vector<std::string> phrase
             }
         }
     }
-    std::cout << "Materialset size " << res.size() << std::endl;
     return res;
 }
 
@@ -601,4 +600,18 @@ bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, const std::set<con
     if(i.triangle != nullptr) return false;
     out = i.thinglass;
     return true;
+}
+
+
+void Scene::AddPointLights(std::vector<Light> lights){
+    for(const Light& l : lights)
+        pointlights.push_back(l);
+}
+Light Scene::GetRandomLight(Random& rnd) const{
+    if(pointlights.size() == 0){
+        // Sigh. Return anything for compatibility.
+        return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+    }
+    int n = rnd.GetInt(0,pointlights.size());
+    return pointlights[n];
 }

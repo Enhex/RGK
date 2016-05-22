@@ -9,7 +9,6 @@ class PathTracer : public Tracer{
 public:
     PathTracer(const Scene& scene,
                const Camera& camera,
-               const std::vector<Light>& lights,
                unsigned int xres,
                unsigned int yres,
                unsigned int multisample,

@@ -11,7 +11,6 @@
 
 PathTracer::PathTracer(const Scene& scene,
                        const Camera& camera,
-                       const std::vector<Light>& lights,
                        unsigned int xres,
                        unsigned int yres,
                        unsigned int multisample,
@@ -23,7 +22,7 @@ PathTracer::PathTracer(const Scene& scene,
                        float bumpmap_scale,
                        std::set<const Material*> thinglass,
                        Random rnd)
-: Tracer(scene, camera, lights, xres, yres, multisample, bumpmap_scale),
+: Tracer(scene, camera, xres, yres, multisample, bumpmap_scale),
   clamp(clamp),
   russian(russian),
   depth(depth),
@@ -62,7 +61,7 @@ float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
     float cosi = glm::dot(I, N);
     float etai = 1.0f, etat = ior;
     if (cosi > 0) { std::swap(etai, etat); }
-    // Compute sini using Snell's law
+    // Snell's law
     float sint = etai / etat * glm::sqrt(glm::max(0.f, 1.0f - cosi * cosi));
     if(sint >= 1){
         // Total internal reflection
@@ -78,7 +77,6 @@ float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
 
 Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
 
-    // First, generate a path.
     struct PathPoint{
         enum Type{
             SCATTERED,
@@ -92,13 +90,16 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         glm::vec3 pos;
         glm::vec3 lightN;
         glm::vec3 faceN;
-        glm::vec3 Vr; // outgoing direction (pointing towards previous path point)
-        glm::vec3 Vi; // incoming direction (pointing towards next path point)
+        glm::vec3 Vr; // reflected direction (pointing towards previous path point)
+        glm::vec3 Vi; // incoming  direction (pointing towards next path point)
         glm::vec2 texUV;
-        Radiance to_prev;
+        Radiance to_prev; // Radiance of light transferred to previous path point
         std::vector<std::pair<const Triangle*,float>> thinglass_isect;
     };
     std::vector<PathPoint> path;
+
+    // ===== 1st Phase =======
+    // Generate a light path.
 
     Ray current_ray = r;
     unsigned int n = 0, n2 = 0;
@@ -284,52 +285,55 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         }
     }
 
+    // ============== 2nd phase ==============
+    // Calculate light transmitted over path.
 
     for(int n = path.size()-1; n >= 0; n--){
         if(debug) std::cout << "--- Processing PP " << n << std::endl;
 
         bool last = ((unsigned int)n == path.size()-1);
-        PathPoint& pp = path[n];
-        if(pp.infinity){
+        PathPoint& p = path[n];
+        if(p.infinity){
             if(debug) std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
-            pp.to_prev = sky_radiance;
+            p.to_prev = sky_radiance;
         }else{
-            const Material& mat = pp.i.triangle->GetMaterial();
+            const Material& mat = p.i.triangle->GetMaterial();
 
             if(debug) std::cout << "Hit material: " << mat.name << std::endl;
 
-            if(debug) std::cout << "texUV " << pp.texUV << std::endl;
+            if(debug) std::cout << "texUV " << p.texUV << std::endl;
 
-            Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(pp.texUV,debug) : mat.diffuse ;
-            Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(pp.texUV,debug): mat.specular;
+            Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
+            Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
 
             Radiance total;
 
-            if(pp.type == PathPoint::SCATTERED){
-                // Direct lighting, random light
-                int light_n = rnd.GetInt(0, lights.size() -1 );
-                const Light& l = lights[light_n];
+            if(p.type == PathPoint::SCATTERED){
+
+                // ===================================
+                // Direct lighting, random light point
+                const Light& l = scene.GetRandomLight(rnd);
                 glm::vec3 lightpos = l.pos + rnd.GetSphere(l.size);
 
                 if(debug) std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
 
                 std::vector<std::pair<const Triangle*, float>> thinglass_isect;
                 // Visibility factor
-                if((thinglass.size() == 0 && scene.Visibility(lightpos, pp.pos)) ||
-                   (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, pp.pos, thinglass, thinglass_isect))){
+                if((thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
+                   (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass, thinglass_isect))){
 
                     if(debug) std::cout << "Light is visible" << std::endl;
 
                     // Incoming direction
-                    glm::vec3 Vi = glm::normalize(lightpos - pp.pos);
+                    glm::vec3 Vi = glm::normalize(lightpos - p.pos);
 
-                    Radiance f = mat.brdf(pp.lightN, diffuse, specular, Vi, pp.Vr, mat.exponent, 1.0, mat.refraction_index);
+                    Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
 
                     if(debug) std::cout << "f = " << f << std::endl;
 
-                    float G = glm::max(0.0f, glm::cos( glm::angle(pp.lightN, Vi) )) / glm::distance2(lightpos, pp.pos);
-                    if(debug) std::cout << "G = " << G << ", angle " << glm::angle(pp.lightN, Vi) << std::endl;
-                    if(debug) std::cout << "lightN = " << pp.lightN << ", Vi " << Vi << std::endl;
+                    float G = glm::max(0.0f, glm::cos( glm::angle(p.lightN, Vi) )) / glm::distance2(lightpos, p.pos);
+                    if(debug) std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
+                    if(debug) std::cout << "lightN = " << p.lightN << ", Vi " << Vi << std::endl;
 
                     Radiance inc_l = Radiance(l.color) * l.intensity;
 
@@ -368,7 +372,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     if(debug) std::cout << "Light not visible" << std::endl;
                 }
 
-                // indirect lighting
+                // =================
+                // Indirect lighting
                 if(!last){
                     // look at next pp's to_prev and incorporate it here
                     Radiance incoming = path[n+1].to_prev;
@@ -379,11 +384,11 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     if(debug) std::cout << "With russian: " << incoming << std::endl;
 
                     // Incoming direction
-                    glm::vec3 Vi = pp.Vi;
+                    glm::vec3 Vi = p.Vi;
 
                     if(debug) std::cout << "Indirect incoming from: " << Vi << std::endl;
 
-                    Radiance f = mat.brdf(pp.lightN, diffuse, specular, Vi, pp.Vr, mat.exponent, 1.0, mat.refraction_index);
+                    Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
 
                     if(debug) std::cout << "BRDF: " << f << std::endl;
 
@@ -394,13 +399,13 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                     total += inc;
                 }
-            }else if(pp.type == PathPoint::REFLECTED){
+            }else if(p.type == PathPoint::REFLECTED){
                 Radiance incoming = path[n+1].to_prev;
                 total += incoming;
-            }else if(pp.type == PathPoint::ENTERED){
+            }else if(p.type == PathPoint::ENTERED){
                 Radiance incoming = path[n+1].to_prev;
                 total += incoming * diffuse;
-            }else if(pp.type == PathPoint::LEFT){
+            }else if(p.type == PathPoint::LEFT){
                 Radiance incoming = path[n+1].to_prev;
                 total += incoming;
             }
@@ -420,18 +425,18 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             // when we were looking for intersection and stumbled upon this particular PP.
 
             float ct = -1.0f;
-            for(int n = pp.thinglass_isect.size()-1; n >= 0; n--){
-                const Triangle* trig = pp.thinglass_isect[n].first;
+            for(int n = p.thinglass_isect.size()-1; n >= 0; n--){
+                const Triangle* trig = p.thinglass_isect[n].first;
                 // Ignore repeated triangles within epsillon radius from previous
                 // thinglass - they are probably clones of the same triangle in kd-tree.
-                float newt = pp.thinglass_isect[n].second;
+                float newt = p.thinglass_isect[n].second;
                 if(newt <= ct + scene.epsilon) continue;
                 ct = newt;
                 // This is just to check triangle orientation,
                 // so that we only apply color filter when the
                 // ray is entering glass.
                 glm::vec3 N = trig->generic_normal();
-                if(glm::dot(N,pp.Vr) >= 0){
+                if(glm::dot(N,p.Vr) >= 0){
                     // TODO: Use translucency filter instead of diffuse!
                     total = total * trig->GetMaterial().diffuse;
                 }
@@ -439,7 +444,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             if(debug) std::cerr << "total with thinglass filters: " << total << std::endl;
 
-            pp.to_prev = total;
+            p.to_prev = total;
         }
     }
     if(debug) std::cerr << "PATH TOTAL" << path[0].to_prev << std::endl << std::endl;

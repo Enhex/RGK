@@ -65,8 +65,8 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
 
         if(debug) std::cerr << "Was hit. color is " << diffuse << std::endl;
 
-        for(unsigned int qq = 0; qq < lights.size(); qq++){
-            const Light& l = lights[qq];
+        for(unsigned int qq = 0; qq < scene.pointlights.size(); qq++){
+            const Light& l = scene.pointlights[qq];
             glm::vec3 L = glm::normalize(l.pos - ipos);
             const Triangle* shadow_triangle = nullptr;
             if(depth > 0){
@@ -145,7 +145,7 @@ Color RayTracer::TraceRay(const Ray& r, unsigned int depth, unsigned int& raycou
         }
 
         // Special case for when there is no light
-        if(lights.size() == 0){
+        if(scene.pointlights.size() == 0){
             total += diffuse;
         }
 
