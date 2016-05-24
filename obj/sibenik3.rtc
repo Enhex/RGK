@@ -1,9 +1,9 @@
 # The sibenik model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
-sibenik/sibenik.obj
+sibenikB/sibenik.obj
 sibenik3.exr
 5
 1200 900
--18.0 -14.0 0.6
+-18.0 -14.0 1.2
 0.0 -9.0 0.0
 0.0 1.0 0.0
 1.5
@@ -11,7 +11,8 @@ L  -5.0 30.0 -20.0   255 250 210 15000.0 0.2
 
 multisample 40
 rounds 60
-sky 246 249 254 0.6
+sky 246 249 254 0.15
 russian 0.8
 clamp 4.0
 thinglass staklo
+bumpscale 0

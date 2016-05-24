@@ -1,0 +1,15 @@
+
+floor/floor.obj
+floor.exr
+2
+1200 900
+3.0 1.0 0.0
+0.0 0.5 0.0
+0.0 1.0 0.0
+2.0
+
+# L -3.0 2.0 0.0 255 255 255 10.0
+
+multisample 80
+rounds 50
+bumpscale 5

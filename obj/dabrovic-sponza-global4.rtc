@@ -1,5 +1,5 @@
-# The dabrovic sponza model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
-dabrovic-sponza/sponza.obj
+
+sponza-fixed/sponza.obj
 dabrovic-sponza-global4.exr
 4
 1200 900
@@ -16,8 +16,3 @@ sky 185 220 240 0.9
 bumpscale 20
 clamp 5.0
 russian 0.6
-
-# WARNING!
-# The original darbovic-sponza files from http://graphics.cs.williams.edu/data/meshes.xml
-# use case-insensitive file names, which causes problems on non-Windows OS. To fix this, you need to manually
-# correct file names.

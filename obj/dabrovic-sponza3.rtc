@@ -1,5 +1,5 @@
-# The dabrovic sponza model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
-dabrovic-sponza/sponza.obj
+
+sponza-fixed/sponza.obj
 dabrovic-sponza3.png
 2
 1200 900
@@ -22,7 +22,3 @@ sky 145 200 235
 lens_size 0.018
 focus_plane 3.0
 
-# WARNING!
-# The original darbovic-sponza files from http://graphics.cs.williams.edu/data/meshes.xml
-# use case-insensitive file names, which causes problems on non-Windows OS. To fix this, you need to manually
-# correct file names.
