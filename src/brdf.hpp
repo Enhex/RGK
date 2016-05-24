@@ -3,27 +3,47 @@
 
 #include "glm.hpp"
 #include "radiance.hpp"
-
-// Arguments:
-//  normal, Kd, Ks, incoming, reflected, specular exponent, outside IoR, inside IoR
-typedef Radiance (*BRDF_fptr)(glm::vec3, Color, Color, glm::vec3, glm::vec3, float, float, float);
+#include "random.hpp"
 
 class BRDF{
 public:
-    virtual float PdfSpec() = 0;
+    enum BRDFType{
+        Diffuse,
+        Phong,
+        Phong2,
+        PhongEnergyConserving,
+        CookTorr
+    };
+    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const = 0;
+    virtual float PdfDiff() const = 0;
+    Radiance Apply(Color kD, Color kS, glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const{
+        return Radiance(kD)*PdfDiff() + Radiance(kS)*PdfSpec(N,Vi,Vr);
+    }
+    // Default is cosine sampling
+    virtual std::pair<glm::vec3, float> GetRay(glm::vec3 normal, Random& rnd) const;
+};
+
+class BRDFDiffuseUniform : public BRDF{
 public:
-    static Radiance Diffuse(glm::vec3, Color, Color, glm::vec3, glm::vec3, float, float, float);
-    static Radiance Phong(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp, float, float);
-    static Radiance Phong2(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp, float, float);
-    static Radiance PhongEnergyConserving(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp, float, float);
-    static Radiance CookTorr(glm::vec3, Color, Color, glm::vec3, glm::vec3, float exp, float, float);
+    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const override;
+    virtual float PdfDiff() const override;
+    virtual std::pair<glm::vec3, float> GetRay(glm::vec3 normal, Random& rnd) const override;
 };
 
-class BRDFPhong : public BRDF{
-
+class BRDFDiffuseCosine : public BRDF{
+public:
+    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const override;
+    virtual float PdfDiff() const override;
 };
 
-void TestBRDF(BRDF_fptr);
-
+class BRDFCookTorr : public BRDF{
+public:
+    BRDFCookTorr(float phong_exponent, float ior);
+    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const override;
+    virtual float PdfDiff() const override;
+private:
+    float roughness;
+    float F0;
+};
 
 #endif // __BRDF_HPP__

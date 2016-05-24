@@ -36,7 +36,7 @@ public:
     float clamp = 100.0f;
     float russian = -1.0f;
     unsigned int rounds = 1;
-    BRDF_fptr brdf = BRDF::CookTorr;
+    std::string brdf = "cooktorr";
     std::vector<std::string> thinglass;
 };
 

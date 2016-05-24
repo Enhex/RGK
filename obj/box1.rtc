@@ -15,3 +15,4 @@ sky 200 0 0 1.0
 bumpscale 10
 clamp 8.0
 russian 0.75
+brdf diffuse

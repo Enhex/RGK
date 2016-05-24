@@ -106,6 +106,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         glm::vec2 texUV;
         Radiance to_prev; // Radiance of light transferred to previous path point
         std::vector<std::pair<const Triangle*,float>> thinglass_isect;
+        float sampleP;
     };
     std::vector<PathPoint> path;
 
@@ -263,7 +264,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
                     IFDEBUG std::cout << "IOR " << mat.refraction_index << std::endl;
                     IFDEBUG std::cout << "Fresnel " << q << std::endl;
-                    //q = 1.0f;
                     if(rnd.Get01() < q){
                         p.type = PathPoint::REFLECTED;
                     }else{
@@ -293,10 +293,13 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 /* FALLTHROUGH */
             case PathPoint::SCATTERED:
                 IFDEBUG std::cout << "SCATTERED." << std::endl;
-                dir = rnd.GetHSCosDir(p.lightN);
+                std::tie(dir, p.sampleP) = mat.brdf->GetRay(p.lightN, rnd);
+                //dir = rnd.GetHSCosDir(p.lightN);
                 // TODO: Use glm::dot instaed of angle...
-                while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f)
-                    dir = rnd.GetHSCosDir(p.lightN);
+                while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f){
+                    //dir = rnd.GetHSCosDir(p.lightN);
+                    std::tie(dir, p.sampleP) = mat.brdf->GetRay(p.lightN, rnd);
+                }
                 break;
             case PathPoint::ENTERED:
                 // TODO: Refraction
@@ -391,12 +394,13 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     if((thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
                        (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass, thinglass_isect))){
 
-                        IFDEBUG std::cout << "Light is visible" << std::endl;
+                        IFDEBUG std::cout << "====> Light is visible" << std::endl;
 
                         // Incoming direction
                         glm::vec3 Vi = glm::normalize(lightpos - p.pos);
 
-                        Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
+                        //Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
+                        Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr);
 
                         IFDEBUG std::cout << "f = " << f << std::endl;
 
@@ -458,13 +462,15 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                     IFDEBUG std::cout << "Indirect incoming from: " << Vi << std::endl;
 
-                    Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
+                    // Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
 
-                    IFDEBUG std::cout << "BRDF: " << f << std::endl;
+                    Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr);
 
-                    Radiance inc = incoming * f * glm::pi<float>(); // * glm::dot(pp.lightN, Vi);
+                    IFDEBUG std::cout << "BRDF: " << f << ", p = " << p.sampleP << std::endl;
 
-                    IFDEBUG std::cout << "Incoming * brdf * pi = " << inc << std::endl;
+                    Radiance inc = incoming * f * glm::dot(p.lightN, Vi) / p.sampleP;
+
+                    IFDEBUG std::cout << "Incoming * brdf * cos(...) / sampleP = " << inc << std::endl;
 
 
                     total += inc;

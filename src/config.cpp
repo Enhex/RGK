@@ -115,15 +115,17 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "brdf"){
             if(vs.size() != 2) throw ConfigFileException("Invalid brdf config line.");
             if(vs[1] == "cooktorr"){
-                cfg.brdf = BRDF::CookTorr;
+                cfg.brdf = "cooktorr";
             }else if(vs[1] == "phong"){
-                cfg.brdf = BRDF::Phong;
+                cfg.brdf = "phong";
             }else if(vs[1] == "phong2"){
-                cfg.brdf = BRDF::Phong2;
+                cfg.brdf = "phong2";
             }else if(vs[1] == "phongenergy"){
-                cfg.brdf = BRDF::PhongEnergyConserving;
+                cfg.brdf = "phongenergy";
             }else if(vs[1] == "diffuse"){
-                cfg.brdf = BRDF::Diffuse;
+                cfg.brdf = "diffusecosine";
+            }else if(vs[1] == "diffuseuniform"){
+                cfg.brdf = "diffuseuniform";
             }else{
                 throw ConfigFileException("Unknown BRDF type: " + vs[1]);
             }

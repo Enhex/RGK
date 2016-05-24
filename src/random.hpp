@@ -40,6 +40,29 @@ public:
         }while(q.x*q.x + q.y*q.y > 1.0f);
         return q*radius;
     }
+    glm::vec3 MoveToDir(glm::vec3 V, glm::vec3 r){
+        glm::vec3 axis = glm::cross(glm::vec3(0.0,1.0,0.0), V);
+        // TODO: What if V = -up?
+        if(glm::length(axis) < 0.0001f) return (V.y > 0) ? r : -r;
+        axis = glm::normalize(axis);
+        float angle = glm::angle(glm::vec3(0.0,1.0,0.0), V);
+        return glm::rotate(r, angle, axis);
+    }
+    // Returns a uniformly distributed random vector on a hemishpere, such that y > 0.
+    glm::vec3 GetHSUniform(){
+        float k1 = GetFloat(0.0f, 1.0f);
+        float k2 = GetFloat(-1.0f, 1.0f);
+        float z = 1.0f - k2*k2;
+        float s = glm::sqrt(z);
+        float w = 2.0f*glm::pi<float>()*k1;
+        float x = glm::cos(w) * s;
+        float y = glm::sin(w) * s;
+        return {x,glm::abs(z),y};
+    }
+    // Returns a uniformly distributed random vector on a hemishpere, such that y > 0.
+    glm::vec3 GetHSUniformDir(glm::vec3 V){
+        return MoveToDir(V, GetHSUniform());
+    }
     // Returns a cosine-distributed random vector on a hemisphere, such that y > 0.
     glm::vec3 GetHSCos(){
         glm::vec2 p = GetDisc(1.0f);
@@ -48,13 +71,7 @@ public:
     }
     // Returns a cosine-distributed random vector in direction of V.
     glm::vec3 GetHSCosDir(glm::vec3 V){
-        glm::vec3 r = GetHSCos();
-        glm::vec3 axis = glm::cross(glm::vec3(0.0,1.0,0.0), V);
-        // TODO: What if V = -up?
-        if(glm::length(axis) < 0.0001f) return (V.y > 0) ? r : -r;
-        axis = glm::normalize(axis);
-        float angle = glm::angle(glm::vec3(0.0,1.0,0.0), V);
-        return glm::rotate(r, angle, axis);
+        return MoveToDir(V, GetHSCos());
     }
     // Returns a uniformly random vector on a sphere
     glm::vec3 GetSphere(float radius){

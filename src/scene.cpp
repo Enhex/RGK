@@ -135,9 +135,17 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
     }
 
     // Supposedly we may support different brdfs for each material.
-    m.brdf = cfg.brdf;
+    if(cfg.brdf == "diffuseuniform"){
+        m.brdf = std::make_unique<BRDFDiffuseUniform>();
+    }else if(cfg.brdf == "diffusecosine"){
+        m.brdf = std::make_unique<BRDFDiffuseCosine>();
+    }else if(cfg.brdf == "cooktorr"){
+        m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
+    }else{
+        assert(0 * (size_t)"Unsupported BRDF id in config!");
+    }
 
-    materials_buffer.push_back(m);
+    materials_buffer.push_back(std::move(m));
     out::cout(4) << "Read material: " << m.name << std::endl;
 }
 
@@ -274,7 +282,7 @@ void Scene::Commit(){
         triangles[i].CalculatePlane();
     }
     for(unsigned int i = 0; i < n_materials; i++){
-        materials[i] = materials_buffer[i];
+        materials[i] = std::move(materials_buffer[i]);
     }
     for(unsigned int i = 0; i < n_normals; i++)
         normals[i] = glm::vec3(normals_buffer[i].x, normals_buffer[i].y, normals_buffer[i].z);
