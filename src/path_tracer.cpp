@@ -112,6 +112,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
     // ===== 1st Phase =======
     // Generate a light path.
 
+    IFDEBUG std::cout << "Ray direction: " << r.direction << std::endl;
+
     Ray current_ray = r;
     unsigned int n = 0, n2 = 0;
     // Temporarily setting this to true ensures that russian roulette will not terminate (once).
@@ -154,10 +156,13 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 // std::cerr << "Ray collided with source triangle. This should never happen." << std::endl;
             }
             // Prepare normal
+            assert(NEAR(glm::length(current_ray.direction),1.0f));
             p.pos = current_ray[i.t];
             p.faceN = i.Interpolate(i.triangle->GetNormalA(),
                                     i.triangle->GetNormalB(),
                                     i.triangle->GetNormalC());
+            p.faceN = glm::normalize(p.faceN);
+
             // Prepare incoming direction
             p.Vr = -current_ray.direction;
 
@@ -166,6 +171,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             bool fromInside = false;
             if(glm::dot(p.faceN, p.Vr) < 0){
                 fromInside = true;
+                // Pretend correction.
+                p.faceN = -p.faceN;
             }
 
             // Interpolate textures
@@ -197,7 +204,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 }else{
                     tangent = glm::normalize(tangent);
                     glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
-                    p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
+                    glm::vec3 tangent2 = glm::cross(bitangent,p.faceN);
+                    p.lightN = glm::normalize(p.faceN + (tangent2*right + bitangent*bottom) * bumpmap_scale);
                     IFDEBUG std::cout << "faceN " << p.faceN << std::endl;
                     IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
                     // This still happend.
@@ -205,6 +213,12 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                         p.lightN = p.faceN;
                     }
                     assert(glm::length(p.lightN) > 0);
+                    float dot2 = glm::dot(p.faceN,tangent2);
+                    assert(dot2 >= -0.001f);
+                    float dot3 = glm::dot(p.faceN,bitangent);
+                    assert(dot3 >= -0.001f);
+                    float dot = glm::dot(p.faceN,p.lightN);
+                    assert(dot > 0);
                 }
             }else{
                 p.lightN = p.faceN;
@@ -242,11 +256,19 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     }else{
                         p.type = PathPoint::SCATTERED;
                     }
-                    // TODO: Fresnel reflecion on opaque surfaces
-                    //}else if(rnd.Get01() < Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index)){
-                    //p.type = PathPoint::REFLECTED;
+                // TODO: Fresnel reflecion on opaque surfaces
                 }else{
-                    p.type = PathPoint::SCATTERED;
+                    float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
+                    IFDEBUG std::cout << "Vr " << p.Vr << std::endl;
+                    IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
+                    IFDEBUG std::cout << "IOR " << mat.refraction_index << std::endl;
+                    IFDEBUG std::cout << "Fresnel " << q << std::endl;
+                    //q = 1.0f;
+                    if(rnd.Get01() < q){
+                        p.type = PathPoint::REFLECTED;
+                    }else{
+                        p.type = PathPoint::SCATTERED;
+                    }
                 }
             }
 
@@ -257,20 +279,24 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 n--; skip_russian = true;
             }
 
-            IFDEBUG std::cout << "Ray hit material " << mat.name << " and ";
+            IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
             // Generate next ray direction
             glm::vec3 dir;
             switch(p.type){
-            case PathPoint::SCATTERED:
-                IFDEBUG std::cout << "SCATTERED." << std::endl;
-                assert(glm::angle(p.lightN, p.faceN) < glm::pi<float>()/2.0f);
-                dir = rnd.GetHSCosDir(p.lightN);
-                while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f)
-                    dir = rnd.GetHSCosDir(p.lightN);
-                break;
             case PathPoint::REFLECTED:
                 IFDEBUG std::cout << "REFLECTED." << std::endl;
                 dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
+                if(glm::dot(dir, p.faceN) > 0.0f)
+                    break;
+                // Otherwise, this reflected ray would enter inside the face.
+                // Therefore, pretend it's a scatter ray. Thus:
+                /* FALLTHROUGH */
+            case PathPoint::SCATTERED:
+                IFDEBUG std::cout << "SCATTERED." << std::endl;
+                dir = rnd.GetHSCosDir(p.lightN);
+                // TODO: Use glm::dot instaed of angle...
+                while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f)
+                    dir = rnd.GetHSCosDir(p.lightN);
                 break;
             case PathPoint::ENTERED:
                 // TODO: Refraction

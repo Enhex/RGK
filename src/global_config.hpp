@@ -1,5 +1,9 @@
 
+#ifdef NDEBUG
+#define ENABLE_DEBUG 0
+#else
 #define ENABLE_DEBUG 1
+#endif
 
 #define TILE_SIZE 50
 
@@ -33,3 +37,5 @@
 #else
   #define NDEBUG
 #endif
+
+#define NEAR(x,y) (x < y + 0.001f && x > y - 0.001f)

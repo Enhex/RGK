@@ -209,8 +209,11 @@ int main(int argc, char** argv){
     const aiScene* scene = importer.ReadFile(modelfile,
                                              aiProcess_Triangulate |
                                              //aiProcess_TransformUVCoords |
+
+                                             // Neither of these work correctly.
                                              //aiProcess_GenNormals |
-                                             aiProcess_GenSmoothNormals |
+                                             //aiProcess_GenSmoothNormals |
+
                                              aiProcess_JoinIdenticalVertices |
 
                                              // The option below is odd. Enabling it messes up half of my models.

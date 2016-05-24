@@ -18,8 +18,6 @@ out
 
 # External models
 obj/teapot
-obj/dabrovic-sponza
-obj/sibenik
 obj/conference
 obj/dragon
 obj/buddha

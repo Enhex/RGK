@@ -20,7 +20,7 @@ add_definitions(
   -Werror
   #-O3
   #-Ofast # Includes unsafe-math
-  -g
+  -O3
   )
 
 file(GLOB SOURCES
