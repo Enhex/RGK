@@ -78,6 +78,16 @@ float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
 
 Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
 
+    // This function has the structure of unrolled and flattened recursion.
+    // Phase 1 (path creation) corresponds to entering recursive calls.
+    // Phase 2 (light transmission) gathers result and returns values
+    // upwards. PathPoint represents a single stack frame, and the path
+    // vector corresponds to the stack.
+    //
+    // I never really intented to write it this way, it just naturally came
+    // to be so. It would be reasonable to rewrite it as a proper recursion
+    // at some point.
+
     struct PathPoint{
         enum Type{
             SCATTERED,
@@ -160,9 +170,15 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             // Interpolate textures
             if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture || mat.bump_texture){
-                p.texUV = i.Interpolate(i.triangle->GetTexCoordsA(),
-                                        i.triangle->GetTexCoordsB(),
-                                        i.triangle->GetTexCoordsC());
+                IFDEBUG
+                    std::cout << "Calculating texUV" << std::endl;
+                glm::vec2 a = i.triangle->GetTexCoordsA();
+                glm::vec2 b = i.triangle->GetTexCoordsB();
+                glm::vec2 c = i.triangle->GetTexCoordsC();
+                IFDEBUG std::cout << "a = " << a << std::endl;
+                IFDEBUG std::cout << "a = " << i.triangle->va << std::endl;
+                IFDEBUG std::cout << "a = " << scene.texcoords[i.triangle->va] << std::endl;
+                p.texUV = i.Interpolate(a,b,c);
             }
             // Tilt normal using bump texture
             if(mat.bump_texture){
@@ -177,15 +193,18 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                     // are opposite. Thus if it happens that interpolated tangent is zero, and therefore can't be
                     // normalized, we just silently ignore the bump map in this point. I'll have little effect on the
                     // entire pixel anyway.
+                    p.lightN = p.faceN;
                 }else{
                     tangent = glm::normalize(tangent);
                     glm::vec3 bitangent = glm::normalize(glm::cross(p.faceN,tangent));
                     p.lightN = glm::normalize(p.faceN + (tangent*right + bitangent*bottom) * bumpmap_scale);
+                    IFDEBUG std::cout << "faceN " << p.faceN << std::endl;
                     IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
                     // This still happend.
                     if(glm::isnan(p.lightN.x)){
                         p.lightN = p.faceN;
                     }
+                    assert(glm::length(p.lightN) > 0);
                 }
             }else{
                 p.lightN = p.faceN;
@@ -244,9 +263,10 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             switch(p.type){
             case PathPoint::SCATTERED:
                 IFDEBUG std::cout << "SCATTERED." << std::endl;
-                dir = rnd.GetHSCosDir(p.faceN);
-                while(glm::angle(dir, p.lightN) > glm::pi<float>()/2.0f)
-                    dir = rnd.GetHSCosDir(p.faceN);
+                assert(glm::angle(p.lightN, p.faceN) < glm::pi<float>()/2.0f);
+                dir = rnd.GetHSCosDir(p.lightN);
+                while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f)
+                    dir = rnd.GetHSCosDir(p.lightN);
                 break;
             case PathPoint::REFLECTED:
                 IFDEBUG std::cout << "REFLECTED." << std::endl;
@@ -317,6 +337,10 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
             Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
             Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
+
+            IFDEBUG std::cout << "Diffuse: " << diffuse << std::endl;
+            IFDEBUG std::cout << "Diffuse: " << mat.diffuse_texture << std::endl;
+            IFDEBUG std::cout << "Diffuse: " << p.texUV << std::endl;
 
             Radiance total(0.0,0.0,0.0);
 

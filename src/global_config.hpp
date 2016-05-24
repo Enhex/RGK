@@ -1,5 +1,5 @@
 
-#define ENABLE_DEBUG 0
+#define ENABLE_DEBUG 1
 
 #define TILE_SIZE 50
 
@@ -17,9 +17,12 @@
 #endif
 
 #if ENABLE_DEBUG
+  #include <cassert>
   #define IFDEBUG if(debug)
 #else
   #define IFDEBUG if(0)
+  #undef assert
+#define assert(x) (void)0
 #endif
 
 #if ENABLE_DEBUG

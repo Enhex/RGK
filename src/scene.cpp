@@ -179,13 +179,6 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
         // TODO: current transform rotation?
         normals_buffer.push_back(normal);
     }
-    if(mesh->mTangents){
-        for(unsigned int v = 0; v < mesh->mNumVertices; v++){
-            aiVector3D tangent = mesh->mTangents[v];
-            // TODO: current transform rotation?
-            tangents_buffer.push_back(tangent);
-        }
-    }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
         if(face.mNumIndices < 3) continue; // Ignore degenerated faces
@@ -209,7 +202,24 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
             aiVector3D uv = mesh->mTextureCoords[0][v];
             texcoords_buffer.push_back(uv);
         }
+    }else{
+        // Fill with empty coords
+        texcoords_buffer.resize(vertices_buffer.size());
     }
+    if(mesh->mTangents){
+        for(unsigned int v = 0; v < mesh->mNumVertices; v++){
+            aiVector3D tangent = mesh->mTangents[v];
+            // TODO: current transform rotation?
+            tangents_buffer.push_back(tangent);
+        }
+    }else{
+        // Fill with empty coords
+        tangents_buffer.resize(vertices_buffer.size());
+    }
+
+    assert(normals_buffer.size() == vertices_buffer.size());
+    assert(texcoords_buffer.size() == vertices_buffer.size());
+    assert(tangents_buffer.size() == vertices_buffer.size());
 
     if(light_source && al.triangles_with_areas.size() > 0){
         areal_lights.push_back(std::make_pair(0.0f, al));
