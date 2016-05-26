@@ -25,6 +25,7 @@ add_definitions(
 
 file(GLOB SOURCES
   ./*.cpp
+  ./LTC/*.cpp
   )
 
 add_executable(

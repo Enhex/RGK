@@ -141,6 +141,8 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
         m.brdf = std::make_unique<BRDFDiffuseCosine>();
     }else if(cfg.brdf == "cooktorr"){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
+    }else if(cfg.brdf == "ltc_beckmann"){
+        m.brdf = std::make_unique<BRDFLTCBeckmann>(m.exponent);
     }else{
         assert(0 * (size_t)"Unsupported BRDF id in config!");
     }

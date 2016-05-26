@@ -107,6 +107,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         Radiance to_prev; // Radiance of light transferred to previous path point
         std::vector<std::pair<const Triangle*,float>> thinglass_isect;
         float sampleP;
+        BRDF::BRDFSamplingType sampling_type;
     };
     std::vector<PathPoint> path;
 
@@ -293,13 +294,11 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 /* FALLTHROUGH */
             case PathPoint::SCATTERED:
                 IFDEBUG std::cout << "SCATTERED." << std::endl;
-                std::tie(dir, p.sampleP) = mat.brdf->GetRay(p.lightN, rnd);
-                //dir = rnd.GetHSCosDir(p.lightN);
-                // TODO: Use glm::dot instaed of angle...
-                while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f){
+                do{
                     //dir = rnd.GetHSCosDir(p.lightN);
-                    std::tie(dir, p.sampleP) = mat.brdf->GetRay(p.lightN, rnd);
-                }
+                    std::tie(dir, p.sampleP, p.sampling_type) = mat.brdf->GetRay(p.lightN, rnd);
+                    // TODO: Use glm::dot instaed of angle...
+                }while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f);
                 break;
             case PathPoint::ENTERED:
                 // TODO: Refraction
@@ -400,7 +399,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                         glm::vec3 Vi = glm::normalize(lightpos - p.pos);
 
                         //Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
-                        Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr);
+                        Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr, debug);
 
                         IFDEBUG std::cout << "f = " << f << std::endl;
 
@@ -462,13 +461,34 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                     IFDEBUG std::cout << "Indirect incoming from: " << Vi << std::endl;
 
-                    // Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
+                    Radiance inc = incoming;
+                    Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr,debug);
+                    float cos = glm::dot(p.lightN, Vi);
 
-                    Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr);
-
-                    IFDEBUG std::cout << "BRDF: " << f << ", p = " << p.sampleP << std::endl;
-
-                    Radiance inc = incoming * f * glm::dot(p.lightN, Vi) / p.sampleP;
+                    // Branch prediction should optimize-out these conditional jump during runtime.
+                    if(p.sampling_type != BRDF::SAMPLING_COSINE){
+                        // All sampling types use cosine, but for cosine sampling probability
+                        // density is equal to cosine, so they cancel out.
+                        IFDEBUG std::cout << "Mult by cos" << std::endl;
+                        inc *= cos;
+                    }else{
+                        // Cosine sampling p = cos/pi. Don't divide by cos, as it was
+                        // skipped, instead just multiply by pi.
+                        inc *= glm::pi<float>();
+                    }
+                    if(p.sampling_type != BRDF::SAMPLING_BRDF){
+                        // All sampling types use brdf, but for brdf sampling probability
+                        // density is equal to brdf, so they cancel out.
+                        IFDEBUG std::cout << "Mult by f" << std::endl;
+                        inc *= f;
+                    }
+                    if(p.sampling_type != BRDF::SAMPLING_UNIFORM){
+                        // NOP
+                    }else{
+                        // Probability density for uniform sampling.
+                        IFDEBUG std::cout << "Div by P" << std::endl;
+                        inc /= (0.5f/glm::pi<float>());
+                    }
 
                     IFDEBUG std::cout << "Incoming * brdf * cos(...) / sampleP = " << inc << std::endl;
 

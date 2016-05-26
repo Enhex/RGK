@@ -17,7 +17,7 @@
 
 #include <getopt.h>
 
-#include "LRU.hpp"
+#include "global_config.hpp"
 
 #include "scene.hpp"
 #include "ray.hpp"
@@ -29,7 +29,7 @@
 #include "path_tracer.hpp"
 #include "out.hpp"
 
-#include "global_config.hpp"
+#include "LTC/ltc_beckmann.hpp"
 
 std::atomic<int> rounds_done(0);
 unsigned int total_rounds;
@@ -108,6 +108,17 @@ void usage(const char* prog){
 }
 
 int main(int argc, char** argv){
+
+    // LTC TEST
+    /*
+
+    glm::vec3 N = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
+    glm::vec3 Vr = glm::normalize(glm::vec3(0.0f, -0.5f, -0.5f));
+    glm::vec3 Vi = glm::normalize(glm::vec3(0.0f, 0.5f, -0.5f));
+    LTC_BECKMANN::get_pdf(N,Vr,Vi, 0.05, true);
+    glm::vec3 Vr2 = glm::normalize(glm::vec3(-0.5f, -0.5f, -0.5f));
+    LTC_BECKMANN::get_pdf(N,Vr2,Vi, 0.05, true);
+    */
 
     static struct option long_opts[] =
         {

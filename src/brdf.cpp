@@ -3,46 +3,50 @@
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
 
+#include "out.hpp"
+#include "LTC/ltc_beckmann.hpp"
+
+std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, Random &rnd) const{
+    glm::vec3 v = rnd.GetHSCosDir(normal);
+    float p = glm::dot(normal,v)/glm::pi<float>();
+    assert(glm::dot(normal, v) > -0.01f);
+    return std::make_tuple(v,p,SAMPLING_COSINE);
+}
+
+
 float BRDFDiffuseUniform::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
-float BRDFDiffuseUniform::PdfSpec(glm::vec3, glm::vec3, glm::vec3) const{
+float BRDFDiffuseUniform::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
-std::pair<glm::vec3, float> BRDFDiffuseUniform::GetRay(glm::vec3 normal, Random &rnd) const{
+std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, Random &rnd) const{
     glm::vec3 v = rnd.GetHSUniformDir(normal);
     float p = 0.5f/glm::pi<float>();
     assert(glm::dot(normal, v) > 0.0f);
-    return {v,p};
+    return std::make_tuple(v,p,SAMPLING_UNIFORM);
 }
+
 
 float BRDFDiffuseCosine::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
-float BRDFDiffuseCosine::PdfSpec(glm::vec3, glm::vec3, glm::vec3) const{
+float BRDFDiffuseCosine::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
-std::pair<glm::vec3, float> BRDF::GetRay(glm::vec3 normal, Random &rnd) const{
-    glm::vec3 v = rnd.GetHSCosDir(normal);
-    float p = glm::dot(normal,v)/glm::pi<float>();
-    assert(glm::dot(normal, v) > -0.01f);
-    return {v,p};
-}
+
 
 BRDFCookTorr::BRDFCookTorr(float phong_exp, float ior){
-
     // Converting specular exponent to roughness using Brian Karis' formula:
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.25f);
-
     // Fresnel approximation for perpendicular reflection
     float q = (1.0f - ior)/(1.0f + ior);
     F0 = q*q;
 }
-
 float BRDFCookTorr::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
-float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const{
+float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool) const{
     glm::vec3 Vh = glm::normalize(Vi + Vr);
     float th_i = 0.5f*glm::pi<float>() - glm::angle(Vi, N);
     float th_r = 0.5f*glm::pi<float>() - glm::angle(Vr, N);
@@ -68,7 +72,19 @@ float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr) const{
     float c = F * D * G / (glm::cos(th_i) * glm::cos(th_r));
 
     return c / glm::pi<float>();
+}
 
+float BRDFLTCBeckmann::PdfDiff() const{
+    return 1.0f/glm::pi<float>();
+}
+float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
+    IFDEBUG std::cout << "Debugging beckman ltc" << std::endl;
+    return LTC_BECKMANN::get_pdf(N, Vi, Vr, roughness, debug);
+}
+BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
+    // Converting specular exponent to roughness using Brian Karis' formula:
+    roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.25f);
+    out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
 }
 
 // TODO: Re-implement other BRDF functions!
