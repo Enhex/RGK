@@ -78,7 +78,7 @@ float BRDFLTCBeckmann::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
 float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
-    IFDEBUG std::cout << "Debugging beckman ltc" << std::endl;
+    //IFDEBUG std::cout << "Debugging beckman ltc" << std::endl;
     return LTC_BECKMANN::get_pdf(N, Vi, Vr, roughness, debug);
 }
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){

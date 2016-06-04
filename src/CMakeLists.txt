@@ -18,9 +18,12 @@ add_definitions(
   -Wall
   -Wextra
   -Werror
-  #-O3
-  #-Ofast # Includes unsafe-math
+  # Debug config:
+  # -g -Og
+  # Test config:
   -O3
+  # Release config:
+  # -O3 -DNDEBUG -Wno-unused
   )
 
 file(GLOB SOURCES

@@ -683,7 +683,8 @@ Light Scene::GetRandomLight(Random& rnd) const{
             q -= pointlights[i].intensity * 4.0f * glm::pi<float>();
             if(q <= 0.0f){
                 Light res = pointlights[i];
-                res.intensity = 1.0f;
+                // TODO: Fix relative light intensities, as we area importance sampling.
+                // res.intensity = 1.0f;
                 return res;
             }
         }

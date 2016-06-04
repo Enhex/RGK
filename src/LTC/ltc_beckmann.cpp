@@ -99,17 +99,18 @@ static glm::quat RotationBetweenVectors(glm::vec3 start, glm::vec3 dest){
 
 float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
     assert(alpha >= 0.0f && alpha <= 1.0f);
-    IFDEBUG std::cout << "Retrieving pdf for N=" << N << ", Vi=" << Vi << ", Vr=" << Vr << std::endl;
+    (void)debug;
+    //IFDEBUG std::cout << "Retrieving pdf for N=" << N << ", Vi=" << Vi << ", Vr=" << Vr << std::endl;
 
     glm::vec3 up(0.0f, 0.0f, 1.0f);
 
     glm::quat N_to_up = RotationBetweenVectors(N, up);
 
-    glm::vec3 N2 = N_to_up * N;
+    //glm::vec3 N2 = N_to_up * N;
     glm::vec3 Vi2 = N_to_up * Vi;
     glm::vec3 Vr2 = N_to_up * Vr;
 
-    IFDEBUG std::cout << "After rotation: N2=" << N2 << ", Vi2=" << Vi2 << ", Vr2=" << Vr2 << std::endl;
+    //IFDEBUG std::cout << "After rotation: N2=" << N2 << ", Vi2=" << Vi2 << ", Vr2=" << Vr2 << std::endl;
 
     // Rotation 2
     glm::vec3 front(1.0f, 0.0f, 0.0f);
@@ -117,34 +118,34 @@ float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
 
     glm::quat Vi_to_front = RotationBetweenVectors(Vi_cast, front);
 
-    glm::vec3 N3 = Vi_to_front * N2;
+    // glm::vec3 N3 = Vi_to_front * N2;
     glm::vec3 Vi3 = Vi_to_front * Vi2;
     glm::vec3 Vr3 = Vi_to_front * Vr2;
 
-    IFDEBUG std::cout << "After rotation2: N3=" << N3 << ", Vi3=" << Vi3 << ", Vr3=" << Vr3 << std::endl;
+    //IFDEBUG std::cout << "After rotation2: N3=" << N3 << ", Vi3=" << Vi3 << ", Vr3=" << Vr3 << std::endl;
 
     //assert(Vi3.y < 0.001f);
 
     float theta = glm::angle(Vi3, up);
 
-    IFDEBUG std::cout << "Theta = " << theta << ", alpha = " << alpha << std::endl;
+    //IFDEBUG std::cout << "Theta = " << theta << ", alpha = " << alpha << std::endl;
 
     auto q = get_bilinear(theta, alpha);
     glm::mat3 M = q.first;
     float amplitude = q.second;
 
-    IFDEBUG std::cout << "M = " << glm::to_string(M) << std::endl;
+    //IFDEBUG std::cout << "M = " << glm::to_string(M) << std::endl;
 
     glm::mat3 invM = glm::inverse(M);
 
     glm::vec3 p = glm::normalize( invM * Vr3 );
 
-    IFDEBUG std::cout << "maxr = " << glm::normalize(M*up) << std::endl;
-    IFDEBUG std::cout << "p = " << p << std::endl;
+    //IFDEBUG std::cout << "maxr = " << glm::normalize(M*up) << std::endl;
+    //IFDEBUG std::cout << "p = " << p << std::endl;
 
-    float pz = glm::max(0.0f,p.z);
+    //float pz = glm::max(0.0f,p.z);
 
-    IFDEBUG std::cout << "Loriginal = " << pz << std::endl;
+    //IFDEBUG std::cout << "Loriginal = " << p << std::endl;
 
     glm::vec3 Loriginal = p;
     glm::vec3 L_ = M * Loriginal;
@@ -158,7 +159,7 @@ float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
 
     float res = amplitude * D / Jacobian;
 
-    IFDEBUG std::cout << "res = " << res << std::endl;
+    //IFDEBUG std::cout << "res = " << res << std::endl;
 
     return res;
 

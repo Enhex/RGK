@@ -35,7 +35,9 @@
     extern unsigned int debug_x, debug_y;
   #endif // NO_EXTERN
 #else
-  #define NDEBUG
+  #ifndef NDEBUG
+    #define NDEBUG
+  #endif
 #endif
 
 #define NEAR(x,y) (x < y + 0.001f && x > y - 0.001f)

@@ -84,6 +84,7 @@ public:
     bool TestIntersection(const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
 };
 
+typedef std::vector<std::pair<const Triangle*,float>> ThinglassIsections;
 struct Intersection{
     const Triangle* triangle = nullptr;
     float t;
@@ -94,7 +95,7 @@ struct Intersection{
     // The first element of pair is the triangle intersecting. The second is the distance from ray origin
     // to the intersection. The second parameter is used because triangles may get cloned during kD-tree
     // construction, and we need to apply a filter just once.
-    std::vector<std::pair<const Triangle*, float>> thinglass;
+    ThinglassIsections thinglass;
 };
 
 
