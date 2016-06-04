@@ -152,11 +152,13 @@ undefined option, it is ignored.
    radiance. By default clamping is disabled. Reasonable values for
    this option depend on the light levels in the current scene.
  - `brdf (string)` Sets the globally used BRDF model. Available
-   options are `phong` (Phong shading), `phong2` (Phong shading
-   according to Total Lighting Compedium), `phongenergy`
-   (Energy-conserving Phong model), `diffuse` (no specular component),
-   `cooktorr` (Cook-Torrance reflection model). By default, `cooktorr`
-   is enabled.
+   options are:
+  - `phong` Phong shading according to my lecture notes
+  - `phong2` Phong shading according to Total Lighting Compedium
+  - `phongenergy` Energy-conserving Phong model
+  - `diffuse` Only cosine-weighted diffuse component
+  - `cooktorr` Cook-Torrance reflection model (default)
+  - `ltc_beckmann` LTC-approximated beckmann BRDF
  - `bumpscale (float)` Configures the scale for bump maps. Normally
    OBJ files contain no information about bump map depth, and thus it
    is subject to configuration. There is no defined correspondence
