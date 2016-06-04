@@ -69,6 +69,12 @@ public:
         float y = glm::sqrt(glm::max(0.0f, 1- p.x*p.x - p.y*p.y));
         return glm::vec3(p.x, y, p.y);
     }
+    // Returns a cosine-distributed random vector on a hemisphere, such that z > 0.
+    glm::vec3 GetHSCosZ(){
+        glm::vec2 p = GetDisc(1.0f);
+        float z = glm::sqrt(glm::max(0.0f, 1- p.x*p.x - p.y*p.y));
+        return glm::vec3(p.x, p.y, z);
+    }
     // Returns a cosine-distributed random vector in direction of V.
     glm::vec3 GetHSCosDir(glm::vec3 V){
         return MoveToDir(V, GetHSCos());

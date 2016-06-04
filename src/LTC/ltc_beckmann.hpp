@@ -14,4 +14,5 @@ struct mat33
 namespace LTC_BECKMANN{
     glm::mat3 get_floor(const float theta, const float alpha);
     float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug = false);
+    glm::vec3 get_random(glm::vec3 normal, glm::vec3 incoming, float roughness, glm::vec3 rand_hscos, bool debug = false);
 };

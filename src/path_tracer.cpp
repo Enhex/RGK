@@ -100,7 +100,7 @@ float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
 }
 
 
-std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int& raycount, bool debug) const {
+std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int& raycount, unsigned int depth__, float russian__, bool debug) const {
 
     std::vector<PathPoint> path;
 
@@ -116,13 +116,13 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     while(true){
         n++; n2++;
         if(n2 >= 20) break; // hard limit
-        if(russian >= 0.0f){
+        if(russian__ >= 0.0f){
             // Russian roulette path termination
-            if(n > 1 && !skip_russian && rnd.Get01() > russian) break;
+            if(n > 1 && !skip_russian && rnd.Get01() > russian__) break;
             skip_russian = false;
         }else{
             // Fixed depth path termination
-            if(n > depth) break;
+            if(n > depth__) break;
         }
 
         IFDEBUG std::cout << "Generating path, n = " << n << std::endl;
@@ -136,7 +136,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             i = scene.FindIntersectKdOtherThanWithThinglass(current_ray, last_triangle, thinglass);
         }
         PathPoint p;
-        p.i = i;
         p.thinglass_isect = i.thinglass;
         if(!i.triangle){
             // A sky ray!
@@ -161,6 +160,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             p.Vr = -current_ray.direction;
 
             const Material& mat = i.triangle->GetMaterial();
+            p.mat = &mat;
 
             bool fromInside = false;
             if(glm::dot(p.faceN, p.Vr) < 0){
@@ -176,6 +176,9 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 glm::vec2 c = i.triangle->GetTexCoordsC();
                 p.texUV = i.Interpolate(a,b,c);
             }
+            // Get colors from texture
+            p.diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
+            p.specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
             // Tilt normal using bump texture
             if(mat.bump_texture){
                 float right = mat.bump_texture->GetSlopeRight(p.texUV);
@@ -184,7 +187,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                                                   i.triangle->GetTangentB(),
                                                   i.triangle->GetTangentC());
                 if(tangent.x*tangent.x + tangent.y*tangent.y + tangent.z*tangent.z < 0.001f){
-                    // Well, so, apparently, sometimes assimp generates invalid tangents. They seem okay
+                    // Well, so apparently, sometimes assimp generates invalid tangents. They seem okay
                     // on their own, but they interpolate weird, because tangents at two coincident vertices
                     // are opposite. Thus if it happens that interpolated tangent is zero, and therefore can't be
                     // normalized, we just silently ignore the bump map in this point. I'll have little effect on the
@@ -214,7 +217,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             }
 
 
-            // Determine point type
+            // Randomly determine point type
             if(mat.translucency > 0.001f){
                 // This is a translucent material.
                 if(fromInside){
@@ -222,44 +225,21 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     p.type = PathPoint::LEFT;
                 }else{
                     if(rnd.Get01() < mat.translucency){
-                        // Fresnell refraction/reflection
-                        // TODO: The fresnell function assumes eta1 = 1.0. For eg. underwater reflections this is
-                        // not correct, really.
                         float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
-                        IFDEBUG std::cout << "Angle = " << glm::angle(p.Vr, p.lightN)*180.0f/glm::pi<float>() << std::endl;
-                        IFDEBUG std::cout << "Fresnel = " << q << std::endl;
-                        if(rnd.Get01() < q){
-                            p.type = PathPoint::REFLECTED;
-                        }else{
-                            p.type = PathPoint::ENTERED;
-                        }
+                        if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
+                        else                p.type = PathPoint::ENTERED;
                     }else{
                         p.type = PathPoint::SCATTERED;
                     }
                 }
             }else{
                 // Not a translucent material.
-                if(mat.reflective){
-                    if(rnd.Get01() < mat.reflection_strength){
-                        p.type = PathPoint::REFLECTED;
-                    }else{
-                        p.type = PathPoint::SCATTERED;
-                    }
-                // TODO: Fresnel reflecion on opaque surfaces
-                }else{
-                    float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
-                    IFDEBUG std::cout << "Vr " << p.Vr << std::endl;
-                    IFDEBUG std::cout << "lightN " << p.lightN << std::endl;
-                    IFDEBUG std::cout << "IOR " << mat.refraction_index << std::endl;
-                    IFDEBUG std::cout << "Fresnel " << q << std::endl;
-                    if(rnd.Get01() < q){
-                        p.type = PathPoint::REFLECTED;
-                    }else{
-                        p.type = PathPoint::SCATTERED;
-                    }
-                }
+                float q = (mat.reflective)? mat.reflection_strength : Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
+                if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
+                else                p.type = PathPoint::SCATTERED;
             }
 
+            // Skip roulette if the ray has priviledge
             if(p.type == PathPoint::REFLECTED ||
                p.type == PathPoint::ENTERED ||
                p.type == PathPoint::LEFT){
@@ -267,8 +247,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 n--; skip_russian = true;
             }
 
+            // Compute next ray direction
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
-            // Generate next ray direction
             glm::vec3 dir;
             switch(p.type){
             case PathPoint::REFLECTED:
@@ -281,14 +261,13 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 /* FALLTHROUGH */
             case PathPoint::SCATTERED:
                 IFDEBUG std::cout << "SCATTERED." << std::endl;
+                // Revert to face normal in case this ray would enter from inside
+                if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
                 do{
-                    //dir = rnd.GetHSCosDir(p.lightN);
-                    std::tie(dir, std::ignore, p.sampling_type) = mat.brdf->GetRay(p.lightN, rnd);
-                    // TODO: Use glm::dot instaed of angle...
-                }while(glm::angle(dir, p.faceN) > glm::pi<float>()/2.0f);
+                    std::tie(dir, std::ignore, p.sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, rnd);
+                }while(glm::dot(dir, p.faceN) <= 0.0f);
                 break;
             case PathPoint::ENTERED:
-                // TODO: Refraction
                 dir = glm::refract(p.Vr, p.lightN, 1.0f/mat.refraction_index);
                 IFDEBUG std::cout << "ENTERED medium." << std::endl;
                 if(glm::length(dir) < 0.001f || glm::isnan(dir.x)){
@@ -313,11 +292,43 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             }
             p.Vi = dir;
 
-            if(russian > 0.0f) p.russian_coefficient = 1.0f/russian;
+            // Store russian coefficient
+            if(russian__ > 0.0f) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
 
+            // Calculate transfer coefficients (BRFD, cosine, etc.)
+            p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
+            // Branch prediction should optimize-out these conditional jump during runtime.
+            if(p.sampling_type != BRDF::SAMPLING_COSINE){
+                // All sampling types use cosine, but for cosine sampling probability
+                // density is equal to cosine, so they cancel out.
+                IFDEBUG std::cout << "Mult by cos" << std::endl;
+                float cos = glm::dot(p.lightN, p.Vi);
+                p.transfer_coefficients *= cos;
+            }else{
+                // Cosine sampling p = cos/pi. Don't divide by cos, as it was
+                // skipped, instead just multiply by pi.
+                p.transfer_coefficients *= glm::pi<float>();
+            }
+            if(p.sampling_type != BRDF::SAMPLING_BRDF){
+                // All sampling types use brdf, but for brdf sampling probability
+                // density is equal to brdf, so they cancel out.
+                IFDEBUG std::cout << "Mult by f" << std::endl;
+                Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vi, p.Vr, debug);
+                p.transfer_coefficients *= f;
+            }
+            if(p.sampling_type != BRDF::SAMPLING_UNIFORM){
+                // NOP
+            }else{
+                // Probability density for uniform sampling.
+                IFDEBUG std::cout << "Div by P" << std::endl;
+                p.transfer_coefficients *= glm::pi<float>()/0.5;
+            }
+
+            // Commit the path point to the path
             path.push_back(p);
 
+            // Prepate next ray
             current_ray = Ray(p.pos +
                               p.faceN * scene.epsilon * 10.0f *
                               ((p.type == PathPoint::ENTERED)?-1.0f:1.0f)
@@ -338,7 +349,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
     // ===== 1st Phase =======
     // Generate a forward path.
 
-    std::vector<PathPoint> path = GeneratePath(r, raycount, debug);
+    std::vector<PathPoint> path = GeneratePath(r, raycount, depth, russian, debug);
 
     // Choose a light source.
     const Light& l = scene.GetRandomLight(rnd);
@@ -352,25 +363,20 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         IFDEBUG std::cout << "--- Processing PP " << n << std::endl;
 
         bool last = ((unsigned int)n == path.size()-1);
-        PathPoint& p = path[n];
+        const PathPoint& p = path[n];
         if(p.infinity){
             IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
-            IFDEBUG std::cout << "Filter size " << p.thinglass_isect.size() << std::endl;
             from_next = ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);
             continue;
         }
 
-        const Material& mat = p.i.triangle->GetMaterial();
+        const Material& mat = *p.mat;
 
         IFDEBUG std::cout << "Hit material: " << mat.name << std::endl;
-
-        Color diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
-        Color specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
 
         Radiance total(0.0,0.0,0.0);
 
         if(p.type == PathPoint::SCATTERED){
-
             // ==========
             // Direct lighting
 
@@ -388,20 +394,13 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 // Incoming direction
                 glm::vec3 Vi = glm::normalize(lightpos - p.pos);
 
-                //Radiance f = mat.brdf(p.lightN, diffuse, specular, Vi, p.Vr, mat.exponent, 1.0, mat.refraction_index);
-                Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, Vi, p.Vr, debug);
+                Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, Vi, p.Vr, debug);
 
                 IFDEBUG std::cout << "f = " << f << std::endl;
 
                 float G = glm::max(0.0f, glm::cos( glm::angle(p.lightN, Vi) )) / glm::distance2(lightpos, p.pos);
                 IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                IFDEBUG std::cout << "lightN = " << p.lightN << ", Vi " << Vi << std::endl;
-
                 Radiance inc_l = Radiance(l.color) * l.intensity;
-
-                IFDEBUG std::cout << "incoming light: " << inc_l << std::endl;
-                IFDEBUG std::cout << "filters: " << thinglass_isect.size() << std::endl;
-
                 inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
 
                 IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
@@ -418,57 +417,17 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 // look at next pp's to_prev and incorporate it here
                 Radiance inc = from_next;
                 IFDEBUG std::cout << "Incorporating indirect lighting - incoming radiance: " << inc << std::endl;
-
-                inc = inc * p.russian_coefficient;
-
-                IFDEBUG std::cout << "With russian: " << inc << std::endl;
-                IFDEBUG std::cout << "Indirect incoming from: " << p.Vi << std::endl;
-
-                // Branch prediction should optimize-out these conditional jump during runtime.
-                if(p.sampling_type != BRDF::SAMPLING_COSINE){
-                    // All sampling types use cosine, but for cosine sampling probability
-                    // density is equal to cosine, so they cancel out.
-                    IFDEBUG std::cout << "Mult by cos" << std::endl;
-                    float cos = glm::dot(p.lightN, p.Vi);
-                    inc *= cos;
-                }else{
-                    // Cosine sampling p = cos/pi. Don't divide by cos, as it was
-                    // skipped, instead just multiply by pi.
-                    inc *= glm::pi<float>();
-                }
-                if(p.sampling_type != BRDF::SAMPLING_BRDF){
-                    // All sampling types use brdf, but for brdf sampling probability
-                    // density is equal to brdf, so they cancel out.
-                    IFDEBUG std::cout << "Mult by f" << std::endl;
-                    Radiance f = mat.brdf->Apply(diffuse, specular, p.lightN, p.Vi, p.Vr, debug);
-                    inc *= f;
-                }
-                if(p.sampling_type != BRDF::SAMPLING_UNIFORM){
-                    // NOP
-                }else{
-                    // Probability density for uniform sampling.
-                    IFDEBUG std::cout << "Div by P" << std::endl;
-                    inc /= (0.5f/glm::pi<float>());
-                }
+                inc = inc * p.russian_coefficient * p.transfer_coefficients;
                 IFDEBUG std::cout << "Incoming * brdf * cos(...) / sampleP = " << inc << std::endl;
-
                 total += inc;
             }
-        }else if(p.type == PathPoint::REFLECTED){
-            if(path.size() > (unsigned int)n+1){
-                Radiance incoming = from_next;
-                total += incoming;
-            }
+        }else if(p.type == PathPoint::REFLECTED || p.type == PathPoint::LEFT){
+            assert(path.size() >= (unsigned int)n+1);
+            total += from_next;
         }else if(p.type == PathPoint::ENTERED){
-            if(path.size() > (unsigned int)n+1){
-                Radiance incoming = from_next;
-                total += incoming * diffuse;
-            }
-        }else if(p.type == PathPoint::LEFT){
-            if(path.size() > (unsigned int)n+1){
-                Radiance incoming = from_next;
-                total += incoming;
-            }
+            assert(path.size() >= (unsigned int)n+1);
+            // Note: Cannot use Kt factor from mtl file as assimp does not support it.
+            total += from_next * p.diffuse;
         }
 
         if(mat.emissive){

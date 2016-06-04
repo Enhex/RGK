@@ -100,69 +100,57 @@ static glm::quat RotationBetweenVectors(glm::vec3 start, glm::vec3 dest){
 float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
     assert(alpha >= 0.0f && alpha <= 1.0f);
     (void)debug;
-    //IFDEBUG std::cout << "Retrieving pdf for N=" << N << ", Vi=" << Vi << ", Vr=" << Vr << std::endl;
-
     glm::vec3 up(0.0f, 0.0f, 1.0f);
-
     glm::quat N_to_up = RotationBetweenVectors(N, up);
-
     //glm::vec3 N2 = N_to_up * N;
     glm::vec3 Vi2 = N_to_up * Vi;
     glm::vec3 Vr2 = N_to_up * Vr;
-
-    //IFDEBUG std::cout << "After rotation: N2=" << N2 << ", Vi2=" << Vi2 << ", Vr2=" << Vr2 << std::endl;
-
     // Rotation 2
     glm::vec3 front(1.0f, 0.0f, 0.0f);
     glm::vec3 Vi_cast(Vi2.x, Vi2.y, 0.0f);
-
     glm::quat Vi_to_front = RotationBetweenVectors(Vi_cast, front);
-
     // glm::vec3 N3 = Vi_to_front * N2;
     glm::vec3 Vi3 = Vi_to_front * Vi2;
     glm::vec3 Vr3 = Vi_to_front * Vr2;
-
-    //IFDEBUG std::cout << "After rotation2: N3=" << N3 << ", Vi3=" << Vi3 << ", Vr3=" << Vr3 << std::endl;
-
-    //assert(Vi3.y < 0.001f);
-
     float theta = glm::angle(Vi3, up);
-
-    //IFDEBUG std::cout << "Theta = " << theta << ", alpha = " << alpha << std::endl;
-
     auto q = get_bilinear(theta, alpha);
     glm::mat3 M = q.first;
     float amplitude = q.second;
-
-    //IFDEBUG std::cout << "M = " << glm::to_string(M) << std::endl;
-
     glm::mat3 invM = glm::inverse(M);
-
     glm::vec3 p = glm::normalize( invM * Vr3 );
-
-    //IFDEBUG std::cout << "maxr = " << glm::normalize(M*up) << std::endl;
-    //IFDEBUG std::cout << "p = " << p << std::endl;
-
-    //float pz = glm::max(0.0f,p.z);
-
-    //IFDEBUG std::cout << "Loriginal = " << p << std::endl;
-
     glm::vec3 Loriginal = p;
     glm::vec3 L_ = M * Loriginal;
     float l = glm::length(L_);
     float detM = glm::determinant(M);
 	float Jacobian = detM / (l*l*l);
-
     float D = 1.0f / 3.14159f * glm::max<float>(0.0f, Loriginal.z);
-
-
-
     float res = amplitude * D / Jacobian;
-
-    //IFDEBUG std::cout << "res = " << res << std::endl;
-
     return res;
-
 }
+
+    glm::vec3 get_random(glm::vec3 N, glm::vec3 Vi, float roughness, glm::vec3 rand_hscos, bool debug){
+        glm::vec3 up(0.0f, 0.0f, 1.0f);
+        glm::quat N_to_up = RotationBetweenVectors(N, up);
+        glm::vec3 Vi2 = N_to_up * Vi;
+        glm::vec3 front(1.0f, 0.0f, 0.0f);
+        glm::vec3 Vi_cast(Vi2.x, Vi2.y, 0.0f);
+        glm::quat Vi_to_front = RotationBetweenVectors(Vi_cast, front);
+        glm::quat up_to_N = glm::inverse(N_to_up);
+        glm::quat front_to_Vi = glm::inverse(Vi_to_front);
+
+        float theta = glm::angle(Vi, N);
+        auto q = get_bilinear(glm::max(theta, glm::pi<float>()/4.0f), roughness);
+        glm::mat3 M = q.first;
+
+        IFDEBUG std::cout << "N = " << N << ", Vi = " << Vi << std::endl;
+        IFDEBUG std::cout << "theta = " << theta << ", alpha = " << roughness << std::endl;
+        IFDEBUG std::cout << "M = " << glm::to_string(M) << std::endl;
+
+        IFDEBUG std::cout << "rand_hscos = " << rand_hscos << std::endl;
+        glm::vec3 s = M*rand_hscos;
+        IFDEBUG std::cout << "s1 = " << glm::normalize(s) << std::endl;
+        s = up_to_N * (front_to_Vi * (s));
+        return glm::normalize(s);
+    }
 
 } // namespace LTC_BECKMANN

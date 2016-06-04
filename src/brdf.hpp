@@ -31,14 +31,14 @@ public:
         SAMPLING_COSINE,
         SAMPLING_BRDF
     };
-    virtual std::tuple<glm::vec3, float, BRDFSamplingType> GetRay(glm::vec3 normal, Random& rnd) const;
+    virtual std::tuple<glm::vec3, float, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Random& rnd) const;
 };
 
 class BRDFDiffuseUniform : public BRDF{
 public:
     virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
     virtual float PdfDiff() const override;
-    virtual std::tuple<glm::vec3, float, BRDFSamplingType> GetRay(glm::vec3 normal, Random& rnd) const override;
+    virtual std::tuple<glm::vec3, float, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Random& rnd) const override;
 };
 
 class BRDFDiffuseCosine : public BRDF{
@@ -62,6 +62,7 @@ public:
     BRDFLTCBeckmann(float phong_exponent);
     virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
     virtual float PdfDiff() const override;
+    virtual std::tuple<glm::vec3, float, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Random& rnd) const override;
 private:
     float roughness;
 };

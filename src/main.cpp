@@ -111,13 +111,20 @@ int main(int argc, char** argv){
 
     // LTC TEST
     /*
-
     glm::vec3 N = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
     glm::vec3 Vr = glm::normalize(glm::vec3(0.0f, -0.5f, -0.5f));
     glm::vec3 Vi = glm::normalize(glm::vec3(0.0f, 0.5f, -0.5f));
     LTC_BECKMANN::get_pdf(N,Vr,Vi, 0.05, true);
     glm::vec3 Vr2 = glm::normalize(glm::vec3(-0.5f, -0.5f, -0.5f));
     LTC_BECKMANN::get_pdf(N,Vr2,Vi, 0.05, true);
+    */
+
+    /*
+    glm::vec3 N = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 Vi = glm::normalize(glm::vec3(0.98f, 0.16f, 0.1f));
+    Random rnd(0);
+    glm::vec3 Vr = LTC_BECKMANN::get_random(N, Vi, 0.01, rnd.GetHSCosZ(), true);
+    std::cout << Vr << std::endl;
     */
 
     static struct option long_opts[] =

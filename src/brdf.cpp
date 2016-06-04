@@ -6,7 +6,7 @@
 #include "out.hpp"
 #include "LTC/ltc_beckmann.hpp"
 
-std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, Random &rnd) const{
+std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3, Random &rnd) const{
     glm::vec3 v = rnd.GetHSCosDir(normal);
     float p = glm::dot(normal,v)/glm::pi<float>();
     assert(glm::dot(normal, v) > -0.01f);
@@ -20,7 +20,7 @@ float BRDFDiffuseUniform::PdfDiff() const{
 float BRDFDiffuseUniform::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
-std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, Random &rnd) const{
+std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, glm::vec3, Random &rnd) const{
     glm::vec3 v = rnd.GetHSUniformDir(normal);
     float p = 0.5f/glm::pi<float>();
     assert(glm::dot(normal, v) > 0.0f);
@@ -85,6 +85,17 @@ BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.25f);
     out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
+}
+
+std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Random &rnd) const{
+    /*
+    assert(glm::dot(normal, inc) > 0.0f);
+    glm::vec3 v = rnd.GetHSCosZ();
+    v = LTC_BECKMANN::get_random(normal, inc, roughness, v);
+    assert(glm::dot(normal, v) > 0.0f);
+    return std::make_tuple(v,1.0f,SAMPLING_BRDF);
+    */
+    return BRDF::GetRay(normal,inc,rnd);
 }
 
 // TODO: Re-implement other BRDF functions!
