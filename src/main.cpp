@@ -229,7 +229,7 @@ int main(int argc, char** argv){
                                              //aiProcess_TransformUVCoords |
 
                                              // Neither of these work correctly.
-                                             //aiProcess_GenNormals |
+                                             aiProcess_GenNormals |
                                              //aiProcess_GenSmoothNormals |
 
                                              aiProcess_JoinIdenticalVertices |
@@ -316,7 +316,7 @@ int main(int argc, char** argv){
     std::thread monitor_thread(Monitor);
 
     // Repeat for each rendering round.
-    unsigned int seedcount = 0, seedstart = time(nullptr);
+    unsigned int seedcount = 0, seedstart = 42; // time(nullptr);
     for(unsigned int roundno = 0; roundno < cfg.rounds; roundno++){
         ctpl::thread_pool tpool(concurrency);
 
@@ -335,6 +335,8 @@ int main(int argc, char** argv){
                                   cfg.clamp,
                                   cfg.russian,
                                   cfg.bumpmap_scale,
+                                  cfg.opaque_fresnell,
+                                  cfg.reverse,
                                   thinglass_materialset,
                                   rnd);
 

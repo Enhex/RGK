@@ -16,4 +16,4 @@ sky 185 220 240 0.9
 bumpscale 10
 clamp 5.0
 russian 0.6
-brdf ltc_beckmann
+brdf cooktorr

@@ -23,10 +23,18 @@ class Scene;
 class Texture;
 
 struct Light{
+    enum Type{
+        FULL_SPHERE,
+        HEMISPHERE,
+    };
+    Light() {}
+    Type type;
     glm::vec3 pos;
     Color color;
     float intensity;
-    float size;
+    // TODO: union?
+    float size; // Only for full_sphere lights
+    glm::vec3 normal; // Only for hemisphere lights
 };
 
 struct Material{

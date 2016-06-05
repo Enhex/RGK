@@ -79,7 +79,13 @@ Config Config::CreateFromFile(std::string path){
             float i = std::stof(vs[7]);
             float s = 0.0f;
             if(vs.size() == 9) s = std::stof(vs[8]);
-            cfg.lights.push_back(Light{glm::vec3(l1,l2,l3), Color(c1,c2,c3), i, s});
+            Light l;
+            l.type = Light::FULL_SPHERE;
+            l.pos = glm::vec3(l1,l2,l3);
+            l.color = Color(c1,c2,c3);
+            l.size = s;
+            l.intensity = i;
+            cfg.lights.push_back(l);
         }else if(vs[0] == "multisample" || vs[0] == "ms"){
             if(vs.size() != 2) throw ConfigFileException("Invalid multisample line.");
             int ms = std::stoi(vs[1]);
@@ -112,6 +118,9 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "rounds"){
             if(vs.size() != 2) throw ConfigFileException("Invalid rounds config line.");
             cfg.rounds = std::stoi(vs[1]);
+        }else if(vs[0] == "reverse"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid reverse config line.");
+            cfg.reverse = std::stoi(vs[1]);
         }else if(vs[0] == "brdf"){
             if(vs.size() != 2) throw ConfigFileException("Invalid brdf config line.");
             if(vs[1] == "cooktorr"){
@@ -134,6 +143,9 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "thinglass"){
             if(vs.size() != 2) throw ConfigFileException("Invalid thinglass config line.");
             cfg.thinglass.push_back(vs[1]);
+        }else if(vs[0] == "opaque_fresnell"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid opaque_fresnell config line.");
+            cfg.opaque_fresnell = (std::stoi(vs[1]) == 1);
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
         }

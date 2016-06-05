@@ -1,16 +1,17 @@
 
 box2/box2.obj
 box2.exr
-4
+2
 1200 900
-0.0 0.0 4.8
+0.0 0.0 4.9
 0.0 0.0 0.0
 0.0 1.0 0.0
-1.1
-L 0.0 2.5 1.0 255 255 255 10.0 0.5
+1.25
+L -2.0 2.5 1.0 255 255 255 10.0 0.5
 
 multisample 40
-rounds 20
-sky 200 0 0 1.0
+rounds 30
+sky 200 0 0 0.0
 clamp 2.0
-russian 0.6
+russian -1
+brdf cooktorr

@@ -22,7 +22,7 @@ public:
     Radiance Apply(Color kD, Color kS, glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const{
         float d = PdfDiff();
         float s = PdfSpec(N,Vi,Vr, debug);
-        //IFDEBUG std::cout << "d = " << d << ", s = " << s << std::endl;
+        IFDEBUG std::cout << "d = " << d << ", s = " << s << std::endl;
         return Radiance(kD)*d + Radiance(kS)*s;
     }
     // Default is cosine sampling
@@ -67,4 +67,12 @@ private:
     float roughness;
 };
 
+class BRDFPhongEnergy : public BRDF{
+public:
+    BRDFPhongEnergy(float exponent) : exponent(exponent) {}
+    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
+    virtual float PdfDiff() const override;
+private:
+    float exponent;
+};
 #endif // __BRDF_HPP__

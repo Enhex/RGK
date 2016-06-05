@@ -18,6 +18,8 @@ public:
                float clamp,
                float russian,
                float bumpmap_scale,
+               bool  opaque_fresnell,
+               unsigned int reverse,
                std::set<const Material *> thinglass_names,
                Random rnd);
 
@@ -36,20 +38,27 @@ private:
         };
         Type type;
         bool infinity = false;
+        // Point position
         glm::vec3 pos;
+        // Normal vectors
         glm::vec3 lightN;
         glm::vec3 faceN;
-        glm::vec3 Vr; // reflected direction (pointing towards previous path point)
-        glm::vec3 Vi; // incoming  direction (pointing towards next path point)
-        glm::vec2 texUV;
+        // reflected direction (pointing towards previous path point)
+        glm::vec3 Vr;
+        // incoming  direction (pointing towards next path point)
+        glm::vec3 Vi;
+        // Material properties at hitpoint
         const Material* mat;
         Color diffuse;
         Color specular;
+        // Thinglass encountered on the way of the ray that generated this point
         ThinglassIsections thinglass_isect;
-        BRDF::BRDFSamplingType sampling_type;
+        // Currection for rusian roulette
         float russian_coefficient;
         // These take into account sampling, BRDF, color. Symmetric in both directions.
         Radiance transfer_coefficients;
+        //
+        Radiance light_from_source;
     };
 
     std::vector<PathPoint> GeneratePath(Ray direction, unsigned int& raycount, unsigned int depth__, float russian__, bool debug = false) const;
@@ -61,6 +70,8 @@ private:
     float russian;
     unsigned int depth;
     std::set<const Material*> thinglass;
+    bool opaque_fresnell;
+    unsigned int reverse;
     mutable Random rnd;
 };
 

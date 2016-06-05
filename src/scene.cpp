@@ -126,11 +126,16 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
         m.reflective = true;
         m.reflection_strength = m.exponent / 100.0f;
         m.exponent = 0;
+    }else if(m.exponent >= 1000){
+        m.reflective = true;
+        m.reflection_strength = (m.specular.r + m.specular.g + m.specular.b)/
+            (m.diffuse .r + m.diffuse .g + m.diffuse .b);
     }else{
         m.reflection_strength = 0.0f;
     }
 
     if(m.emission.r > 0.0f || m.emission.g > 0.0f || m.emission.b > 0.0f){
+        out::cout(4) << "Material is emissive" << std::endl;
         m.emissive = true;
     }
 
@@ -143,12 +148,14 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
     }else if(cfg.brdf == "ltc_beckmann"){
         m.brdf = std::make_unique<BRDFLTCBeckmann>(m.exponent);
+    }else if(cfg.brdf == "phongenergy"){
+        m.brdf = std::make_unique<BRDFPhongEnergy>(m.exponent);
     }else{
         assert(0 * (size_t)"Unsupported BRDF id in config!");
     }
 
-    materials_buffer.push_back(std::move(m));
     out::cout(4) << "Read material: " << m.name << std::endl;
+    materials_buffer.push_back(std::move(m));
 }
 
 void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
@@ -674,7 +681,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
     float total_power = total_point_power + total_areal_power;
     if(total_power <= 0.0f){
         // Sigh. Return just anything for compatibility.
-        return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+        return Light();
     }
     float q = rnd.GetFloat(0.0f, total_power);
     if(q < total_point_power){
@@ -690,7 +697,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
         }
         out::cout(4) << "Internal error: GetRandomLight out of bounds for point lights." << std::endl;
         // Sigh. Return just anything for compatibility.
-        return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+        return Light();
     }else{
         // Choose areal light
         q = rnd.GetFloat(0.0f, total_areal_power);
@@ -700,12 +707,12 @@ Light Scene::GetRandomLight(Random& rnd) const{
             if(q <= 0.0f){
                 const ArealLight& al = areal_lights[i].second;
                 // Choose a random triangle.
-                al.GetRandomLight(rnd,*this);
+                return al.GetRandomLight(rnd,*this);
             }
         }
         out::cout(4) << "Internal error: GetRandomLight out of bounds for areal lights." << std::endl;
         // Sigh. Return just anything for compatibility.
-        return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+        return Light();
     }
 }
 
@@ -717,14 +724,16 @@ Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
             const Triangle& t = parent.triangles[triangles_with_areas[j].second];
             glm::vec3 p = t.GetRandomPoint(rnd);
             Light res;
+            res.type = Light::HEMISPHERE;
             res.pos = p;
             res.color = emission;
             res.intensity = 1.0f;
-            res.size = 0.0f;
+            // TODO: interpolated normal at p
+            res.normal = t.GetNormalA();
             return res;
         }
     }
     out::cout(4) << "Internal error: GetRandomLight out of bounds for triangle areas." << std::endl;
     // Sigh. Return just anything for compatibility.
-    return Light{glm::vec3(0.0f), Color(0.0,0.0,0.0), 0.0f, 0.0f};
+    return Light();
 }

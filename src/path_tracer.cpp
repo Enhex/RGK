@@ -21,6 +21,8 @@ PathTracer::PathTracer(const Scene& scene,
                        float clamp,
                        float russian,
                        float bumpmap_scale,
+                       bool opaque_fresnell,
+                       unsigned int reverse,
                        std::set<const Material*> thinglass,
                        Random rnd)
 : Tracer(scene, camera, xres, yres, multisample, bumpmap_scale),
@@ -28,6 +30,8 @@ PathTracer::PathTracer(const Scene& scene,
   russian(russian),
   depth(depth),
   thinglass(thinglass),
+  opaque_fresnell(opaque_fresnell),
+  reverse(reverse),
   rnd(rnd)
 {
     sky_radiance = Radiance(sky_color) * sky_brightness;
@@ -106,6 +110,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
     IFDEBUG std::cout << "Ray direction: " << r.direction << std::endl;
 
+    Radiance cumulative_transfer_coeff = Radiance(1.0f, 1.0f, 1.0f);
+
     Ray current_ray = r;
     unsigned int n = 0, n2 = 0;
     // Temporarily setting this to true ensures that russian roulette will not terminate (once).
@@ -155,7 +161,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                                     i.triangle->GetNormalB(),
                                     i.triangle->GetNormalC());
             p.faceN = glm::normalize(p.faceN);
-
             // Prepare incoming direction
             p.Vr = -current_ray.direction;
 
@@ -169,20 +174,21 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 p.faceN = -p.faceN;
             }
 
+            glm::vec2 texUV;
             // Interpolate textures
             if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture || mat.bump_texture){
                 glm::vec2 a = i.triangle->GetTexCoordsA();
                 glm::vec2 b = i.triangle->GetTexCoordsB();
                 glm::vec2 c = i.triangle->GetTexCoordsC();
-                p.texUV = i.Interpolate(a,b,c);
+                texUV = i.Interpolate(a,b,c);
             }
             // Get colors from texture
-            p.diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(p.texUV,debug) : mat.diffuse ;
-            p.specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(p.texUV,debug): mat.specular;
+            p.diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
+            p.specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(texUV,debug): mat.specular;
             // Tilt normal using bump texture
             if(mat.bump_texture){
-                float right = mat.bump_texture->GetSlopeRight(p.texUV);
-                float bottom = mat.bump_texture->GetSlopeBottom(p.texUV);
+                float right = mat.bump_texture->GetSlopeRight(texUV);
+                float bottom = mat.bump_texture->GetSlopeBottom(texUV);
                 glm::vec3 tangent = i.Interpolate(i.triangle->GetTangentA(),
                                                   i.triangle->GetTangentB(),
                                                   i.triangle->GetTangentC());
@@ -224,17 +230,17 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     // Ray leaves the object
                     p.type = PathPoint::LEFT;
                 }else{
-                    if(rnd.Get01() < mat.translucency){
-                        float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
-                        if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
-                        else                p.type = PathPoint::ENTERED;
-                    }else{
-                        p.type = PathPoint::SCATTERED;
+                    float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
+                    if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
+                    else{
+                        if(rnd.Get01() < mat.translucency) p.type = PathPoint::ENTERED;
+                        else p.type = PathPoint::SCATTERED;
                     }
                 }
             }else{
                 // Not a translucent material.
-                float q = (mat.reflective)? mat.reflection_strength : Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
+                float t = (opaque_fresnell)? Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index) : 0.0f;
+                float q = (mat.reflective)? mat.reflection_strength : t;
                 if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
                 else                p.type = PathPoint::SCATTERED;
             }
@@ -247,6 +253,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 n--; skip_russian = true;
             }
 
+            BRDF::BRDFSamplingType sampling_type = BRDF::SAMPLING_COSINE;
             // Compute next ray direction
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
             glm::vec3 dir;
@@ -264,7 +271,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 // Revert to face normal in case this ray would enter from inside
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
                 do{
-                    std::tie(dir, std::ignore, p.sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, rnd);
+                    std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, rnd);
                 }while(glm::dot(dir, p.faceN) <= 0.0f);
                 break;
             case PathPoint::ENTERED:
@@ -298,32 +305,40 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             // Calculate transfer coefficients (BRFD, cosine, etc.)
             p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
-            // Branch prediction should optimize-out these conditional jump during runtime.
-            if(p.sampling_type != BRDF::SAMPLING_COSINE){
-                // All sampling types use cosine, but for cosine sampling probability
-                // density is equal to cosine, so they cancel out.
-                IFDEBUG std::cout << "Mult by cos" << std::endl;
-                float cos = glm::dot(p.lightN, p.Vi);
-                p.transfer_coefficients *= cos;
-            }else{
-                // Cosine sampling p = cos/pi. Don't divide by cos, as it was
-                // skipped, instead just multiply by pi.
-                p.transfer_coefficients *= glm::pi<float>();
+
+            if(p.type == PathPoint::SCATTERED){
+                // Branch prediction should optimize-out these conditional jump during runtime.
+                if(sampling_type != BRDF::SAMPLING_COSINE){
+                    // All sampling types use cosine, but for cosine sampling probability
+                    // density is equal to cosine, so they cancel out.
+                    IFDEBUG std::cout << "Mult by cos" << std::endl;
+                    float cos = glm::dot(p.lightN, p.Vi);
+                    p.transfer_coefficients *= cos;
+                }else{
+                    // Cosine sampling p = cos/pi. Don't divide by cos, as it was
+                    // skipped, instead just multiply by pi.
+                    p.transfer_coefficients *= glm::pi<float>();
+                }
+                if(sampling_type != BRDF::SAMPLING_BRDF){
+                    // All sampling types use brdf, but for brdf sampling probability
+                    // density is equal to brdf, so they cancel out.
+                    IFDEBUG std::cout << "Mult by f" << std::endl;
+                    Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vi, p.Vr, debug);
+                    p.transfer_coefficients *= f;
+                }
+                if(sampling_type != BRDF::SAMPLING_UNIFORM){
+                    // NOP
+                }else{
+                    // Probability density for uniform sampling.
+                    IFDEBUG std::cout << "Div by P" << std::endl;
+                    p.transfer_coefficients *= glm::pi<float>()/0.5;
+                }
             }
-            if(p.sampling_type != BRDF::SAMPLING_BRDF){
-                // All sampling types use brdf, but for brdf sampling probability
-                // density is equal to brdf, so they cancel out.
-                IFDEBUG std::cout << "Mult by f" << std::endl;
-                Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vi, p.Vr, debug);
-                p.transfer_coefficients *= f;
-            }
-            if(p.sampling_type != BRDF::SAMPLING_UNIFORM){
-                // NOP
-            }else{
-                // Probability density for uniform sampling.
-                IFDEBUG std::cout << "Div by P" << std::endl;
-                p.transfer_coefficients *= glm::pi<float>()/0.5;
-            }
+
+            // TODO: Terminate when cumulative_coeff gets too low
+            cumulative_transfer_coeff *= p.russian_coefficient;
+            cumulative_transfer_coeff *= p.transfer_coefficients;
+            IFDEBUG std::cout << "Path cumulative transfer coeff: " << cumulative_transfer_coeff << std::endl;
 
             // Commit the path point to the path
             path.push_back(p);
@@ -348,14 +363,57 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
     // ===== 1st Phase =======
     // Generate a forward path.
-
+    IFDEBUG std::cout << "== FORWARD PATH" << std::endl;
     std::vector<PathPoint> path = GeneratePath(r, raycount, depth, russian, debug);
 
     // Choose a light source.
     const Light& l = scene.GetRandomLight(rnd);
+    glm::vec3 lightpos = l.pos;
+    glm::vec3 lightdir;
+    if(l.type == Light::FULL_SPHERE){
+        glm::vec3 q = rnd.GetSphere(l.size);
+        lightpos += q;
+        if(glm::length(q) < 0.01f) q = rnd.GetSphere(1.0f);
+        lightdir = rnd.GetHSCosDir(glm::normalize(q));
+    }else{
+        lightdir = rnd.GetHSCosDir(l.normal);
+    }
+
+    // Generate backward path (from light)
+    IFDEBUG std::cout << "== LIGHT PATH" << std::endl;
+    Ray light_ray(lightpos + scene.epsilon * l.normal * 100.0f, lightdir);
+    std::vector<PathPoint> light_path = GeneratePath(light_ray, raycount, reverse, -1.0f, debug);
+    IFDEBUG std::cout << "Light path size " << light_path.size() << std::endl;
 
     // ============== 2nd phase ==============
-    // Calculate light transmitted over path.
+    // Calculate light transmitted over light path.
+    Radiance light_carried;
+
+    IFDEBUG std::cout << " === Carrying light along light path" << std::endl;
+
+    for(unsigned int n = 0; n < light_path.size(); n++){
+        PathPoint& p = light_path[n];
+
+        if(n == 0){
+            //glm::vec3 Vi = glm::normalize(lightpos - p.pos);
+            //float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
+            //IFDEBUG std::cout << "G = " << G << std::endl;
+            IFDEBUG std::cout << "lightpos = " << lightpos << std::endl;
+            IFDEBUG std::cout << "p.pos = " << p.pos << std::endl;
+            light_carried = Radiance(l.color) * l.intensity;// * G;
+        }
+
+        light_carried = ApplyThinglass(light_carried, p.thinglass_isect, p.Vr);
+
+        p.light_from_source = light_carried;
+
+        light_carried *= p.transfer_coefficients * p.russian_coefficient;
+
+        IFDEBUG std::cout << "After light point " << n << ", carried light:" << light_carried << std::endl;
+    }
+
+    // ============== 3rd phase ==============
+    // Calculate light transmitted over view path.
 
     Radiance from_next;
 
@@ -380,7 +438,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             // ==========
             // Direct lighting
 
-            glm::vec3 lightpos = l.pos + rnd.GetSphere(l.size);
 
             IFDEBUG std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
 
@@ -398,7 +455,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
                 IFDEBUG std::cout << "f = " << f << std::endl;
 
-                float G = glm::max(0.0f, glm::cos( glm::angle(p.lightN, Vi) )) / glm::distance2(lightpos, p.pos);
+                float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
                 IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
                 Radiance inc_l = Radiance(l.color) * l.intensity;
                 inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
@@ -411,6 +468,21 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             }else{
                 IFDEBUG std::cout << "Light not visible" << std::endl;
             }
+
+            // Reverse light
+            for(unsigned int q = 0; q < light_path.size(); q++){
+                const PathPoint& l = light_path[q];
+                // TODO: Thinglass?
+                if(!l.infinity && scene.Visibility(l.pos, p.pos)){
+                    glm::vec3 light_to_p = glm::normalize(p.pos - l.pos);
+                    glm::vec3 p_to_light = -light_to_p;
+                    Radiance f_light = l.mat->brdf->Apply(l.diffuse, l.specular, l.lightN, light_to_p, l.Vr, debug);
+                    Radiance f_point = p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, p_to_light, debug);
+                    float G = glm::max(0.0f, glm::dot(p.lightN, p_to_light)) / glm::distance2(l.pos, p.pos);
+                    total += l.light_from_source * f_light * f_point * G;
+                }// not visible from each other.
+            }
+
             // =================
             // Indirect lighting
             if(!last){

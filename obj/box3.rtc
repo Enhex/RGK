@@ -14,4 +14,4 @@ rounds 20
 sky 200 0 0 0.00
 clamp 5.0
 russian 0.6
-thinglass glass
+# thinglass glass
