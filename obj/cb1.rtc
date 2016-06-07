@@ -13,4 +13,7 @@ rounds 30
 sky 200 0 0 1.0
 # clamp 40.0
 russian 0.8
-brdf cooktorr
+# brdf cooktorr
+brdf ltc_beckmann
+reverse 2
+opaque_fresnell 0

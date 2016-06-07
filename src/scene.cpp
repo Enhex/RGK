@@ -126,10 +126,10 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
         m.reflective = true;
         m.reflection_strength = m.exponent / 100.0f;
         m.exponent = 0;
-    }else if(m.exponent >= 1000){
+        /*}else if(m.exponent >= 1000){
         m.reflective = true;
         m.reflection_strength = (m.specular.r + m.specular.g + m.specular.b)/
-            (m.diffuse .r + m.diffuse .g + m.diffuse .b);
+        (m.diffuse .r + m.diffuse .g + m.diffuse .b);*/
     }else{
         m.reflection_strength = 0.0f;
     }

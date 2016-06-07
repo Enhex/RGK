@@ -12,5 +12,5 @@ floor.exr
 
 multisample 80
 rounds 50
-bumpscale 8
+bumpscale 2
 brdf ltc_beckmann

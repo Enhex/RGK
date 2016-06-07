@@ -11,5 +11,5 @@ dabrovic-sponza-global.exr
 L  -16.0 100.0 -10.0 255 240 200 20000.0
 
 multisample 800
-sky 145 200 235
+sky 145 200 235 0.3
 bumpscale 10

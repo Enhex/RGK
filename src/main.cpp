@@ -117,15 +117,26 @@ int main(int argc, char** argv){
     LTC_BECKMANN::get_pdf(N,Vr,Vi, 0.05, true);
     glm::vec3 Vr2 = glm::normalize(glm::vec3(-0.5f, -0.5f, -0.5f));
     LTC_BECKMANN::get_pdf(N,Vr2,Vi, 0.05, true);
+
+
+    glm::vec3 N = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 Vi = glm::normalize(glm::vec3(0.98f, 0.1f, 0.0f));
+    Random rnd(0);
+    glm::vec3 Vr = LTC_BECKMANN::get_random(N, Vi, 0.0001, rnd.GetHSCosZ(), true);
+    std::cout << Vr << std::endl;
+
+    std::cout << " ====== " << std::endl;
+
+    N = glm::normalize(glm::vec3(-0.114682, 0.974839, 0.191148));
+    Vi = glm::normalize(glm::vec3(0.9809044, 0.167549819, 0.09876059));
+    rnd = Random(90123213);
+    Vr = LTC_BECKMANN::get_random(N, Vi, 0.0001, rnd.GetHSCosZ(), true);
+    std::cout << Vr << std::endl;
+    std::cout << glm::dot(N,Vr) << std::endl;
+
+    //return 0;
     */
 
-    /*
-    glm::vec3 N = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 Vi = glm::normalize(glm::vec3(0.98f, 0.16f, 0.1f));
-    Random rnd(0);
-    glm::vec3 Vr = LTC_BECKMANN::get_random(N, Vi, 0.01, rnd.GetHSCosZ(), true);
-    std::cout << Vr << std::endl;
-    */
 
     static struct option long_opts[] =
         {

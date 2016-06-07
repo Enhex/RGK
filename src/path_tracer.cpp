@@ -257,6 +257,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             // Compute next ray direction
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
             glm::vec3 dir;
+            int counter = 0;
             switch(p.type){
             case PathPoint::REFLECTED:
                 IFDEBUG std::cout << "REFLECTED." << std::endl;
@@ -271,8 +272,20 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 // Revert to face normal in case this ray would enter from inside
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
                 do{
-                    std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, rnd);
-                }while(glm::dot(dir, p.faceN) <= 0.0f);
+                    std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
+                    counter++;
+                }while(glm::dot(dir, p.faceN) <= 0.0f && counter < 20);
+                if(counter == 20){
+                    // We have tried 20 different samples, and they all would enter the face.
+                    // This happens if brdf is very narrowly distributed.
+                    // In this case, we technically need a better sampling strategy.
+                    // Possible options are: 1) terminate path right here 2) revert to the face normal vector 3) other.
+                    // Unfortunatelly, I do not have the time right now to consider and compare these options.
+                    // So, temporarily, I'll do 2).
+                    do{ //                                          Notice faceN here ---\/---
+                        std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
+                    }while(glm::dot(dir, p.faceN) <= 0.0f);
+                }
                 break;
             case PathPoint::ENTERED:
                 dir = glm::refract(p.Vr, p.lightN, 1.0f/mat.refraction_index);

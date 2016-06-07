@@ -2,16 +2,16 @@
 
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
+#include <glm/gtx/string_cast.hpp>
 
 #include "out.hpp"
 #include "utils.hpp"
 #include "LTC/ltc_beckmann.hpp"
 
-std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3, Random &rnd) const{
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd) const{
     glm::vec3 v = rnd.GetHSCosDir(normal);
-    float p = glm::dot(normal,v)/glm::pi<float>();
     assert(glm::dot(normal, v) > -0.01f);
-    return std::make_tuple(v,p,SAMPLING_COSINE);
+    return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_COSINE);
 }
 
 
@@ -21,11 +21,10 @@ float BRDFDiffuseUniform::PdfDiff() const{
 float BRDFDiffuseUniform::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
-std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, glm::vec3, Random &rnd) const{
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd) const{
     glm::vec3 v = rnd.GetHSUniformDir(normal);
-    float p = 0.5f/glm::pi<float>();
     assert(glm::dot(normal, v) > 0.0f);
-    return std::make_tuple(v,p,SAMPLING_UNIFORM);
+    return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_UNIFORM);
 }
 
 
@@ -120,19 +119,29 @@ float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool deb
 }
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
-    roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.25f);
+    roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
     out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
 }
 
-std::tuple<glm::vec3, float, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Random &rnd) const{
-    /*
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, Random &rnd) const{
     assert(glm::dot(normal, inc) > 0.0f);
-    glm::vec3 v = rnd.GetHSCosZ();
-    v = LTC_BECKMANN::get_random(normal, inc, roughness, v);
-    assert(glm::dot(normal, v) > 0.0f);
-    return std::make_tuple(v,1.0f,SAMPLING_BRDF);
-    */
-    return BRDF::GetRay(normal,inc,rnd);
+
+    float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
+    float specular_power = specular.r + specular.g + specular.b; // Integral over specular spectrum...
+    if(rnd.GetFloat(0.0f, diffuse_power + specular_power) < diffuse_power){
+        // Diffuse ray
+        auto res = BRDF::GetRay(normal, inc, diffuse, specular, rnd);
+        std::get<1>(res) = Radiance(diffuse);
+        return res;
+    }else{
+
+        glm::vec3 v;
+        v = rnd.GetHSCosZ();
+        v = LTC_BECKMANN::get_random(normal, inc, roughness, v);
+
+        return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
+    }
+
 }
 
 // TODO: Re-implement other BRDF functions!

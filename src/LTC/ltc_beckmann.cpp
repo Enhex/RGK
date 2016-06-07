@@ -63,7 +63,7 @@ float getAMP(const float theta, const float alpha)
 	return tabAmplitude[a + t*size];
 }
 
-static glm::quat RotationBetweenVectors(glm::vec3 start, glm::vec3 dest){
+glm::quat RotationBetweenVectors(glm::vec3 start, glm::vec3 dest){
 	start = normalize(start);
 	dest = normalize(dest);
 
@@ -100,6 +100,8 @@ static glm::quat RotationBetweenVectors(glm::vec3 start, glm::vec3 dest){
 float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
     assert(alpha >= 0.0f && alpha <= 1.0f);
     (void)debug;
+
+    /*
     glm::vec3 up(0.0f, 0.0f, 1.0f);
     glm::quat N_to_up = RotationBetweenVectors(N, up);
     //glm::vec3 N2 = N_to_up * N;
@@ -112,7 +114,19 @@ float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
     // glm::vec3 N3 = Vi_to_front * N2;
     glm::vec3 Vi3 = Vi_to_front * Vi2;
     glm::vec3 Vr3 = Vi_to_front * Vr2;
-    float theta = glm::angle(Vi3, up);
+    */
+
+    glm::vec3 tangent = glm::cross(N,Vi);
+    glm::vec3 Vi_cast = glm::cross(tangent,N);
+    // X unit vector has to go to Vi_cast
+    // Y unit vector has to go to tangent (direction does not matter)
+    // Z unit vector has to go to N
+    glm::mat3 rotate(Vi_cast, tangent, N);
+    glm::mat3 unrotate = glm::inverse(rotate);
+
+    glm::vec3 Vr3 = unrotate * Vr;
+
+    float theta = glm::angle(Vi, N);
     auto q = get_bilinear(theta, alpha);
     glm::mat3 M = q.first;
     float amplitude = q.second;
@@ -129,14 +143,13 @@ float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
 }
 
     glm::vec3 get_random(glm::vec3 N, glm::vec3 Vi, float roughness, glm::vec3 rand_hscos, bool debug){
-        glm::vec3 up(0.0f, 0.0f, 1.0f);
-        glm::quat N_to_up = RotationBetweenVectors(N, up);
-        glm::vec3 Vi2 = N_to_up * Vi;
-        glm::vec3 front(1.0f, 0.0f, 0.0f);
-        glm::vec3 Vi_cast(Vi2.x, Vi2.y, 0.0f);
-        glm::quat Vi_to_front = RotationBetweenVectors(Vi_cast, front);
-        glm::quat up_to_N = glm::inverse(N_to_up);
-        glm::quat front_to_Vi = glm::inverse(Vi_to_front);
+
+        glm::vec3 tangent = glm::cross(N,Vi);
+        glm::vec3 Vi_cast = glm::cross(tangent,N);
+        // X unit vector has to go to Vi_cast
+        // Y unit vector has to go to tangent (direction does not matter)
+        // Z unit vector has to go to N
+        glm::mat3 rotate(Vi_cast, tangent, N);
 
         float theta = glm::angle(Vi, N);
         auto q = get_bilinear(glm::max(theta, glm::pi<float>()/4.0f), roughness);
@@ -148,8 +161,9 @@ float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
 
         IFDEBUG std::cout << "rand_hscos = " << rand_hscos << std::endl;
         glm::vec3 s = M*rand_hscos;
+
         IFDEBUG std::cout << "s1 = " << glm::normalize(s) << std::endl;
-        s = up_to_N * (front_to_Vi * (s));
+        s = rotate * s;
         return glm::normalize(s);
     }
 
