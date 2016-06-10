@@ -12,5 +12,8 @@ box4.exr
 multisample 40
 rounds 40
 sky 200 0 0 0.0
-clamp 5.0
+clamp 2.0
 russian 0.7
+brdf ltc_beckmann
+reverse 0
+force_fresnell 0

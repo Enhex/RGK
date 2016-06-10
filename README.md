@@ -190,6 +190,9 @@ undefined option, it is ignored.
    cnsistent way of expressing transmission filter) color of the thin
    glass material. This creates stained glass effects with virtually
    no effect on render performance. See box3.rtc for example scene.
+ - `force_fresnell (int)` 1 to enable, 0 to disable, disabled by
+   default.  Forces calculation of fresnell reflections on all
+   materials, regardless of their specular component.
 
 Example config file:
 

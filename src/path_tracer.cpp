@@ -21,7 +21,7 @@ PathTracer::PathTracer(const Scene& scene,
                        float clamp,
                        float russian,
                        float bumpmap_scale,
-                       bool opaque_fresnell,
+                       bool force_fresnell,
                        unsigned int reverse,
                        std::set<const Material*> thinglass,
                        Random rnd)
@@ -30,7 +30,7 @@ PathTracer::PathTracer(const Scene& scene,
   russian(russian),
   depth(depth),
   thinglass(thinglass),
-  opaque_fresnell(opaque_fresnell),
+  force_fresnell(force_fresnell),
   reverse(reverse),
   rnd(rnd)
 {
@@ -181,6 +181,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 glm::vec2 b = i.triangle->GetTexCoordsB();
                 glm::vec2 c = i.triangle->GetTexCoordsC();
                 texUV = i.Interpolate(a,b,c);
+                IFDEBUG std::cout << "texUV = " << texUV << std::endl;
             }
             // Get colors from texture
             p.diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
@@ -239,10 +240,19 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 }
             }else{
                 // Not a translucent material.
-                float t = (opaque_fresnell)? Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index) : 0.0f;
-                float q = (mat.reflective)? mat.reflection_strength : t;
-                if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
-                else                p.type = PathPoint::SCATTERED;
+                if(force_fresnell){
+                    float strength =
+                        (p.specular.r + p.specular.g + p.specular.b)/
+                        (p.diffuse .r + p.diffuse .g + p.diffuse .b +
+                         p.specular.r + p.specular.g + p.specular.b);
+                    if(rnd.Get01() < strength &&
+                       rnd.Get01() < Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index))
+                        p.type = PathPoint::REFLECTED;
+                    else
+                        p.type = PathPoint::SCATTERED;
+                }else{
+                    p.type = PathPoint::SCATTERED;
+                }
             }
 
             // Skip roulette if the ray has priviledge
@@ -272,7 +282,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 // Revert to face normal in case this ray would enter from inside
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
                 do{
-                    std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
+                    std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
                     counter++;
                 }while(glm::dot(dir, p.faceN) <= 0.0f && counter < 20);
                 if(counter == 20){
@@ -326,7 +336,13 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     // density is equal to cosine, so they cancel out.
                     IFDEBUG std::cout << "Mult by cos" << std::endl;
                     float cos = glm::dot(p.lightN, p.Vi);
-                    p.transfer_coefficients *= cos;
+                    // TODO: Investigate this condition.
+                    // Equations (confirmed by total lighting compedium) clearly state that brdf sampling
+                    // still requires multiplying by cosine. However, enabling it results in an ugly dark border
+                    // around a reflective sphere. Should this condition be here? Maybe it should be applied
+                    // differently in various cases?
+                    // if(sampling_type != BRDF::SAMPLING_BRDF)
+                        p.transfer_coefficients *= cos;
                 }else{
                     // Cosine sampling p = cos/pi. Don't divide by cos, as it was
                     // skipped, instead just multiply by pi.
@@ -496,6 +512,8 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
                 }// not visible from each other.
             }
 
+            IFDEBUG std::cerr << "total with light path: " << total << std::endl;
+
             // =================
             // Indirect lighting
             if(!last){
@@ -515,14 +533,20 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
             total += from_next * p.diffuse;
         }
 
+        IFDEBUG std::cerr << "total after direct and indirect: " << total << std::endl;
+
         if(mat.emissive){
             total += Radiance(mat.emission);
         }
+
+        //IFDEBUG std::cerr << "total with emission: " << total << std::endl;
 
         // Finally, apply thinglass filters that were encountered
         // when we were looking for intersection and stumbled upon this particular PP.
 
         total = ApplyThinglass(total, p.thinglass_isect, p.Vr);
+
+        //IFDEBUG std::cerr << "total with thinglass filters: " << total << std::endl;
 
         // Clamp.
         if(total.r > clamp) total.r = clamp;
@@ -534,7 +558,7 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
         if(glm::isnan(total.g) || total.g < 0.0f) total.g = 0.0f;
         if(glm::isnan(total.b) || total.b < 0.0f) total.b = 0.0f;
 
-        IFDEBUG std::cerr << "total with thinglass filters: " << total << std::endl;
+        IFDEBUG std::cerr << "total clamped: " << total << std::endl;
 
         from_next = total;
 

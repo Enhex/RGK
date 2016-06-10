@@ -63,58 +63,9 @@ float getAMP(const float theta, const float alpha)
 	return tabAmplitude[a + t*size];
 }
 
-glm::quat RotationBetweenVectors(glm::vec3 start, glm::vec3 dest){
-	start = normalize(start);
-	dest = normalize(dest);
-
-	float cosTheta = dot(start, dest);
-    glm::vec3 rotationAxis;
-
-	if (cosTheta < -1 + 0.001f){
-		// special case when vectors in opposite directions:
-		// there is no "ideal" rotation axis
-		// So guess one; any will do as long as it's perpendicular to start
-		rotationAxis = glm::cross(glm::vec3(0.0f, 1.0f, 0.0f), start);
-		if (glm::length(rotationAxis) < 0.01 ) // bad luck, they were parallel, try again!
-			rotationAxis = glm::cross(glm::vec3(1.0f, 0.0f, 0.0f), start);
-
-		rotationAxis = normalize(rotationAxis);
-        //std::cout << "Rotation axis = " << rotationAxis << std::endl;
-		return glm::angleAxis(glm::pi<float>(), rotationAxis);
-	}
-
-	rotationAxis = cross(start, dest);
-
-	float s = sqrt( (1+cosTheta)*2 );
-	float invs = 1 / s;
-
-	return glm::quat(
-		s * 0.5f,
-		rotationAxis.x * invs,
-		rotationAxis.y * invs,
-		rotationAxis.z * invs
-	);
-
-}
-
 float get_pdf(glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
     assert(alpha >= 0.0f && alpha <= 1.0f);
     (void)debug;
-
-    /*
-    glm::vec3 up(0.0f, 0.0f, 1.0f);
-    glm::quat N_to_up = RotationBetweenVectors(N, up);
-    //glm::vec3 N2 = N_to_up * N;
-    glm::vec3 Vi2 = N_to_up * Vi;
-    glm::vec3 Vr2 = N_to_up * Vr;
-    // Rotation 2
-    glm::vec3 front(1.0f, 0.0f, 0.0f);
-    glm::vec3 Vi_cast(Vi2.x, Vi2.y, 0.0f);
-    glm::quat Vi_to_front = RotationBetweenVectors(Vi_cast, front);
-    // glm::vec3 N3 = Vi_to_front * N2;
-    glm::vec3 Vi3 = Vi_to_front * Vi2;
-    glm::vec3 Vr3 = Vi_to_front * Vr2;
-    */
 
     glm::vec3 tangent = glm::cross(N,Vi);
     glm::vec3 Vi_cast = glm::cross(tangent,N);

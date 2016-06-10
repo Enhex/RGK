@@ -33,10 +33,10 @@ public:
     float lens_size = 0.0f;
     float focus_plane = 1.0f;
     float bumpmap_scale = 10.0f;
-    float clamp = 100.0f;
+    float clamp = 100000.0f;
     float russian = -1.0f;
     unsigned int rounds = 1;
-    bool opaque_fresnell = true;
+    bool force_fresnell = false;
     unsigned int reverse = 0;
     std::string brdf = "cooktorr";
     std::vector<std::string> thinglass;

@@ -18,7 +18,7 @@ public:
                float clamp,
                float russian,
                float bumpmap_scale,
-               bool  opaque_fresnell,
+               bool  force_fresnell,
                unsigned int reverse,
                std::set<const Material *> thinglass_names,
                Random rnd);
@@ -70,7 +70,7 @@ private:
     float russian;
     unsigned int depth;
     std::set<const Material*> thinglass;
-    bool opaque_fresnell;
+    bool force_fresnell;
     unsigned int reverse;
     mutable Random rnd;
 };

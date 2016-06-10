@@ -52,11 +52,11 @@
 void assert_fail(std::string text,std::string file,int line,std::string function);
 #define qassert_true(cond) ( (cond) ?           \
         static_cast<void>(0): \
-        assert_fail ("condition " + #cond + " is not true" , __FILE__, __LINE__, __PRETTY_FUNCTION__)\
+                             assert_fail ("condition " + std::string(#cond) + " is not true" , __FILE__, __LINE__, __PRETTY_FUNCTION__) \
     )
 #define qassert_false(cond) ( !(cond) ?         \
         static_cast<void>(0): \
-        assert_fail ("condition " + #cond + " is not false" , __FILE__, __LINE__, __PRETTY_FUNCTION__)\
+                              assert_fail ("condition " + std::string(#cond) + " is not false" , __FILE__, __LINE__, __PRETTY_FUNCTION__) \
     )
 #define qassert_less(a,b) ( a<b ?             \
         static_cast<void>(0): \

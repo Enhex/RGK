@@ -346,7 +346,7 @@ int main(int argc, char** argv){
                                   cfg.clamp,
                                   cfg.russian,
                                   cfg.bumpmap_scale,
-                                  cfg.opaque_fresnell,
+                                  cfg.force_fresnell,
                                   cfg.reverse,
                                   thinglass_materialset,
                                   rnd);

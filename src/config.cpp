@@ -143,9 +143,9 @@ Config Config::CreateFromFile(std::string path){
         }else if(vs[0] == "thinglass"){
             if(vs.size() != 2) throw ConfigFileException("Invalid thinglass config line.");
             cfg.thinglass.push_back(vs[1]);
-        }else if(vs[0] == "opaque_fresnell"){
-            if(vs.size() != 2) throw ConfigFileException("Invalid opaque_fresnell config line.");
-            cfg.opaque_fresnell = (std::stoi(vs[1]) == 1);
+        }else if(vs[0] == "force_fresnell"){
+            if(vs.size() != 2) throw ConfigFileException("Invalid force_fresnell config line.");
+            cfg.force_fresnell = (std::stoi(vs[1]) == 1);
         }else{
             std::cout << "WARNING: Unrecognized option `" << vs[0] << "` in the config file." << std::endl;
         }

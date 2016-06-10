@@ -8,7 +8,7 @@
 #include "utils.hpp"
 #include "LTC/ltc_beckmann.hpp"
 
-std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd) const{
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd, bool) const{
     glm::vec3 v = rnd.GetHSCosDir(normal);
     assert(glm::dot(normal, v) > -0.01f);
     return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_COSINE);
@@ -21,7 +21,7 @@ float BRDFDiffuseUniform::PdfDiff() const{
 float BRDFDiffuseUniform::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
-std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd) const{
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd, bool) const{
     glm::vec3 v = rnd.GetHSUniformDir(normal);
     assert(glm::dot(normal, v) > 0.0f);
     return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_UNIFORM);
@@ -119,11 +119,12 @@ float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool deb
 }
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
+    out::cout(4) << "phong = " << phong_exp << std::endl;
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
     out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
 }
 
-std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, Random &rnd) const{
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, Random &rnd, bool debug) const{
     assert(glm::dot(normal, inc) > 0.0f);
 
     float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
@@ -137,7 +138,7 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(
 
         glm::vec3 v;
         v = rnd.GetHSCosZ();
-        v = LTC_BECKMANN::get_random(normal, inc, roughness, v);
+        v = LTC_BECKMANN::get_random(normal, inc, roughness, v, debug);
 
         return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
     }

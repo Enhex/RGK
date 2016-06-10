@@ -51,6 +51,7 @@ void Scene::LoadScene(const aiScene* scene, const Config& cfg){
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
         LoadMaterial(scene->mMaterials[i], cfg);
     }
+    qassert_true(scene->mNumMaterials == materials_buffer.size());
 
     // Load root node
     const aiNode* root = scene->mRootNode;
@@ -125,13 +126,9 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
     if(m.name.find("refl") != std::string::npos){
         m.reflective = true;
         m.reflection_strength = m.exponent / 100.0f;
-        m.exponent = 0;
-        /*}else if(m.exponent >= 1000){
-        m.reflective = true;
-        m.reflection_strength = (m.specular.r + m.specular.g + m.specular.b)/
-        (m.diffuse .r + m.diffuse .g + m.diffuse .b);*/
+        // m.exponent = 0;
     }else{
-        m.reflection_strength = 0.0f;
+        m.reflection_strength = 0;
     }
 
     if(m.emission.r > 0.0f || m.emission.g > 0.0f || m.emission.b > 0.0f){
@@ -262,8 +259,9 @@ Texture* Scene::GetTexture(std::string name){
             textures[name] = t;
         }
         return t;
+    }else{
+        return it->second;
     }
-    return nullptr;
 }
 
 void Scene::Commit(){
