@@ -357,3 +357,15 @@ EXRTexture EXRTexture::Normalize() const{
         }
     return out;
 }
+
+
+void EXRTexture::Accumulate(const EXRTexture& other){
+    qassert_true(xsize == other.xsize);
+    qassert_true(ysize == other.ysize);
+    for(unsigned int y = 0; y < ysize; y++){
+        for(unsigned int x = 0; x < xsize; x++){
+            data[y*xsize + x] += other.data[y*xsize + x];
+            count[y*xsize + x] += other.count[y*xsize + x];
+        }
+    }
+}

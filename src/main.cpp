@@ -319,7 +319,7 @@ int main(int argc, char** argv){
         });
 
     // Preapare output buffer
-    EXRTexture ob(cfg.xres, cfg.yres);
+    EXRTexture total_ob(cfg.xres, cfg.yres);
 
     // Start monitor thread.
     total_pixels = cfg.xres * cfg.yres * cfg.rounds;
@@ -331,10 +331,15 @@ int main(int argc, char** argv){
     for(unsigned int roundno = 0; roundno < cfg.rounds; roundno++){
         ctpl::thread_pool tpool(concurrency);
 
+        // Prepare per-task output buffers
+        std::vector<EXRTexture> output_buffers(tasks.size(), EXRTexture(cfg.xres, cfg.yres));
+
         // Push all render tasks to thread pool
-        for(const RenderTask& task : tasks){
+        for(unsigned int i = 0; i < tasks.size(); i++){
+            const RenderTask& task = tasks[i];
+            EXRTexture& output_buffer = output_buffers[i];
             unsigned int c = seedcount++;
-            tpool.push( [&ob, seedstart, camera, &s, cfg, task, c, &thinglass_materialset](int){
+            tpool.push( [&output_buffer, seedstart, camera, &s, cfg, task, c, &thinglass_materialset](int){
 
                     Random rnd(seedstart + c);
                     PathTracer rt(s, camera,
@@ -351,7 +356,7 @@ int main(int argc, char** argv){
                                   thinglass_materialset,
                                   rnd);
 
-                    rt.Render(task, &ob, pixels_done, raycount);
+                    rt.Render(task, &output_buffer, pixels_done, raycount);
 
                 });
         }
@@ -361,8 +366,12 @@ int main(int argc, char** argv){
 
         rounds_done++;
 
+        // Merge all outputs into a single one
+        for(const EXRTexture& o : output_buffers)
+            total_ob.Accumulate(o);
+
         // Write out current progress to the output file.
-        ob.Normalize().Write(output_file);
+        total_ob.Normalize().Write(output_file);
     }
 
     // Shutdown monitor thread.

@@ -47,6 +47,8 @@ public:
     Radiance GetPixel(int x, int y) const;
     EXRTexture Normalize() const;
 
+    void Accumulate(const EXRTexture& other);
+
 private:
     unsigned int xsize, ysize;
     std::vector<Radiance> data;
