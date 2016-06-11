@@ -37,7 +37,7 @@ PathTracer::PathTracer(const Scene& scene,
     sky_radiance = Radiance(sky_color) * sky_brightness;
 }
 
-Radiance PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
+PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
     Radiance total;
 
     IFDEBUG std::cout << std::endl;

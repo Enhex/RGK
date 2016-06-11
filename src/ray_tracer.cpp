@@ -4,7 +4,7 @@
 #include "scene.hpp"
 #include "global_config.hpp"
 
-Radiance RayTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
+PixelRenderResult RayTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
     Radiance pixel_total(0.0, 0.0, 0.0);
     for(unsigned int my = 0; my < multisample; my++){
         for(unsigned int mx = 0; mx < multisample; mx++){

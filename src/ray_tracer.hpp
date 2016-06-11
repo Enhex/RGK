@@ -27,7 +27,7 @@ public:
     {}
 
 protected:
-    Radiance RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
+    PixelRenderResult RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
 
 private:
     Color TraceRay(const Ray& r, unsigned int depth, unsigned int& raycount, bool debug = false);

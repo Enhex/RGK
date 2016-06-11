@@ -3,6 +3,7 @@
 
 #include <vector>
 #include <atomic>
+#include <tuple>
 
 #include "glm.hpp"
 #include "primitives.hpp"
@@ -20,6 +21,12 @@ struct RenderTask{
     unsigned int xrange_start, xrange_end;
     unsigned int yrange_start, yrange_end;
     glm::vec2 midpoint;
+};
+
+struct PixelRenderResult{
+    PixelRenderResult(Radiance main) : main_pixel(main) {}
+    Radiance main_pixel;
+    std::vector<std::tuple<int,int,Radiance>> side_effects;
 };
 
 class Tracer{
@@ -41,7 +48,7 @@ public:
     void Render(const RenderTask& task, EXRTexture* output, std::atomic<int>& pixel_count, std::atomic<unsigned int>& ray_count);
 
 protected:
-    virtual Radiance RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) = 0;
+    virtual PixelRenderResult RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) = 0;
 
     const Scene& scene;
     const Camera& camera;

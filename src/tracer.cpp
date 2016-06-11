@@ -10,9 +10,12 @@ void Tracer::Render(const RenderTask& task, EXRTexture* output, std::atomic<int>
 #if ENABLE_DEBUG
             if(debug_trace && x == debug_x && y == debug_y) d = true;
 #endif
-            Radiance px = RenderPixel(x, y, raysdone, d);
+            PixelRenderResult px = RenderPixel(x, y, raysdone, d);
 
-            output->AddPixel(x, y, px);
+            output->AddPixel(x, y, px.main_pixel);
+
+            // TODO: side effects
+
             pxdone++;
             if(pxdone % 100 == 0){
                 pixel_count += 100;
