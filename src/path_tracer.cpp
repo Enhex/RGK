@@ -38,7 +38,7 @@ PathTracer::PathTracer(const Scene& scene,
 }
 
 PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
-    Radiance total;
+    PixelRenderResult total(Radiance(0.0,0.0,0.0));
 
     IFDEBUG std::cout << std::endl;
 
@@ -54,12 +54,14 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
         }else{
             r = camera.GetSubpixelRayLens(x, y, xres, yres, i, V[i], multisample, rnd);
         }
-        total += TracePath(r, raycount, debug);
+        PathTraceResult q = TracePath(r, raycount, debug);
+        total.main_pixel += q.main_direction/multisample;
+        // TODO: Side effects
     }
 
-    IFDEBUG std::cout << "-----> pixel average: " << total/multisample << std::endl;
+    IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel << std::endl;
 
-    return total / multisample;
+    return total;
 }
 
 
@@ -388,7 +390,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     return path;
 }
 
-Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
+PathTracer::PathTraceResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
+    PathTraceResult result;
 
     // ===== 1st Phase =======
     // Generate a forward path.
@@ -564,5 +567,6 @@ Radiance PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug)
 
     } // for each point on path
     IFDEBUG std::cerr << "PATH TOTAL" << from_next << std::endl << std::endl;
-    return from_next;
+    result.main_direction = from_next;
+    return result;
 }
