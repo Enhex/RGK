@@ -4,6 +4,8 @@
 #include "scene.hpp"
 #include "global_config.hpp"
 
+#include <tuple>
+
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
 #include <glm/gtx/norm.hpp>
@@ -38,7 +40,7 @@ PathTracer::PathTracer(const Scene& scene,
 }
 
 PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
-    PixelRenderResult total(Radiance(0.0,0.0,0.0));
+    PixelRenderResult total;
 
     IFDEBUG std::cout << std::endl;
 
@@ -54,12 +56,17 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
         }else{
             r = camera.GetSubpixelRayLens(x, y, xres, yres, i, V[i], multisample, rnd);
         }
-        PathTraceResult q = TracePath(r, raycount, debug);
-        total.main_pixel += q.main_direction/multisample;
-        // TODO: Side effects
+        PixelRenderResult q = TracePath(r, raycount, debug);
+        total.main_pixel += q.main_pixel;
+
+        for(const auto& p : q.side_effects){
+            total.side_effects.push_back(p);
+        }
+
+        IFDEBUG std::cout << "Side effects: " << q.side_effects.size() << std::endl;
     }
 
-    IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel << std::endl;
+    IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel/multisample << std::endl;
 
     return total;
 }
@@ -105,11 +112,27 @@ float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
     }
 }
 
+glm::vec3 Refract(glm::vec3 in, glm::vec3 N, float IOR, bool debug = false){
+    (void)debug;
+    if(glm::dot(in, N) > 0.999f) return -in;
+    glm::vec3 tangent = glm::normalize(glm::cross(N,in));
+    float cosEta1 = glm::dot(in,N);
+    float sinEta1 = glm::sqrt(1.0f - cosEta1 * cosEta1);
+    IFDEBUG std::cout << "Eta1 " << glm::degrees(glm::angle(N, in)) << std::endl;
+    IFDEBUG std::cout << "sinEta1 " << sinEta1 << std::endl;
+    float sinEta2 = sinEta1 * IOR;
+    IFDEBUG std::cout << "sinEta2 " << sinEta2 << std::endl;
+    if(sinEta2 >= 1.0f) return glm::vec3(std::numeric_limits<float>::quiet_NaN()); // total internal
+    float Eta2 = glm::asin(sinEta2);
+    IFDEBUG std::cout << "Eta2 " << glm::degrees(Eta2) << std::endl;
+    return glm::rotate(-N, Eta2, tangent);
+}
 
 std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int& raycount, unsigned int depth__, float russian__, bool debug) const {
 
     std::vector<PathPoint> path;
 
+    IFDEBUG std::cout << "Ray origin: " << r.origin << std::endl;
     IFDEBUG std::cout << "Ray direction: " << r.direction << std::endl;
 
     Radiance cumulative_transfer_coeff = Radiance(1.0f, 1.0f, 1.0f);
@@ -147,6 +170,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
         p.thinglass_isect = i.thinglass;
         if(!i.triangle){
             // A sky ray!
+            IFDEBUG std::cout << "Sky ray!" << std::endl;
             p.infinity = true;
             p.Vr = -current_ray.direction;
             path.push_back(p);
@@ -262,6 +286,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                p.type == PathPoint::ENTERED ||
                p.type == PathPoint::LEFT){
                 // Do not count this point into depth. Never russian-terminate path at this point.
+                IFDEBUG std::cout << "Not counting this point" << std::endl;
                 n--; skip_russian = true;
             }
 
@@ -300,9 +325,9 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 }
                 break;
             case PathPoint::ENTERED:
-                dir = glm::refract(p.Vr, p.lightN, 1.0f/mat.refraction_index);
                 IFDEBUG std::cout << "ENTERED medium." << std::endl;
-                if(glm::length(dir) < 0.001f || glm::isnan(dir.x)){
+                dir = Refract(p.Vr, p.lightN, 1.0f/mat.refraction_index, debug);
+                if(glm::isnan(dir.x)){
                     // Internal reflection
                     IFDEBUG std::cout << "internally reflected." << std::endl;
                     p.type = PathPoint::REFLECTED;
@@ -312,20 +337,19 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             case PathPoint::LEFT:
                 // TODO: Refraction
                 IFDEBUG std::cout << "LEFT medium." << std::endl;
-                dir = glm::refract(p.Vr, p.lightN, mat.refraction_index);
-                if(glm::length(dir) < 0.001f){
+                dir = Refract(p.Vr, p.lightN, mat.refraction_index, debug);
+                if(glm::isnan(dir.x)){
                     // Internal reflection
                     IFDEBUG std::cout << "internally reflected." << std::endl;
                     p.type = PathPoint::REFLECTED;
                     dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
                 }
-                dir = -p.Vr;
                 break;
             }
             p.Vi = dir;
 
             // Store russian coefficient
-            if(russian__ > 0.0f) p.russian_coefficient = 1.0f/russian__;
+            if(russian__ > 0.0f && !skip_russian) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
 
             // Calculate transfer coefficients (BRFD, cosine, etc.)
@@ -377,7 +401,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             // Prepate next ray
             current_ray = Ray(p.pos +
                               p.faceN * scene.epsilon * 10.0f *
-                              ((p.type == PathPoint::ENTERED)?-1.0f:1.0f)
+                              ((p.type == PathPoint::ENTERED || p.type == PathPoint::LEFT)?-1.0f:1.0f)
                               , glm::normalize(dir));
 
             IFDEBUG std::cout << "Next ray will be from " << p. pos << " dir " << dir << std::endl;
@@ -390,8 +414,10 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     return path;
 }
 
-PathTracer::PathTraceResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
-    PathTraceResult result;
+PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
+    PixelRenderResult result;
+
+    glm::vec3 camerapos = r.origin;
 
     // ===== 1st Phase =======
     // Generate a forward path.
@@ -439,10 +465,40 @@ PathTracer::PathTraceResult PathTracer::TracePath(const Ray& r, unsigned int& ra
 
         p.light_from_source = light_carried;
 
-        light_carried *= p.transfer_coefficients * p.russian_coefficient;
+        if(p.type == PathPoint::SCATTERED){
+            light_carried *= p.transfer_coefficients * p.russian_coefficient;
+        }else if(p.type == PathPoint::REFLECTED || p.type == PathPoint::LEFT){
+            // NOP
+        }else if(p.type == PathPoint::ENTERED){
+            IFDEBUG std::cout << "Multiplying carried light by " << p.diffuse << std::endl;
+            light_carried = light_carried * p.diffuse;
+        }
 
         IFDEBUG std::cout << "After light point " << n << ", carried light:" << light_carried << std::endl;
+
+        if(p.type == PathPoint::SCATTERED){
+            // Connect the point with camera and add as a side effect
+            if(!p.infinity && scene.Visibility(p.pos, camerapos)){
+                IFDEBUG std::cout << "Point " << p.pos << " is visible from camera." << std::endl;
+                glm::vec3 direction = glm::normalize(p.pos - camerapos);
+                Radiance q = light_carried * p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, -direction, debug);
+                float G = glm::max(0.0f, glm::dot(p.lightN, -direction)) / glm::distance2(camerapos, p.pos);
+                IFDEBUG std::cout << "G = " << G << std::endl;
+                if(G >= 0.00001f && !std::isnan(q.r)){
+                    q *= G;
+                    int x2, y2;
+                    IFDEBUG std::cout << "Side effect from " << direction << std::endl;
+                    bool in_view = camera.GetCoordsFromDirection( direction, x2, y2, debug);
+                    if(in_view){
+                        IFDEBUG std::cout << "In view at " << x2 << " " << y2 << ", radiance: " << q << std::endl;
+                        result.side_effects.push_back(std::make_tuple(x2, y2, q));
+                    }
+                }
+            }
+        }
     }
+
+    //return result;
 
     // ============== 3rd phase ==============
     // Calculate light transmitted over view path.
@@ -567,6 +623,6 @@ PathTracer::PathTraceResult PathTracer::TracePath(const Ray& r, unsigned int& ra
 
     } // for each point on path
     IFDEBUG std::cerr << "PATH TOTAL" << from_next << std::endl << std::endl;
-    result.main_direction = from_next;
+    result.main_pixel = from_next;
     return result;
 }

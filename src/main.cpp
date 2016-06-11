@@ -282,6 +282,8 @@ int main(int argc, char** argv){
                   cfg.up_vector,
                   cfg.yview,
                   cfg.yview*cfg.xres/cfg.yres,
+                  cfg.xres,
+                  cfg.yres,
                   cfg.focus_plane,
                   cfg.lens_size
                   );

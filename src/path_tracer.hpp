@@ -27,12 +27,7 @@ protected:
     PixelRenderResult RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
 
 private:
-    struct PathTraceResult{
-        Radiance main_direction;
-        std::vector<std::pair<glm::vec3,Radiance>> side_effects;
-    };
-
-    PathTraceResult TracePath(const Ray& r, unsigned int& raycount, bool debug = false);
+    PixelRenderResult TracePath(const Ray& r, unsigned int& raycount, bool debug = false);
 
     struct PathPoint{
         enum Type{

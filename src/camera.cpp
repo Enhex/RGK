@@ -1,12 +1,16 @@
 #include "camera.hpp"
 
+#include "utils.hpp"
 #include "glm.hpp"
 #include <glm/gtx/polar_coordinates.hpp>
 
-Camera::Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview, float focus_plane, float ls){
+Camera::Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview, int xres, int yres, float focus_plane, float ls){
     origin = pos;
     lookat = la;
     cameraup = up;
+
+    xsize = xres;
+    ysize = yres;
 
     lens_size = ls;
 
@@ -68,4 +72,41 @@ Ray Camera::GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int s
     glm::vec2 lenso = rnd.GetDisc(lens_size);
     glm::vec3 o = origin + lenso.x * cameraleft + lenso.y * cameraup;
     return Ray(o, p - o);
+}
+
+bool Camera::GetCoordsFromDirection(glm::vec3 dir, int& /*out*/ x, int& /*out*/ y, bool debug) const{
+    (void)debug;
+    // TODO: Rewrite this entirely.
+
+    glm::vec3 N = direction;
+    float q = glm::dot(dir, N);
+    if(q < 0.0001) return false; // parallel
+    float t = glm::dot(viewscreen - origin,N) / q;
+    if(t <= 0) return false; // oriented outside camera
+    //IFDEBUG std::cout << "t: " << t << std::endl;
+    glm::vec3 p = origin + dir * t;
+
+    glm::vec3 V = viewscreen;
+    glm::vec3 v1 = viewscreen_x;
+    glm::vec3 v2 = viewscreen_y;
+
+    glm::vec3 vp = p - V;
+    //IFDEBUG std::cout << "vp: " << vp << std::endl;
+    float plen = glm::length(vp);
+    // Cast vp onto v1 and v2
+    float v1_cast_len = plen * (glm::dot(glm::normalize(vp), glm::normalize(v1)));
+    float v2_cast_len = plen * (glm::dot(glm::normalize(vp), glm::normalize(v2)));
+    //IFDEBUG std::cout << "lens: " << v1_cast_len <<  " " << v2_cast_len << std::endl;
+    float x_ratio = v1_cast_len / glm::length(v1);
+    float y_ratio = v2_cast_len / glm::length(v2);
+
+    //IFDEBUG std::cout << "ratios: " << x_ratio <<  " " << y_ratio << std::endl;
+
+    if(x_ratio < 0.0f || x_ratio > 1.0f || y_ratio < 0.0f || y_ratio > 1.0f) return false;
+
+    x = xsize * x_ratio;
+    y = ysize * y_ratio;
+
+    return true;
+
 }

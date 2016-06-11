@@ -24,6 +24,7 @@ struct RenderTask{
 };
 
 struct PixelRenderResult{
+    PixelRenderResult() {};
     PixelRenderResult(Radiance main) : main_pixel(main) {}
     Radiance main_pixel;
     std::vector<std::tuple<int,int,Radiance>> side_effects;

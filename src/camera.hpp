@@ -7,7 +7,7 @@
 
 class Camera{
 public:
-    Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview, float focus_plane = 1.0f, float lens_size = 0.0f);
+    Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview, int xsize, int ysize, float focus_plane = 1.0f, float lens_size = 0.0f);
 
     /* xres, yres - targetted output image resolution
        x, y - pixel coordinates
@@ -22,6 +22,9 @@ public:
     Ray GetCenterRay(int x, int y, int xres, int yres) const;
 
     bool IsSimple() const {return lens_size == 0.0f;}
+
+    // Returns false if direction is not within camera view
+    bool GetCoordsFromDirection(glm::vec3 dir, int& /*out*/ x, int& /*out*/ y, bool debug = false) const;
 private:
     glm::vec3 origin;
     glm::vec3 lookat;
@@ -35,6 +38,9 @@ private:
     glm::vec3 viewscreen_y;
 
     float lens_size;
+
+    int xsize;
+    int ysize;
 
     glm::vec3 GetViewScreenPoint(float x, float y) const;
 

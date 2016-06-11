@@ -119,7 +119,6 @@ float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool deb
 }
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
-    out::cout(4) << "phong = " << phong_exp << std::endl;
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
     out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
 }

@@ -43,7 +43,7 @@ public:
         xsize(other.xsize), ysize(other.ysize),
         data(other.data),  count(other.count) {}
     bool Write(std::string path) const;
-    void AddPixel(int x, int y, Radiance c);
+    void AddPixel(int x, int y, Radiance c, unsigned int n = 1);
     Radiance GetPixel(int x, int y) const;
     EXRTexture Normalize() const;
 

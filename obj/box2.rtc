@@ -7,11 +7,12 @@ box2.exr
 0.0 0.0 0.0
 0.0 1.0 0.0
 1.25
-L -2.0 2.5 1.0 255 255 255 10.0 0.5
+L 0.0 2.5 1.0 255 255 255 10.0 0.5
 
-multisample 40
-rounds 30
+multisample 10
+rounds 120
 sky 200 0 0 0.0
 clamp 2.0
-russian -1
+russian 0.6
+reverse 2
 brdf cooktorr
