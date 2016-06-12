@@ -1,0 +1,17 @@
+
+box8/box8.obj
+box8.exr
+4
+1200 900
+0.0 0.0 7.0
+0.0 0.0 0.0
+0.0 1.0 0.0
+1.1
+
+multisample 40
+rounds 40
+sky 200 0 0 0.0
+clamp 5.0
+russian 0.7
+reverse 2
+brdf ltc_ggx

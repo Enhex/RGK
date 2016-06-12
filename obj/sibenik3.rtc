@@ -15,4 +15,5 @@ sky 246 249 254 0.15
 russian 0.8
 clamp 4.0
 thinglass staklo
-bumpscale 0
+bumpscale 8
+brdf ltc_beckmann

@@ -12,7 +12,8 @@ L  -16.0 100.0 -10.0 255 240 200 20000.0 1.0
 
 multisample 40
 rounds 40
-sky 185 220 240 0.9
+sky 185 220 240 0.4
 bumpscale 20
 clamp 5.0
 russian 0.6
+brdf ltc_ggx

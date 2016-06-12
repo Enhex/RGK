@@ -16,4 +16,5 @@ russian 0.7
 reverse 4
 
 # brdf cooktorr
-brdf ltc_beckmann
+# brdf ltc_beckmann
+brdf ltc_ggx
