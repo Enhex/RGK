@@ -24,3 +24,4 @@ multisample 40
 rounds 30
 russian 0.7
 clamp 5.0
+brdf ltc_ggx
