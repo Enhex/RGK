@@ -29,7 +29,7 @@
 #include "path_tracer.hpp"
 #include "out.hpp"
 
-#include "LTC/ltc_beckmann.hpp"
+#include "LTC/ltc.hpp"
 
 std::atomic<int> rounds_done(0);
 unsigned int total_rounds;

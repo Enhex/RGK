@@ -193,6 +193,9 @@ undefined option, it is ignored.
  - `force_fresnell (int)` 1 to enable, 0 to disable, disabled by
    default.  Forces calculation of fresnell reflections on all
    materials, regardless of their specular component.
+ - `reverse (int)` Specifies the maximum length of reverse path (light
+   path) for bi-directional tracing. Reflections and refractions are
+   not counted towards this limit. Default is 0 (disabled).
 
 Example config file:
 

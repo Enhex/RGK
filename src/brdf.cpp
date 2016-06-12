@@ -6,7 +6,7 @@
 
 #include "out.hpp"
 #include "utils.hpp"
-#include "LTC/ltc_beckmann.hpp"
+#include "LTC/ltc.hpp"
 
 std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd, bool) const{
     glm::vec3 v = rnd.GetHSCosDir(normal);
@@ -115,7 +115,7 @@ float BRDFLTCBeckmann::PdfDiff() const{
 }
 float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
     //IFDEBUG std::cout << "Debugging beckman ltc" << std::endl;
-    return LTC_BECKMANN::get_pdf(N, Vi, Vr, roughness, debug);
+    return LTC::GetPDF(LTC::Beckmann, N, Vi, Vr, roughness, debug);
 }
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
@@ -137,42 +137,13 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(
 
         glm::vec3 v;
         v = rnd.GetHSCosZ();
-        v = LTC_BECKMANN::get_random(normal, inc, roughness, v, debug);
+        v = LTC::GetRandom(LTC::Beckmann, normal, inc, roughness, v, debug);
 
         return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
     }
 
 }
 
-// TODO: Re-implement other BRDF functions!
-
-/*
-Radiance BRDF::Phong(glm::vec3 N, Color Kd, Color Ks, glm::vec3 Vi, glm::vec3 Vr, float exponent, float, float){
-    // Ideal specular reflection direction
-    glm::vec3 Vs = 2.0f * glm::dot(Vi, N) * N - Vi;
-
-    float c = glm::max(0.0f, glm::cos( glm::angle(Vr,Vs) ) );
-    c = glm::pow(c, exponent);
-    Radiance diffuse  = Radiance(Kd) / glm::pi<float>();
-    Radiance specular = Radiance(Ks) * c;
-    return diffuse + specular;
-}
-
-Radiance BRDF::Phong2(glm::vec3 N, Color Kd, Color Ks, glm::vec3 Vi, glm::vec3 Vr, float exponent, float, float){
-    // Ideal specular reflection direction
-    glm::vec3 Vs = 2.0f * glm::dot(Vi, N) * N - Vi;
-
-    float c = glm::max(0.0f, glm::dot(Vr,Vs));
-    c = glm::pow(c, exponent);
-    c /= glm::dot(Vi, N);
-
-    Radiance diffuse  = Radiance(Kd) / glm::pi<float>();
-    Radiance specular = Radiance(Ks) * c;
-    return diffuse + specular;
-}
-
-
-*/
 float BRDFPhongEnergy::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
