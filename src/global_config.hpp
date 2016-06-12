@@ -71,4 +71,5 @@ void assert_fail(std::string text,std::string file,int line,std::string function
   #define qassert_true(x) ((void)0)
   #define qassert_false(x) ((void)0)
   #define qassert_less(a,b) ((void)0)
+  #define qassert_directed(a,b) ((void)0)
 #endif
