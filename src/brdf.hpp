@@ -47,6 +47,15 @@ public:
     virtual float PdfDiff() const override;
 };
 
+class BRDFPhongEnergy : public BRDF{
+public:
+    BRDFPhongEnergy(float exponent) : exponent(exponent) {}
+    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
+    virtual float PdfDiff() const override;
+private:
+    float exponent;
+};
+
 class BRDFCookTorr : public BRDF{
 public:
     BRDFCookTorr(float phong_exponent, float ior);
@@ -66,13 +75,14 @@ public:
 private:
     float roughness;
 };
-
-class BRDFPhongEnergy : public BRDF{
+class BRDFLTCGGX : public BRDF{
 public:
-    BRDFPhongEnergy(float exponent) : exponent(exponent) {}
+    BRDFLTCGGX(float phong_exponent);
     virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
     virtual float PdfDiff() const override;
+    virtual std::tuple<glm::vec3, Radiance, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, Random& rnd, bool debug = false) const override;
 private:
-    float exponent;
+    float roughness;
 };
+
 #endif // __BRDF_HPP__

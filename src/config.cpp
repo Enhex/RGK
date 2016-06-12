@@ -137,6 +137,8 @@ Config Config::CreateFromFile(std::string path){
                 cfg.brdf = "diffuseuniform";
             }else if(vs[1] == "ltc_beckmann"){
                 cfg.brdf = "ltc_beckmann";
+            }else if(vs[1] == "ltc_ggx"){
+                cfg.brdf = "ltc_ggx";
             }else{
                 throw ConfigFileException("Unknown BRDF type: " + vs[1]);
             }

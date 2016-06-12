@@ -186,6 +186,22 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             p.faceN = i.Interpolate(i.triangle->GetNormalA(),
                                     i.triangle->GetNormalB(),
                                     i.triangle->GetNormalC());
+
+            if(std::isnan(p.faceN.x) /* || std::isnan(p.faceN.y) || std::isnan(p.faceN.z) */){
+                // Ah crap. Assimp incorrectly merged some vertices.
+                // Just try another normal.
+                p.faceN = i.triangle->GetNormalA();
+                if(std::isnan(p.faceN.x)){
+                    p.faceN = i.triangle->GetNormalB();
+                    if(std::isnan(p.faceN.x)){
+                        p.faceN = i.triangle->GetNormalC();
+                        if(std::isnan(p.faceN.x)){
+                            // All three vertices are messed up? Not much we can help now. Let's just ignore this ray.
+                            return path;
+                        }
+                    }
+                }
+            }
             p.faceN = glm::normalize(p.faceN);
             // Prepare incoming direction
             p.Vr = -current_ray.direction;
@@ -291,6 +307,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             }
 
             BRDF::BRDFSamplingType sampling_type = BRDF::SAMPLING_COSINE;
+            p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
             // Compute next ray direction
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
             glm::vec3 dir;
@@ -309,7 +326,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 // Revert to face normal in case this ray would enter from inside
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
                 do{
-                    std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
+                    std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
                     counter++;
                 }while(glm::dot(dir, p.faceN) <= 0.0f && counter < 20);
                 if(counter == 20){
@@ -320,7 +337,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     // Unfortunatelly, I do not have the time right now to consider and compare these options.
                     // So, temporarily, I'll do 2).
                     do{ //                                          Notice faceN here ---\/---
-                        std::tie(dir, std::ignore, sampling_type) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
+                        std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
                     }while(glm::dot(dir, p.faceN) <= 0.0f);
                 }
                 break;
@@ -353,8 +370,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             else p.russian_coefficient = 1.0f;
 
             // Calculate transfer coefficients (BRFD, cosine, etc.)
-            p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
-
             if(p.type == PathPoint::SCATTERED){
                 // Branch prediction should optimize-out these conditional jump during runtime.
                 if(sampling_type != BRDF::SAMPLING_COSINE){
@@ -367,7 +382,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     // still requires multiplying by cosine. However, enabling it results in an ugly dark border
                     // around a reflective sphere. Should this condition be here? Maybe it should be applied
                     // differently in various cases?
-                    // if(sampling_type != BRDF::SAMPLING_BRDF)
+                    if(sampling_type != BRDF::SAMPLING_BRDF)
                         p.transfer_coefficients *= cos;
                 }else{
                     // Cosine sampling p = cos/pi. Don't divide by cos, as it was

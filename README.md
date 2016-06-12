@@ -159,6 +159,7 @@ undefined option, it is ignored.
   - `diffuse` Only cosine-weighted diffuse component
   - `cooktorr` Cook-Torrance reflection model (default)
   - `ltc_beckmann` LTC-approximated beckmann BRDF
+  - `ltc_ggx` LTC-approximated beckmann GGX
  - `bumpscale (float)` Configures the scale for bump maps. Normally
    OBJ files contain no information about bump map depth, and thus it
    is subject to configuration. There is no defined correspondence

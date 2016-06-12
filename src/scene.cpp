@@ -145,6 +145,8 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
     }else if(cfg.brdf == "ltc_beckmann"){
         m.brdf = std::make_unique<BRDFLTCBeckmann>(m.exponent);
+    }else if(cfg.brdf == "ltc_ggx"){
+        m.brdf = std::make_unique<BRDFLTCGGX>(m.exponent);
     }else if(cfg.brdf == "phongenergy"){
         m.brdf = std::make_unique<BRDFPhongEnergy>(m.exponent);
     }else{

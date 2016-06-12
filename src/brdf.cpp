@@ -14,7 +14,6 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 n
     return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_COSINE);
 }
 
-
 float BRDFDiffuseUniform::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
@@ -27,7 +26,6 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetR
     return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_UNIFORM);
 }
 
-
 float BRDFDiffuseCosine::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
@@ -35,6 +33,20 @@ float BRDFDiffuseCosine::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
 
+float BRDFPhongEnergy::PdfDiff() const{
+    return 1.0f/glm::pi<float>();
+}
+float BRDFPhongEnergy::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool) const{
+    // Ideal specular reflection direction
+    glm::vec3 Vs = 2.0f * glm::dot(Vi, N) * N - Vi;
+
+    float c = glm::max(0.0f, glm::dot(Vr,Vs));
+    c = glm::pow(c, exponent);
+    c /= glm::dot(Vi, N);
+
+    float norm = (exponent + 2) / (2.0f * glm::pi<float>());
+    return norm * c;
+}
 
 BRDFCookTorr::BRDFCookTorr(float phong_exp, float ior){
     // Converting specular exponent to roughness using Brian Karis' formula:
@@ -51,11 +63,6 @@ float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug)
     glm::vec3 Vh = glm::normalize(Vi + Vr);
     //if(glm::length(Vi + Vr) < 0.001f) ...?
 
-    //IFDEBUG std::cout << "N = " << N << std::endl;
-    //IFDEBUG std::cout << "Vi = " << Vi << std::endl;
-    //IFDEBUG std::cout << "Vh = " << Vh << std::endl;
-    //IFDEBUG std::cout << "Vr = " << Vr << std::endl;
-
     float th_i = 0.5f*glm::pi<float>() - glm::angle(Vi, N);
     float th_r = 0.5f*glm::pi<float>() - glm::angle(Vr, N);
     float th_h = 0.5f*glm::pi<float>() - glm::angle(Vh, N);
@@ -65,23 +72,15 @@ float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug)
     float cb = 1.0f - glm::dot(Vi, Vh);
     float F = F0 + (1.0f - F0) * cb*cb*cb*cb*cb;
 
-    //IFDEBUG std::cout << "cb = " << cb << std::endl;
-    //IFDEBUG std::cout << "F0 = " << F0 << std::endl;
-
     // Beckman dist
     //float ce = glm::cos(th_h);
     //float te = glm::tan(th_h);
     float m2 = roughness * roughness;
-    //float D = glm::exp(-1.0f * te*te / m2 )/(m2 * ce*ce*ce*ce);
 
     float NdotH = glm::dot(N, Vh);
     float r1 = 1.0f / ( 4.0f * m2 * NdotH * NdotH * NdotH * NdotH);
     float r2 = (NdotH * NdotH - 1.0) / (m2 * NdotH * NdotH);
     float D = r1 * glm::exp(r2);
-
-    //IFDEBUG std::cout << "m2 = " << m2 << std::endl;
-    //IFDEBUG std::cout << "te = " << te << std::endl;
-    //IFDEBUG std::cout << "ce = " << ce << std::endl;
 
     // Shadow and masking factor
     float Gc = 2.0f * glm::cos(th_h) / glm::cos(beta);
@@ -100,32 +99,23 @@ float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug)
 
     float c = F * D * G / (NdotV * NdotL * 3.14);
 
-    //IFDEBUG std::cout << "F = " << F << std::endl;
-    //IFDEBUG std::cout << "D = " << D << std::endl;
-    //IFDEBUG std::cout << "G = " << G << std::endl;
-    //IFDEBUG std::cout << "NdotV = " << NdotV << std::endl;
-    //IFDEBUG std::cout << "NdotL = " << NdotL << std::endl;
-    //IFDEBUG std::cout << "c = " << c << std::endl;
-
     return c / glm::pi<float>();
 }
 
-float BRDFLTCBeckmann::PdfDiff() const{
-    return 1.0f/glm::pi<float>();
-}
-float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
-    //IFDEBUG std::cout << "Debugging beckman ltc" << std::endl;
-    return LTC::GetPDF(LTC::Beckmann, N, Vi, Vr, roughness, debug);
-}
+
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
     out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
 }
-
+float BRDFLTCBeckmann::PdfDiff() const{
+    return 1.0f/glm::pi<float>();
+}
+float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
+    return LTC::GetPDF(LTC::Beckmann, N, Vi, Vr, roughness, debug);
+}
 std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, Random &rnd, bool debug) const{
     assert(glm::dot(normal, inc) > 0.0f);
-
     float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
     float specular_power = specular.r + specular.g + specular.b; // Integral over specular spectrum...
     if(rnd.GetFloat(0.0f, diffuse_power + specular_power) < diffuse_power){
@@ -134,27 +124,37 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(
         std::get<1>(res) = Radiance(diffuse);
         return res;
     }else{
-
         glm::vec3 v;
         v = rnd.GetHSCosZ();
         v = LTC::GetRandom(LTC::Beckmann, normal, inc, roughness, v, debug);
-
         return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
     }
-
 }
 
-float BRDFPhongEnergy::PdfDiff() const{
+BRDFLTCGGX::BRDFLTCGGX(float phong_exp){
+    // Converting specular exponent to roughness using Brian Karis' formula:
+    roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
+    out::cout(3) << "Created new BRDF LTC GGX with roughness = " << roughness << std::endl;
+}
+float BRDFLTCGGX::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
-float BRDFPhongEnergy::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool) const{
-    // Ideal specular reflection direction
-    glm::vec3 Vs = 2.0f * glm::dot(Vi, N) * N - Vi;
-
-    float c = glm::max(0.0f, glm::dot(Vr,Vs));
-    c = glm::pow(c, exponent);
-    c /= glm::dot(Vi, N);
-
-    float norm = (exponent + 2) / (2.0f * glm::pi<float>());
-    return norm * c;
+float BRDFLTCGGX::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
+    return LTC::GetPDF(LTC::GGX, N, Vi, Vr, roughness, debug);
+}
+std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCGGX::GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, Random &rnd, bool debug) const{
+    qassert_directed(normal, inc);
+    float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
+    float specular_power = specular.r + specular.g + specular.b; // Integral over specular spectrum...
+    if(rnd.GetFloat(0.0f, diffuse_power + specular_power) < diffuse_power){
+        // Diffuse ray
+        auto res = BRDF::GetRay(normal, inc, diffuse, specular, rnd);
+        std::get<1>(res) = Radiance(diffuse);
+        return res;
+    }else{
+        glm::vec3 v;
+        v = rnd.GetHSCosZ();
+        v = LTC::GetRandom(LTC::GGX, normal, inc, roughness, v, debug);
+        return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
+    }
 }

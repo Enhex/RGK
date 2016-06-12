@@ -27,6 +27,7 @@ public:
     static glm::vec3 GetRandom(LTCdef ltc, glm::vec3 normal, glm::vec3 incoming, float roughness, glm::vec3 rand_hscos, bool debug = false);
 
     static const LTCdef Beckmann;
+    static const LTCdef GGX;
 private:
     static std::pair<glm::mat3, float> get_bilinear(LTCdef ltc, const float theta, const float alpha);
 };
