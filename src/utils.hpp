@@ -3,6 +3,7 @@
 
 #include <string>
 #include <vector>
+#include <list>
 #include <iostream>
 
 #include "glm.hpp"
@@ -33,6 +34,7 @@ public:
     static std::string JoinString(std::vector<std::string> str, std::string c);
     static std::string FormatIntThousands(unsigned int value);
     static std::string FormatFraction5(float value);
+    static std::string FormatTime(float seconds);
     static std::string GetDir(std::string path);
     // Extracts filename from a path
     static std::string GetFilename(std::string path);
@@ -40,6 +42,15 @@ public:
     static std::pair<std::string, std::string> GetFileExtension(std::string fname);
     static std::string InsertFileSuffix(std::string path, std::string suffix);
     static bool GetFileExists(std::string path);
+
+    class LowPass{
+    public:
+        LowPass(unsigned int size);
+        float Add(float value);
+    private:
+        unsigned int m_size;
+        std::list<float> data;
+    };
 };
 
 #endif // __UTILS_HPP__

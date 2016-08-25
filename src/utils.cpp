@@ -115,3 +115,32 @@ std::string Utils::FormatFraction5(float value){
     ss << std::setprecision(5) << std::fixed << f;
     return SplitString(ss.str(), ".")[1];
 }
+
+std::string Utils::FormatTime(float s){
+    int seconds = (s + 0.5f);
+    int minutes = seconds / 60;
+    int hours = minutes / 60;
+    minutes %= 60;
+    seconds %= 60;
+    std::string result;
+    if(hours > 0) result += std::to_string(hours) + "h ";
+    if(hours > 0 || minutes > 0) result += std::to_string(minutes) + "m ";
+    if(hours == 0) result += std::to_string(seconds) + "s ";
+    return result;
+}
+
+
+Utils::LowPass::LowPass(unsigned int size)
+    : m_size(size){
+}
+
+float Utils::LowPass::Add(float value){
+    if(std::isnan(value)) return value; // Do not store nans.
+    data.push_back(value);
+    while(data.size() > m_size) data.pop_front();
+    // We might cache this value, but it would accumulate errors due to floating point numbers.
+    // Adding ~50 numbers each 100 ms is not a big deal, though.
+    float val = 0.0f;
+    for(const float& f : data) val += f;
+    return val / data.size(); // if size > 0, this will never divide by zero
+}

@@ -49,25 +49,35 @@ std::string float_to_percent_string(float f){
 void Monitor(){
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+    Utils::LowPass eta_lp(200);
 
     // Helper function that prints out the progress bar.
-    auto print_progress_f = [](){
+    auto print_progress_f = [start, &eta_lp](){
+        std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+        float elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() / 1000.0f;
         int d = pixels_done;
         float fraction = d/(float)total_pixels;
         float percent = int(fraction*1000.0f + 0.5f) / 10.0f;
+        float eta = (1.0f - fraction)*elapsed/fraction;
+        eta = eta_lp.Add(eta);
         unsigned int fill = fraction * BARSIZE;
         unsigned int empty = BARSIZE - fill;
+        // Line 1
+        out::cout(1) << "\033[1A"; // Cursor up 1 line
         out::cout(1) << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
         for(unsigned int i = 0; i <  fill; i++) out::cout(1) << "#";
         for(unsigned int i = 0; i < empty; i++) out::cout(1) << "-";
-        out::cout(1) << "] " <<  float_to_percent_string(percent) << " done; round " << std::min((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds;
+        out::cout(1) << "] " << std::endl;
+        // Line 2
+        std::string eta_str = (percent >= 2.0f)?Utils::FormatTime(eta):"???";
+        out::cout(1) << "\33[2K\r" << float_to_percent_string(percent) << " done, round " << std::min((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds << ", time elapsed: " << Utils::FormatTime(elapsed) << ", ETA: " << eta_str;
         out::cout(1).flush();
     };
 
     while(!stop_monitor){
         print_progress_f();
         if(pixels_done >= total_pixels) break;
-        usleep(1000*100); // 100ms
+        usleep(1000*100); // 50ms
     }
 
     // Output the message one more time to display "100%"
@@ -79,7 +89,7 @@ void Monitor(){
     float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
     unsigned int total_rays = raycount;
 
-    out::cout(2) << "Total rendering time: " << total_seconds << "s = " << (int)(0.5 + total_seconds/60.0) << " min" << std::endl;
+    out::cout(2) << "Total rendering time: " << Utils::FormatTime(total_seconds) << std::endl;
     out::cout(3) << "Total rays: " << total_rays << std::endl;
     out::cout(2) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
     out::cout(3) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
