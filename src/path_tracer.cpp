@@ -52,9 +52,9 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
     for(unsigned int i = 0; i < V.size(); i++){
         Ray r;
         if(camera.IsSimple()){
-            r = camera.GetSubpixelRay(x, y, xres, yres, i, V[i], multisample);
+            r = camera.GetSubpixelRayRandom(x, y, xres, yres, i, V[i], multisample, rnd);
         }else{
-            r = camera.GetSubpixelRayLens(x, y, xres, yres, i, V[i], multisample, rnd);
+            r = camera.GetSubpixelRayLensRandom(x, y, xres, yres, i, V[i], multisample, rnd);
         }
         PixelRenderResult q = TracePath(r, raycount, debug);
         total.main_pixel += q.main_pixel;

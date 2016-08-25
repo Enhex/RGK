@@ -17,6 +17,9 @@ public:
     Ray GetSubpixelRay(int x, int y, int xres, int yres, int subx, int suby, int subres) const;
     Ray GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
 
+    Ray GetSubpixelRayRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
+    Ray GetSubpixelRayLensRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
+
     Ray GetRandomRay(int x, int y, int xres, int yres, Random& rnd) const;
     Ray GetRandomRayLens(int x, int y, int xres, int yres, Random& rnd) const;
     Ray GetCenterRay(int x, int y, int xres, int yres) const;

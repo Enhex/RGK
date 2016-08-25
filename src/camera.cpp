@@ -67,12 +67,31 @@ Ray Camera::GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int s
     glm::vec2 off( subx/(float)subres, suby/(float)subres );
     glm::vec3 p = GetViewScreenPoint( (x /*+ off.x*/) / (float)(xres),
                                       (y /*+ off.y*/) / (float)(yres) );
-    //glm::vec2 lenso = (off - 0.5f)*2.0f * lens_size;
-    //glm::vec2 lenso = glm::euclidean(glm::vec2(off.y * 2*3.14f + off.x*15.99f, off.x*0.8f + 0.2f)).yz() * lens_size;
     glm::vec2 lenso = rnd.GetDisc(lens_size);
     glm::vec3 o = origin + lenso.x * cameraleft + lenso.y * cameraup;
     return Ray(o, p - o);
 }
+
+Ray Camera::GetSubpixelRayRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const {
+    glm::vec2 off( subx/(float)subres, suby/(float)subres );
+    glm::vec2 suboff(rnd.Get01(), rnd.Get01());
+    suboff /= (float)subres;
+    glm::vec3 p = GetViewScreenPoint( (x + off.x + suboff.x) / (float)(xres),
+                                      (y + off.y + suboff.y) / (float)(yres) );
+    glm::vec3 o = origin;
+    return Ray(o, p - o);
+}
+Ray Camera::GetSubpixelRayLensRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const {
+    glm::vec2 off( subx/(float)subres, suby/(float)subres );
+    glm::vec2 suboff(rnd.Get01(), rnd.Get01());
+    suboff /= (float)subres;
+    glm::vec3 p = GetViewScreenPoint( (x + off.x + suboff.x) / (float)(xres),
+                                      (y + off.y + suboff.y) / (float)(yres) );
+    glm::vec2 lenso = rnd.GetDisc(lens_size);
+    glm::vec3 o = origin + lenso.x * cameraleft + lenso.y * cameraup;
+    return Ray(o, p - o);
+}
+
 
 bool Camera::GetCoordsFromDirection(glm::vec3 dir, int& /*out*/ x, int& /*out*/ y, bool debug) const{
     (void)debug;
