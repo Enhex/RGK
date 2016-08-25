@@ -1,6 +1,8 @@
 # RGKrt
 
-A path tracer.
+A physically-based path tracer.
+
+![Example render](http://i.imgur.com/HGONqUs.jpg)
 
 External libraries used:
  - assimp

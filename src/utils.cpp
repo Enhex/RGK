@@ -4,6 +4,8 @@
 #include <fstream>
 #include <locale>
 #include <sstream>
+#include <cmath>
+#include <iomanip>
 
 static inline std::string& ltrim(std::string& s) {
   s.erase(s.begin(), std::find_if(s.begin(), s.end(), std::not1(std::ptr_fun<int, int>(std::isspace))));
@@ -102,4 +104,14 @@ std::string Utils::FormatIntThousands(unsigned int value){
     ss.imbue(comma);
     ss << value;
     return ss.str();
+}
+
+
+std::string Utils::FormatFraction5(float value){
+    float i = 0;
+    float f = std::modf(value, &i);
+    if(f == 0.0f) return "00000";
+    std::stringstream ss;
+    ss << std::setprecision(5) << std::fixed << f;
+    return SplitString(ss.str(), ".")[1];
 }

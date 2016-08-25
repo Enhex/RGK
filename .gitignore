@@ -17,7 +17,8 @@ out
 *.blend*
 
 # External models
-obj/teapot
-obj/conference
-obj/dragon
-obj/buddha
+scenes/teapot
+scenes/conference
+scenes/dragon
+scenes/buddha
+scenes/dragon-sponza*

@@ -32,6 +32,7 @@ public:
     static std::vector<std::string> SplitString(std::string str, std::string delimiter, bool skip_empty = true);
     static std::string JoinString(std::vector<std::string> str, std::string c);
     static std::string FormatIntThousands(unsigned int value);
+    static std::string FormatFraction5(float value);
     static std::string GetDir(std::string path);
     // Extracts filename from a path
     static std::string GetFilename(std::string path);

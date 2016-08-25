@@ -97,6 +97,7 @@ void usage(const char* prog){
     std::cout << " -q                 Each occurence of this option decreases verbosity by 1.\n";
     std::cout << "                      Default verbosity level is 2. At 0, the program operates quietly.\n";
     std::cout << "                      Increasing verbosity makes the program output more statistics and diagnostic details.\n";
+    std::cout << " -r N M             Rotates the camera by N/M of full angle around the lookat point.\n";
 #if ENABLE_DEBUG
     std::cout << " -d, --debug X Y    Prints verbose debug information about rendering the X Y pixel.\n";
 #else
@@ -109,40 +110,12 @@ void usage(const char* prog){
 
 int main(int argc, char** argv){
 
-    // LTC TEST
-    /*
-    glm::vec3 N = glm::normalize(glm::vec3(0.0f, 0.0f, -1.0f));
-    glm::vec3 Vr = glm::normalize(glm::vec3(0.0f, -0.5f, -0.5f));
-    glm::vec3 Vi = glm::normalize(glm::vec3(0.0f, 0.5f, -0.5f));
-    LTC_BECKMANN::get_pdf(N,Vr,Vi, 0.05, true);
-    glm::vec3 Vr2 = glm::normalize(glm::vec3(-0.5f, -0.5f, -0.5f));
-    LTC_BECKMANN::get_pdf(N,Vr2,Vi, 0.05, true);
-
-
-    glm::vec3 N = glm::normalize(glm::vec3(0.0f, 1.0f, 0.0f));
-    glm::vec3 Vi = glm::normalize(glm::vec3(0.98f, 0.1f, 0.0f));
-    Random rnd(0);
-    glm::vec3 Vr = LTC_BECKMANN::get_random(N, Vi, 0.0001, rnd.GetHSCosZ(), true);
-    std::cout << Vr << std::endl;
-
-    std::cout << " ====== " << std::endl;
-
-    N = glm::normalize(glm::vec3(-0.114682, 0.974839, 0.191148));
-    Vi = glm::normalize(glm::vec3(0.9809044, 0.167549819, 0.09876059));
-    rnd = Random(90123213);
-    Vr = LTC_BECKMANN::get_random(N, Vi, 0.0001, rnd.GetHSCosZ(), true);
-    std::cout << Vr << std::endl;
-    std::cout << glm::dot(N,Vr) << std::endl;
-
-    //return 0;
-    */
-
-
     static struct option long_opts[] =
         {
 #if ENABLE_DEBUG
-            {"debug", no_argument, 0, 'd'},
+            {"debug", required_argument, 0, 'd'},
 #endif // ENABLE_DEBUG
+            {"rotate", required_argument, 0, 'r'},
             {"preview", no_argument, 0, 'p'},
             {"help", no_argument, 0, 'h'},
             {0,0,0,0}
@@ -150,11 +123,12 @@ int main(int argc, char** argv){
 
     // Recognize command-line arguments
     int c;
+    bool rotate = false; int rotate_N = 0, rotate_M = 0;
     int opt_index = 0;
 #if ENABLE_DEBUG
-    #define OPTSTRING "hpd:vq"
+    #define OPTSTRING "hpd:vqr:"
 #else
-    #define OPTSTRING "hpvq"
+    #define OPTSTRING "hpvqr:"
 #endif
     while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
@@ -174,6 +148,17 @@ int main(int argc, char** argv){
             }
             break;
 #endif // ENABLE_DEBUG
+        case 'r':
+            rotate = true;
+            rotate_N = std::stoi(optarg);
+            if (optind < argc && *argv[optind] != '-'){
+                rotate_M = std::stoi(argv[optind]);
+                optind++;
+            } else {
+                std::cout << "ERROR: Not enough arguments for --rotate.\n";
+                usage(argv[0]);
+            }
+            break;
         case 'p':
             preview_mode = true;
             break;
@@ -245,8 +230,6 @@ int main(int argc, char** argv){
 
                                              aiProcess_JoinIdenticalVertices |
 
-                                             // The option below is odd. Enabling it messes up half of my models.
-                                             // Enabling it messes up the other half.
                                              aiProcess_RemoveRedundantMaterials |
 
                                              aiProcess_GenUVCoords |
@@ -270,13 +253,27 @@ int main(int argc, char** argv){
     out::cout(2) << "Loaded scene with " << scene->mNumMeshes << " meshes and " <<
         scene->mNumMaterials << " materials." << std::endl;
 
-    // Prepare the world.
+    // Prepare the world
     Scene s;
     s.texture_directory = modeldir + "/";
     s.LoadScene(scene, cfg);
     s.AddPointLights(cfg.lights);
     s.Commit();
 
+
+    // Prepare the camera.
+    float rotate_frac = 0.0f;
+    if(rotate){
+        if(rotate_M == 0){
+            std::cout << "Invalid argument to --rotate, cannot divide by zero" << std::endl;
+            return 1;
+        }
+        rotate_frac = (float)rotate_N/rotate_M;
+        std::cout << "Rotating camera by " << rotate_frac << " of full angle." << std::endl;
+        glm::vec3 p = cfg.look_at - cfg.view_point;
+        p = glm::rotate(p, rotate_frac * 2.0f * glm::pi<float>(), cfg.up_vector);
+        cfg.view_point = cfg.look_at - p;
+    }
     Camera camera(cfg.view_point,
                   cfg.look_at,
                   cfg.up_vector,
@@ -295,7 +292,14 @@ int main(int argc, char** argv){
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
     out::cout(2) << "Using thread pool of size " << concurrency << std::endl;
 
-    std::string output_file = (preview_mode) ? Utils::InsertFileSuffix(cfg.output_file, "preview") : cfg.output_file;
+    // Prepare output file name
+    std::string output_file = cfg.output_file;
+    if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
+    if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
+    if(rotate && Utils::GetFileExists(output_file)){
+        std::cout << "Not overwriting existing file in rotate mode: " << output_file << std::endl;
+        return 1;
+    }
     out::cout(2) << "Writing to file " << output_file << std::endl;
 
     // Split rendering into smaller (tile_size x tile_size) tasks.
