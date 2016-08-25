@@ -200,6 +200,31 @@ int main(int argc, char** argv){
         return 1;
     }
 
+    // Prepare camera rotation, needed for generating file name.
+    float rotate_frac = 0.0f;
+    if(rotate){
+        if(rotate_M == 0){
+            std::cout << "Invalid argument to --rotate, cannot divide by zero" << std::endl;
+            return 1;
+        }
+        rotate_frac = (float)rotate_N/rotate_M;
+    }
+
+    // Prepare output file name
+    std::string output_file = cfg.output_file;
+    if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
+    if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
+    if(rotate && Utils::GetFileExists(output_file)){
+        std::cout << "Not overwriting existing file in rotate mode: " << output_file << std::endl;
+        return 1;
+    }
+    out::cout(2) << "Writing to file " << output_file << std::endl;
+
+
+    // Preapare output buffer
+    EXRTexture total_ob(cfg.xres, cfg.yres);
+    total_ob.Write(output_file);
+
     // Enable preview mode
     if(preview_mode){
         cfg.xres /= PREVIEW_DIMENTIONS_RATIO;
@@ -262,13 +287,7 @@ int main(int argc, char** argv){
 
 
     // Prepare the camera.
-    float rotate_frac = 0.0f;
     if(rotate){
-        if(rotate_M == 0){
-            std::cout << "Invalid argument to --rotate, cannot divide by zero" << std::endl;
-            return 1;
-        }
-        rotate_frac = (float)rotate_N/rotate_M;
         std::cout << "Rotating camera by " << rotate_frac << " of full angle." << std::endl;
         glm::vec3 p = cfg.look_at - cfg.view_point;
         p = glm::rotate(p, rotate_frac * 2.0f * glm::pi<float>(), cfg.up_vector);
@@ -292,16 +311,6 @@ int main(int argc, char** argv){
     concurrency = std::max((unsigned int)1, concurrency - 1); // If available, leave one core free.
     out::cout(2) << "Using thread pool of size " << concurrency << std::endl;
 
-    // Prepare output file name
-    std::string output_file = cfg.output_file;
-    if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
-    if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
-    if(rotate && Utils::GetFileExists(output_file)){
-        std::cout << "Not overwriting existing file in rotate mode: " << output_file << std::endl;
-        return 1;
-    }
-    out::cout(2) << "Writing to file " << output_file << std::endl;
-
     // Split rendering into smaller (tile_size x tile_size) tasks.
     std::vector<RenderTask> tasks;
     for(unsigned int yp = 0; yp < cfg.yres; yp += TILE_SIZE){
@@ -323,9 +332,6 @@ int main(int argc, char** argv){
     std::sort(tasks.begin(), tasks.end(), [&middle](const RenderTask& a, const RenderTask& b){
             return glm::length(middle - a.midpoint) < glm::length(middle - b.midpoint);
         });
-
-    // Preapare output buffer
-    EXRTexture total_ob(cfg.xres, cfg.yres);
 
     // Start monitor thread.
     total_pixels = cfg.xres * cfg.yres * cfg.rounds;
