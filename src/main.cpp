@@ -39,6 +39,7 @@ std::atomic<bool> stop_monitor(false);
 int total_pixels;
 
 bool preview_mode = false;
+bool compare_mode = false;
 
 std::string float_to_percent_string(float f){
     std::stringstream ss;
@@ -137,9 +138,9 @@ int main(int argc, char** argv){
     bool rotate = false; int rotate_N = 0, rotate_M = 0;
     int opt_index = 0;
 #if ENABLE_DEBUG
-    #define OPTSTRING "hpd:vqr:"
+    #define OPTSTRING "hpcd:vqr:"
 #else
-    #define OPTSTRING "hpvqr:"
+    #define OPTSTRING "hpcvqr:"
 #endif
     while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
@@ -172,6 +173,9 @@ int main(int argc, char** argv){
             break;
         case 'p':
             preview_mode = true;
+            break;
+        case 'c':
+            compare_mode = true;
             break;
         case 'v':
             out::verbosity_level++;
@@ -234,6 +238,7 @@ int main(int argc, char** argv){
     std::string output_file = cfg->output_file;
     if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
     if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
+    if(compare_mode) output_file = Utils::InsertFileSuffix(output_file, "cmp");
     if(rotate && Utils::GetFileExists(output_file)){
         std::cout << "Not overwriting existing file in rotate mode: " << output_file << std::endl;
         return 1;
