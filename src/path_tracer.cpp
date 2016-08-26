@@ -187,7 +187,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                                     i.triangle->GetNormalB(),
                                     i.triangle->GetNormalC());
 
-            if(std::isnan(p.faceN.x) /* || std::isnan(p.faceN.y) || std::isnan(p.faceN.z) */){
+            if(std::isnan(p.faceN.x)){
                 // Ah crap. Assimp incorrectly merged some vertices.
                 // Just try another normal.
                 p.faceN = i.triangle->GetNormalA();
@@ -202,6 +202,13 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     }
                 }
             }
+            // Sometimes it may happen, when interpolating between reverse vectors,
+            // the the the result is 0. Or worse: some models contain zero-length normal vectors!
+            // In such unfortunate case, just igore this ray.
+            if(glm::length(p.faceN) <= 0.0f){
+                return path;
+            }
+
             p.faceN = glm::normalize(p.faceN);
             // Prepare incoming direction
             p.Vr = -current_ray.direction;
@@ -215,6 +222,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 // Pretend correction.
                 p.faceN = -p.faceN;
             }
+
+            assert(!std::isnan(p.faceN.x));
 
             glm::vec2 texUV;
             // Interpolate textures
@@ -265,6 +274,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 p.lightN = p.faceN;
             }
 
+            assert(!std::isnan(p.lightN.x));
 
             // Randomly determine point type
             if(mat.translucency > 0.001f){
