@@ -230,6 +230,13 @@ static inline bool getOptionalBool(const Json::Value& node, std::string key, boo
     if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a bool.");
     return node.get(key, def).asBool();
 }
+static inline glm::vec3 getOptionalVec3(const Json::Value& node, std::string key, glm::vec3 def) {
+    if(!node.isMember(key)) return def;
+    glm::vec3 res;
+    if(!JSONArrayToVec3(node[key], res))
+        throw ConfigFileException("Value \"" + key + "\" must be an array of 3 numbers.");
+    return res;
+}
 
 std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     auto cfgptr = std::shared_ptr<ConfigJSON>(new ConfigJSON());
@@ -270,7 +277,7 @@ Camera ConfigJSON::GetCamera(float rotation) const{
 
     glm::vec3 camera_position = getRequiredVec3(camera, "position");
     glm::vec3 camera_lookat   = getRequiredVec3(camera, "lookat"  );
-    glm::vec3 camera_upvector = getRequiredVec3(camera, "upvector");
+    glm::vec3 camera_upvector = getOptionalVec3(camera, "upvector", glm::vec3(0.0f, 1.0f, 0.0f));
 
     float yview = getRequiredFloat(camera, "focal");
 
@@ -300,7 +307,7 @@ void ConfigJSON::InstallLights(Scene &scene) const{
         auto light = lights[i];
         Light l;
         l.pos = getRequiredVec3(light, "position");
-        l.color = getRequiredVec3(light, "color")/255.0f;
+        l.color = getOptionalVec3(light, "color", glm::vec3(255.0f, 255.0f, 255.0f))/255.0f;
         l.intensity = getRequiredFloat(light, "intensity");
         l.size = getOptionalFloat(light, "size", 0.0f);
         scene.AddPointLight(l);
@@ -308,9 +315,9 @@ void ConfigJSON::InstallLights(Scene &scene) const{
 }
 
 std::pair<Color, float> ConfigJSON::GetSky() const{
-    if(!root.isMember("sky")) std::make_pair(Color(0.0f, 0.0f, 0.0f), 0.0f);
+    if(!root.isMember("sky")) return std::make_pair(Color(0.0f, 0.0f, 0.0f), 0.0f);
     auto sky = root["sky"];
-    if(!sky.isObject()) throw ConfigFileException("Value \"sky\" is not a dictionary.");
+    if(!sky.isObject()) throw ConfigFileException("Value \"sky\" must be a dictionary.");
 
     Color sky_color = getRequiredVec3(sky, "color")/255.0f;
     float sky_intensity = getRequiredFloat(sky, "intensity");
