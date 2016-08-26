@@ -78,7 +78,7 @@ public:
 
     // Point lights
     std::vector<Light> pointlights;
-    void AddPointLights(std::vector<Light>);
+    void AddPointLight(Light);
     // Areal lights
     struct ArealLight{
         // TODO: Rember to sort this (descending order)

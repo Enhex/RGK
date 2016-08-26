@@ -22,9 +22,9 @@ add_definitions(
   # Debug config:
   # -g
   # Test config:
-  # -O3
+  -O3
   # Release config:
-  -O3 -DNDEBUG -Wno-unused
+  # -O3 -DNDEBUG -Wno-unused
   )
 
 file(GLOB SOURCES

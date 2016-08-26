@@ -673,9 +673,8 @@ bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, const std::set<con
 }
 
 
-void Scene::AddPointLights(std::vector<Light> lights){
-    for(const Light& l : lights)
-        pointlights.push_back(l);
+void Scene::AddPointLight(Light l){
+    pointlights.push_back(l);
 }
 Light Scene::GetRandomLight(Random& rnd) const{
     float total_power = total_point_power + total_areal_power;

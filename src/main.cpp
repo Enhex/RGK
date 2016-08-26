@@ -49,10 +49,10 @@ std::string float_to_percent_string(float f){
 void Monitor(){
 
     std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-    Utils::LowPass eta_lp(200);
+    Utils::LowPass eta_lp(40);
 
     // Helper function that prints out the progress bar.
-    auto print_progress_f = [start, &eta_lp](){
+    auto print_progress_f = [start, &eta_lp](bool end = false){
         std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
         float elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() / 1000.0f;
         int d = pixels_done;
@@ -60,6 +60,7 @@ void Monitor(){
         float percent = int(fraction*1000.0f + 0.5f) / 10.0f;
         float eta = (1.0f - fraction)*elapsed/fraction;
         eta = eta_lp.Add(eta);
+        if(end) eta = 0.0f;
         unsigned int fill = fraction * BARSIZE;
         unsigned int empty = BARSIZE - fill;
         // Line 1
@@ -81,7 +82,7 @@ void Monitor(){
     }
 
     // Output the message one more time to display "100%"
-    print_progress_f();
+    print_progress_f(true);
     std::cout << std::endl;
 
     // Measure total wallclock time
@@ -203,10 +204,19 @@ int main(int argc, char** argv){
 
     // Load render config file
     std::shared_ptr<Config> cfg;
-    try{
-        cfg = ConfigRTC::CreateFromFile(configfile);
-    }catch(ConfigFileException ex){
-        std::cout << "Failed to load config file: " << ex.what() << std::endl;
+    std::string cfg_ext;
+    std::tie(std::ignore, cfg_ext) = Utils::GetFileExtension(configfile);
+    if(cfg_ext == "rtc"){
+        try{
+            cfg = ConfigRTC::CreateFromFile(configfile);
+        }catch(ConfigFileException ex){
+            std::cout << "Failed to load config file: " << ex.what() << std::endl;
+            return 1;
+        }
+    }else if(cfg_ext == "json"){
+        cfg = ConfigJSON::CreateFromFile(configfile);
+    }else{
+        std::cout << "Config file format \"" << cfg_ext << "\" not recognized" << std::endl;
         return 1;
     }
 
@@ -264,7 +274,7 @@ int main(int argc, char** argv){
 
                                              aiProcess_JoinIdenticalVertices |
 
-                                             aiProcess_RemoveRedundantMaterials |
+                                             //aiProcess_RemoveRedundantMaterials |
 
                                              aiProcess_GenUVCoords |
                                              //aiProcess_SortByPType |
@@ -291,27 +301,16 @@ int main(int argc, char** argv){
     Scene s;
     s.texture_directory = modeldir + "/";
     s.LoadScene(scene, cfg);
-    s.AddPointLights(cfg->lights);
+    cfg->InstallLights(s);
     s.Commit();
 
+    // Prepare camera.
+    Camera camera = cfg->GetCamera(rotate_frac);
 
-    // Prepare the camera.
-    if(rotate){
-        std::cout << "Rotating camera by " << rotate_frac << " of full angle." << std::endl;
-        glm::vec3 p = cfg->camera_lookat - cfg->camera_position;
-        p = glm::rotate(p, rotate_frac * 2.0f * glm::pi<float>(), cfg->camera_upvector);
-        cfg->camera_position = cfg->camera_lookat - p;
-    }
-    Camera camera(cfg->camera_position,
-                  cfg->camera_lookat,
-                  cfg->camera_upvector,
-                  cfg->yview,
-                  cfg->yview*cfg->xres/cfg->yres,
-                  cfg->xres,
-                  cfg->yres,
-                  cfg->focus_plane,
-                  cfg->lens_size
-                  );
+    // Prepare sky properties
+    Color sky_color;
+    float sky_intensity;
+    std::tie(sky_color, sky_intensity) = cfg->GetSky();
 
     auto thinglass_materialset = s.MakeMaterialSet(cfg->thinglass);
 
@@ -360,15 +359,15 @@ int main(int argc, char** argv){
             const RenderTask& task = tasks[i];
             EXRTexture& output_buffer = output_buffers[i];
             unsigned int c = seedcount++;
-            tpool.push( [&output_buffer, seedstart, camera, &s, cfg, task, c, &thinglass_materialset](int){
+            tpool.push( [&output_buffer, seedstart, camera, &s, cfg, task, c, &thinglass_materialset, sky_color, sky_intensity](int){
 
                     Random rnd(seedstart + c);
                     PathTracer rt(s, camera,
                                   task.xres, task.yres,
                                   cfg->multisample,
                                   cfg->recursion_level,
-                                  cfg->sky_color,
-                                  cfg->sky_brightness,
+                                  sky_color,
+                                  sky_intensity,
                                   cfg->clamp,
                                   cfg->russian,
                                   cfg->bumpmap_scale,
@@ -376,6 +375,8 @@ int main(int argc, char** argv){
                                   cfg->reverse,
                                   thinglass_materialset,
                                   rnd);
+                    out::cout(5) << "Starting a new task with params: " << std::endl;
+                    out::cout(5) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << ", sky_color = " << sky_color << std::endl;
 
                     rt.Render(task, &output_buffer, pixels_done, raycount);
 

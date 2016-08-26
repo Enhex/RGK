@@ -28,7 +28,7 @@ public:
 
     // Returns false if direction is not within camera view
     bool GetCoordsFromDirection(glm::vec3 dir, int& /*out*/ x, int& /*out*/ y, bool debug = false) const;
-private:
+public:
     glm::vec3 origin;
     glm::vec3 lookat;
     glm::vec3 direction;

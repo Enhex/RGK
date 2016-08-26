@@ -3,6 +3,7 @@
 #include <fstream>
 
 #include "utils.hpp"
+#include "scene.hpp"
 
 #define NEXT_LINE()                                                                  \
     do{ std::getline(file, line);                                                    \
@@ -155,4 +156,163 @@ std::shared_ptr<ConfigRTC> ConfigRTC::CreateFromFile(std::string path){
     }while (file.good());
 
     return cfgptr;
+}
+
+
+Camera ConfigRTC::GetCamera(float rotation) const{
+    glm::vec3 p = camera_lookat - camera_position;
+    p = glm::rotate(p, rotation * 2.0f * glm::pi<float>(), camera_upvector);
+    glm::vec3 pos = camera_lookat - p;
+    return Camera(pos,
+                  camera_lookat,
+                  camera_upvector,
+                  yview,
+                  yview*xres/yres,
+                  xres,
+                  yres,
+                  focus_plane,
+                  lens_size
+                  );
+}
+
+void ConfigRTC::InstallLights(Scene& scene) const{
+    for(const Light& l : lights)
+        scene.AddPointLight(l);
+}
+
+std::pair<Color, float> ConfigRTC::GetSky() const{
+    return std::make_pair(sky_color, sky_brightness);
+}
+
+bool JSONArrayToVec3(Json::Value v, glm::vec3& out){
+    if(!v.isArray() || v.size() != 3) return false;
+    const auto& x = v[0]; if(!x.isNumeric()) return false; out.x = x.asFloat();
+    const auto& y = v[1]; if(!y.isNumeric()) return false; out.y = y.asFloat();
+    const auto& z = v[2]; if(!z.isNumeric()) return false; out.z = z.asFloat();
+    return true;
+}
+
+static inline std::string getRequiredString(const Json::Value& node, std::string key) {
+    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
+    if(!node[key].isString()) throw ConfigFileException("Value \""+ key + "\" must be a string.");
+    return node[key].asString();
+}
+static inline int getRequiredInt(const Json::Value& node, std::string key) {
+    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
+    if(!node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
+    return node[key].asInt();
+}
+static inline float getRequiredFloat(const Json::Value& node, std::string key) {
+    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
+    if(!node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
+    return node[key].asFloat();
+}
+static inline glm::vec3 getRequiredVec3(const Json::Value& node, std::string key) {
+    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
+    glm::vec3 res;
+    if(!JSONArrayToVec3(node[key], res))
+        throw ConfigFileException("Value \"" + key + "\" must be an array of 3 numbers.");
+    return res;
+}
+static inline std::string getOptionalString(const Json::Value& node, std::string key, std::string def) {
+    if(node.isMember(key) && !node[key].isString()) throw ConfigFileException("Value \""+ key + "\" must be a string.");
+    return node.get(key, def).asString();
+}
+static inline int getOptionalInt(const Json::Value& node, std::string key, int def) {
+    if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
+    return node.get(key, def).asInt();
+}
+static inline float getOptionalFloat(const Json::Value& node, std::string key, float def) {
+    if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
+    return node.get(key, def).asFloat();
+}
+static inline bool getOptionalBool(const Json::Value& node, std::string key, bool def) {
+    if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a bool.");
+    return node.get(key, def).asBool();
+}
+
+std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
+    auto cfgptr = std::shared_ptr<ConfigJSON>(new ConfigJSON());
+    ConfigJSON& cfg = *cfgptr;
+    Json::Value& root = cfg.root;
+
+    Json::Reader reader;
+
+    std::ifstream file(path, std::ios::in);
+    if(!file.good()) throw ConfigFileException("Failed to open file: " + path);
+
+    reader.parse(file, root, false);
+    if(!reader.good()) throw ConfigFileException("Failed to parse JSON contents: " + reader.getFormattedErrorMessages());
+
+    cfg.model_file = getRequiredString(root,"model-file");
+    cfg.output_file = getRequiredString(root,"output-file");
+
+    cfg.xres = getRequiredInt(root,"output-width");
+    cfg.yres = getRequiredInt(root,"output-height");
+
+    cfg.recursion_level = getOptionalInt(root, "recursion-max", 1);
+    cfg.rounds = getOptionalInt(root, "rounds", 1);
+    cfg.multisample = getOptionalInt(root, "multisample", 1);
+    cfg.clamp = getOptionalFloat(root, "clamp", 10000000.0f);
+    cfg.bumpmap_scale = getOptionalFloat(root, "bumpscale", 1.0f);
+    cfg.russian = getOptionalFloat(root, "russian", -1.0f);
+    cfg.reverse = getOptionalInt(root, "reverse", 0);
+    cfg.brdf = getOptionalString(root, "brdf", "cooktorr");
+    cfg.force_fresnell = getOptionalBool(root, "force-fresnell", false);
+
+    return cfgptr;
+}
+
+Camera ConfigJSON::GetCamera(float rotation) const{
+    if(!root.isMember("camera")) throw ConfigFileException("Value \"camera\" is missing.");
+    auto camera = root["camera"];
+    if(!camera.isObject()) throw ConfigFileException("Value \"camera\" is not a dictionary.");
+
+    glm::vec3 camera_position = getRequiredVec3(camera, "position");
+    glm::vec3 camera_lookat   = getRequiredVec3(camera, "lookat"  );
+    glm::vec3 camera_upvector = getRequiredVec3(camera, "upvector");
+
+    float yview = getRequiredFloat(camera, "focal");
+
+    float focus_plane = getOptionalFloat(camera, "focus-plane", 1.0f);
+    float lens_size   = getOptionalFloat(camera, "lens-size"  , 0.0f);
+
+    glm::vec3 p = camera_lookat - camera_position;
+    p = glm::rotate(p, rotation * 2.0f * glm::pi<float>(), camera_upvector);
+    glm::vec3 pos = camera_lookat - p;
+    return Camera(pos,
+                  camera_lookat,
+                  camera_upvector,
+                  yview,
+                  yview*xres/yres,
+                  xres,
+                  yres,
+                  focus_plane,
+                  lens_size
+                  );
+}
+
+void ConfigJSON::InstallLights(Scene &scene) const{
+    if(!root.isMember("lights")) return; // no lights!
+    auto lights = root["lights"];
+    if(!lights.isArray()) throw ConfigFileException("Value \"lights\" must be an array.");
+    for(unsigned int i = 0; i < lights.size(); i++){
+        auto light = lights[i];
+        Light l;
+        l.pos = getRequiredVec3(light, "position");
+        l.color = getRequiredVec3(light, "color")/255.0f;
+        l.intensity = getRequiredFloat(light, "intensity");
+        l.size = getOptionalFloat(light, "size", 0.0f);
+        scene.AddPointLight(l);
+    }
+}
+
+std::pair<Color, float> ConfigJSON::GetSky() const{
+    if(!root.isMember("sky")) std::make_pair(Color(0.0f, 0.0f, 0.0f), 0.0f);
+    auto sky = root["sky"];
+    if(!sky.isObject()) throw ConfigFileException("Value \"sky\" is not a dictionary.");
+
+    Color sky_color = getRequiredVec3(sky, "color")/255.0f;
+    float sky_intensity = getRequiredFloat(sky, "intensity");
+    return std::make_pair(sky_color, sky_intensity);
 }
