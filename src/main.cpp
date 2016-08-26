@@ -230,17 +230,16 @@ int main(int argc, char** argv){
     }
     out::cout(2) << "Writing to file " << output_file << std::endl;
 
-
-    // Preapare output buffer
-    EXRTexture total_ob(cfg.xres, cfg.yres);
-    total_ob.Write(output_file);
-
     // Enable preview mode
     if(preview_mode){
         cfg.xres /= PREVIEW_DIMENTIONS_RATIO;
         cfg.yres /= PREVIEW_DIMENTIONS_RATIO;
         cfg.multisample /= PREVIEW_RAYS_RATIO;
     }
+
+    // Preapare output buffer
+    EXRTexture total_ob(cfg.xres, cfg.yres);
+    total_ob.Write(output_file);
 
     // Prepare file paths
     std::string configdir = Utils::GetDir(configfile);
