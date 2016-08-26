@@ -46,7 +46,7 @@ void Scene::FreeCompressedTree(){
     compressed_array_size = 0;
 }
 
-void Scene::LoadScene(const aiScene* scene, const Config& cfg){
+void Scene::LoadScene(const aiScene* scene, const std::shared_ptr<Config> cfg){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
         LoadMaterial(scene->mMaterials[i], cfg);
@@ -59,7 +59,7 @@ void Scene::LoadScene(const aiScene* scene, const Config& cfg){
 }
 
 
-void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
+void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cfg){
 
     Material m;
     m.parent_scene = this;
@@ -137,17 +137,17 @@ void Scene::LoadMaterial(const aiMaterial* mat, const Config& cfg){
     }
 
     // Supposedly we may support different brdfs for each material.
-    if(cfg.brdf == "diffuseuniform"){
+    if(cfg->brdf == "diffuseuniform"){
         m.brdf = std::make_unique<BRDFDiffuseUniform>();
-    }else if(cfg.brdf == "diffusecosine"){
+    }else if(cfg->brdf == "diffusecosine"){
         m.brdf = std::make_unique<BRDFDiffuseCosine>();
-    }else if(cfg.brdf == "cooktorr"){
+    }else if(cfg->brdf == "cooktorr"){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
-    }else if(cfg.brdf == "ltc_beckmann"){
+    }else if(cfg->brdf == "ltc_beckmann"){
         m.brdf = std::make_unique<BRDFLTCBeckmann>(m.exponent);
-    }else if(cfg.brdf == "ltc_ggx"){
+    }else if(cfg->brdf == "ltc_ggx"){
         m.brdf = std::make_unique<BRDFLTCGGX>(m.exponent);
-    }else if(cfg.brdf == "phongenergy"){
+    }else if(cfg->brdf == "phongenergy"){
         m.brdf = std::make_unique<BRDFPhongEnergy>(m.exponent);
     }else{
         assert(0 * (size_t)"Unsupported BRDF id in config!");

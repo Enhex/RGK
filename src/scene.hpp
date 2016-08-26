@@ -26,8 +26,8 @@ public:
 
     void LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
     void LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform);
-    void LoadMaterial(const aiMaterial* mat, const Config& cfg);
-    void LoadScene(const aiScene* scene, const Config& cfg);
+    void LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cfg);
+    void LoadScene(const aiScene* scene, const std::shared_ptr<Config> cfg);
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();

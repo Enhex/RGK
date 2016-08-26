@@ -10,8 +10,9 @@
         if(!file.good()) throw ConfigFileException("Config file ends prematurely."); \
     }while(0)
 
-Config Config::CreateFromFile(std::string path){
-    Config cfg;
+std::shared_ptr<ConfigRTC> ConfigRTC::CreateFromFile(std::string path){
+    auto cfgptr = std::shared_ptr<ConfigRTC>(new ConfigRTC());
+    ConfigRTC& cfg = *cfgptr;
 
     std::ifstream file(path, std::ios::in);
     if(!file) throw ConfigFileException("Failed to open config file ` " + path + " `.");
@@ -42,20 +43,20 @@ Config Config::CreateFromFile(std::string path){
     vs = Utils::SplitString(line," ");
     if(vs.size()!=3) throw ConfigFileException("Invalid VP format.");
     float VPx = std::stof(vs[0]), VPy = std::stof(vs[1]), VPz = std::stof(vs[2]);
-    cfg.view_point = glm::vec3(VPx, VPy, VPz);
+    cfg.camera_position = glm::vec3(VPx, VPy, VPz);
 
     NEXT_LINE(); // LA
     vs = Utils::SplitString(line," ");
     if(vs.size()!=3) throw ConfigFileException("Invalid LA format.");
     float LAx = std::stof(vs[0]), LAy = std::stof(vs[1]), LAz = std::stof(vs[2]);
     // TODO: What it LA - VP = 0 ?
-    cfg.look_at = glm::vec3(LAx, LAy, LAz);
+    cfg.camera_lookat = glm::vec3(LAx, LAy, LAz);
 
     NEXT_LINE(); // UP
     vs = Utils::SplitString(line," ");
     if(vs.size()!=3) throw ConfigFileException("Invalid UP format.");
     float UPx = std::stof(vs[0]), UPy = std::stof(vs[1]), UPz = std::stof(vs[2]);
-    cfg.up_vector = glm::vec3(UPx, UPy, UPz);
+    cfg.camera_upvector = glm::vec3(UPx, UPy, UPz);
 
     NEXT_LINE(); // yview
     float yview = std::stof(line);
@@ -153,5 +154,5 @@ Config Config::CreateFromFile(std::string path){
         }
     }while (file.good());
 
-    return cfg;
+    return cfgptr;
 }

@@ -202,9 +202,9 @@ int main(int argc, char** argv){
     std::string configfile = infiles[0];
 
     // Load render config file
-    Config cfg;
+    std::shared_ptr<Config> cfg;
     try{
-        cfg = Config::CreateFromFile(configfile);
+        cfg = ConfigRTC::CreateFromFile(configfile);
     }catch(ConfigFileException ex){
         std::cout << "Failed to load config file: " << ex.what() << std::endl;
         return 1;
@@ -221,7 +221,7 @@ int main(int argc, char** argv){
     }
 
     // Prepare output file name
-    std::string output_file = cfg.output_file;
+    std::string output_file = cfg->output_file;
     if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
     if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
     if(rotate && Utils::GetFileExists(output_file)){
@@ -232,18 +232,18 @@ int main(int argc, char** argv){
 
     // Enable preview mode
     if(preview_mode){
-        cfg.xres /= PREVIEW_DIMENTIONS_RATIO;
-        cfg.yres /= PREVIEW_DIMENTIONS_RATIO;
-        cfg.multisample /= PREVIEW_RAYS_RATIO;
+        cfg->xres /= PREVIEW_DIMENTIONS_RATIO;
+        cfg->yres /= PREVIEW_DIMENTIONS_RATIO;
+        cfg->multisample /= PREVIEW_RAYS_RATIO;
     }
 
     // Preapare output buffer
-    EXRTexture total_ob(cfg.xres, cfg.yres);
+    EXRTexture total_ob(cfg->xres, cfg->yres);
     total_ob.Write(output_file);
 
     // Prepare file paths
     std::string configdir = Utils::GetDir(configfile);
-    std::string modelfile = configdir + "/" + cfg.model_file;
+    std::string modelfile = configdir + "/" + cfg->model_file;
     std::string modeldir  = Utils::GetDir(modelfile);
     if(!Utils::GetFileExists(modelfile)){
         std::cout << "Unable to find model file `" << modelfile << "`. " << std::endl;
@@ -291,29 +291,29 @@ int main(int argc, char** argv){
     Scene s;
     s.texture_directory = modeldir + "/";
     s.LoadScene(scene, cfg);
-    s.AddPointLights(cfg.lights);
+    s.AddPointLights(cfg->lights);
     s.Commit();
 
 
     // Prepare the camera.
     if(rotate){
         std::cout << "Rotating camera by " << rotate_frac << " of full angle." << std::endl;
-        glm::vec3 p = cfg.look_at - cfg.view_point;
-        p = glm::rotate(p, rotate_frac * 2.0f * glm::pi<float>(), cfg.up_vector);
-        cfg.view_point = cfg.look_at - p;
+        glm::vec3 p = cfg->camera_lookat - cfg->camera_position;
+        p = glm::rotate(p, rotate_frac * 2.0f * glm::pi<float>(), cfg->camera_upvector);
+        cfg->camera_position = cfg->camera_lookat - p;
     }
-    Camera camera(cfg.view_point,
-                  cfg.look_at,
-                  cfg.up_vector,
-                  cfg.yview,
-                  cfg.yview*cfg.xres/cfg.yres,
-                  cfg.xres,
-                  cfg.yres,
-                  cfg.focus_plane,
-                  cfg.lens_size
+    Camera camera(cfg->camera_position,
+                  cfg->camera_lookat,
+                  cfg->camera_upvector,
+                  cfg->yview,
+                  cfg->yview*cfg->xres/cfg->yres,
+                  cfg->xres,
+                  cfg->yres,
+                  cfg->focus_plane,
+                  cfg->lens_size
                   );
 
-    auto thinglass_materialset = s.MakeMaterialSet(cfg.thinglass);
+    auto thinglass_materialset = s.MakeMaterialSet(cfg->thinglass);
 
     // Determine thread pool size.
     unsigned int concurrency = std::thread::hardware_concurrency();
@@ -322,10 +322,10 @@ int main(int argc, char** argv){
 
     // Split rendering into smaller (tile_size x tile_size) tasks.
     std::vector<RenderTask> tasks;
-    for(unsigned int yp = 0; yp < cfg.yres; yp += TILE_SIZE){
-        for(unsigned int xp = 0; xp < cfg.xres; xp += TILE_SIZE){
-            RenderTask task(cfg.xres, cfg.yres, xp, std::min(cfg.xres, xp+TILE_SIZE),
-                                                yp, std::min(cfg.yres, yp+TILE_SIZE));
+    for(unsigned int yp = 0; yp < cfg->yres; yp += TILE_SIZE){
+        for(unsigned int xp = 0; xp < cfg->xres; xp += TILE_SIZE){
+            RenderTask task(cfg->xres, cfg->yres, xp, std::min(cfg->xres, xp+TILE_SIZE),
+                                                  yp, std::min(cfg->yres, yp+TILE_SIZE));
             tasks.push_back(task);
         }
     }
@@ -333,7 +333,7 @@ int main(int argc, char** argv){
     out::cout(3) << "Rendering in " << tasks.size() << " tiles." << std::endl;
 
     // Sorting tasks by their distance to the middle.
-    glm::vec2 middle(cfg.xres/2.0f, cfg.yres/2.0f);
+    glm::vec2 middle(cfg->xres/2.0f, cfg->yres/2.0f);
 #if ENABLE_DEBUG
     // However, if debug is enabled, sort tiles so that the debugged point gets rendered earliest.
     if(debug_trace) middle = glm::vec2(debug_x, debug_y);
@@ -343,17 +343,17 @@ int main(int argc, char** argv){
         });
 
     // Start monitor thread.
-    total_pixels = cfg.xres * cfg.yres * cfg.rounds;
-    total_rounds = cfg.rounds;
+    total_pixels = cfg->xres * cfg->yres * cfg->rounds;
+    total_rounds = cfg->rounds;
     std::thread monitor_thread(Monitor);
 
     // Repeat for each rendering round.
     unsigned int seedcount = 0, seedstart = 42; // time(nullptr);
-    for(unsigned int roundno = 0; roundno < cfg.rounds; roundno++){
+    for(unsigned int roundno = 0; roundno < cfg->rounds; roundno++){
         ctpl::thread_pool tpool(concurrency);
 
         // Prepare per-task output buffers
-        std::vector<EXRTexture> output_buffers(tasks.size(), EXRTexture(cfg.xres, cfg.yres));
+        std::vector<EXRTexture> output_buffers(tasks.size(), EXRTexture(cfg->xres, cfg->yres));
 
         // Push all render tasks to thread pool
         for(unsigned int i = 0; i < tasks.size(); i++){
@@ -365,15 +365,15 @@ int main(int argc, char** argv){
                     Random rnd(seedstart + c);
                     PathTracer rt(s, camera,
                                   task.xres, task.yres,
-                                  cfg.multisample,
-                                  cfg.recursion_level,
-                                  cfg.sky_color,
-                                  cfg.sky_brightness,
-                                  cfg.clamp,
-                                  cfg.russian,
-                                  cfg.bumpmap_scale,
-                                  cfg.force_fresnell,
-                                  cfg.reverse,
+                                  cfg->multisample,
+                                  cfg->recursion_level,
+                                  cfg->sky_color,
+                                  cfg->sky_brightness,
+                                  cfg->clamp,
+                                  cfg->russian,
+                                  cfg->bumpmap_scale,
+                                  cfg->force_fresnell,
+                                  cfg->reverse,
                                   thinglass_materialset,
                                   rnd);
 

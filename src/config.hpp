@@ -15,16 +15,16 @@ struct ConfigFileException : public std::runtime_error{
 
 class Config{
 public:
-    static Config CreateFromFile(std::string path);
+    //static Config CreateFromFile(std::string path);
 
     std::string comment;
     std::string model_file;
     std::string output_file;
     unsigned int recursion_level;
     unsigned int xres, yres;
-    glm::vec3 view_point;
-    glm::vec3 look_at;
-    glm::vec3 up_vector;
+    glm::vec3 camera_position;
+    glm::vec3 camera_lookat;
+    glm::vec3 camera_upvector;
     float yview;
     std::vector<Light> lights;
     Color sky_color = Color(0.0, 0.0, 0.0);
@@ -40,6 +40,22 @@ public:
     unsigned int reverse = 0;
     std::string brdf = "cooktorr";
     std::vector<std::string> thinglass;
+protected:
+    Config(){};
+};
+
+class ConfigRTC : public Config{
+public:
+    static std::shared_ptr<ConfigRTC> CreateFromFile(std::string path);
+private:
+    ConfigRTC(){};
+};
+
+class ConfigJSON : public Config{
+public:
+    static std::shared_ptr<ConfigJSON> CreateFromFile(std::string path);
+private:
+    ConfigJSON(){};
 };
 
 #endif // __CONFIG_HPP__

@@ -11,6 +11,7 @@ include_directories(
   ${assimp_INCLUDE_DIRS}
   ${JPEG_INCLUDE_DIRS}
   ${OPENEXR_INCLUDE_DIRS}
+  ../external/
   )
 
 add_definitions(
@@ -29,6 +30,7 @@ add_definitions(
 file(GLOB SOURCES
   ./*.cpp
   ./LTC/*.cpp
+  ../external/*.cpp
   )
 
 add_executable(
