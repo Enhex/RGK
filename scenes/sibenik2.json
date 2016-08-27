@@ -1,0 +1,28 @@
+{
+    "model-file": "sibenik/sibenik.obj",
+    "output-file": "sibenik2.exr",
+    "output-width": 1200,
+    "output-height": 900,
+    "camera": {
+        "position": [-8.0, -6.0, 1.5],
+        "lookat": [-16.0, -5.0, -1.0],
+        "focal": 1.6
+    },
+    "lights": [{
+        "position": [-45.0, 15.0, 20.0],
+        "color": [255, 250, 210],
+        "intensity": 15000.0,
+        "size": 0.15
+    }],
+    "multisample": 50,
+    "rounds": 20,
+    "sky":{
+        "color": [246, 249, 254],
+        "intensity": 0.2
+    },
+    "bumpscale": 10,
+    "russian": 0.8,
+    "clamp": 4.0,
+    "brdf": "ltc_beckmann",
+    "thinglass": ["staklo"]
+}

@@ -1,0 +1,22 @@
+{
+    "model-file": "cornell-box/CornellBox-Sphere.obj",
+    "output-file": "cb1.exr",
+    "output-width": 1200,
+    "output-height": 900,
+    "recursion-max": 2,
+    "camera": {
+        "position": [0.0, 0.8, 2.5],
+        "lookat": [0.0, 0.8, 0.0],
+        "focal": 1.0
+    },
+    "multisample": 10,
+    "rounds": 120,
+    "sky": {
+        "color": [200, 0, 0],
+        "intensity": 1.0
+    },
+    "clamp": 150.0,
+    "russian": 0.7,
+    "reverse": 4,
+    "brdf": "ltc_ggx"
+}

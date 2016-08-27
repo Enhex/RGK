@@ -1,0 +1,19 @@
+{
+    // The teapot model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
+    "model-file": "teapot/teapot.obj",
+    "output-file": "teapot.exr",
+    "output-width": 1200,
+    "output-height": 900,
+    "recursion-max": 2,
+    "camera": {
+        "position": [50.0, 100.0, 120.0],
+        "lookat": [0.0, 40.0, 0.0],
+        "focal": 1.6
+    },
+    "lights": [{
+        "position": [0.0, 90.0, 100.0],
+        "intensity": 15000.0
+    }],
+    "multisample": 20,
+    "rounds": 10
+}

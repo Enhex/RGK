@@ -1,0 +1,24 @@
+{
+    "model-file": "sponza-fixed/sponza.obj",
+    "output-file": "sponza.exr",
+    "output-width": 1200,
+    "output-height": 900,
+    "recursion-max": 2,
+    "camera": {
+        "position": [-9.5, 1.5, -1.5],
+        "lookat": [3.0, 3.0, -0.5],
+        "focal": 1.6
+    },
+    "lights": [{ // Sun lighting
+        "position": [-16.0, 100.0, -10.0],
+        "color": [255, 240, 200],
+        "intensity": 20000.0
+    }],
+    "multisample": 40,
+    "rounds": 20,
+    "sky": {
+        "color": [145, 200, 235],
+        "intensity": 0.3
+    },
+    "bumpscale": 10
+}

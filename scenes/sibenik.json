@@ -1,0 +1,25 @@
+{
+    "model-file": "sibenik/sibenik.obj",
+    "output-file": "sibenik.exr",
+    "output-width": 1200,
+    "output-height": 900,
+    "camera": {
+        "position": [-12.0, -12.0, 2.0],
+        "lookat": [0.0, -8.0, 0.0],
+        "focal": 1.2,
+        "lens-size": 0.035,
+        "focus-plane": 14.0
+    },
+    "lights": [{
+        "position": [5.0, -1.0, 0.0],
+        "color": [255, 250, 210],
+        "intensity": 0.8,
+        "size": 0.8
+    }],
+    "multisample": 50,
+    "rounds": 10,
+    "bumpscale": 10,
+    "russian": 0.8,
+    "clamp": 0.4,
+    "brdf": "ltc_ggx"
+}
