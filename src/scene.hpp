@@ -30,10 +30,10 @@ public:
 
     void LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
     void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform);
-    void LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string working_directory);
+    void LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string working_directory, bool override = false);
     void LoadAiSceneMeshes(const aiScene* scene);
-    void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory);
-    void RegisterMaterial(const Material& mat);
+    void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory, bool override_materials = false);
+    void RegisterMaterial(const Material& mat, bool override = false);
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();

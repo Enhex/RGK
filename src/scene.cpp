@@ -49,10 +49,10 @@ void Scene::FreeCompressedTree(){
     compressed_array_size = 0;
 }
 
-void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string texture_directory){
+void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string texture_directory, bool override_materials){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
-        LoadAiMaterial(scene->mMaterials[i], default_brdf, texture_directory);
+        LoadAiMaterial(scene->mMaterials[i], default_brdf, texture_directory, override_materials);
     }
 }
 
@@ -63,7 +63,7 @@ void Scene::LoadAiSceneMeshes(const aiScene* scene){
 }
 
 
-void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string texture_directory){
+void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string texture_directory, bool override){
 
     Material m;
     m.parent_scene = this;
@@ -158,15 +158,33 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     }
 
     out::cout(4) << "Read material: " << m.name << std::endl;
-    RegisterMaterial(m);
+    RegisterMaterial(m, override);
 }
 
-void Scene::RegisterMaterial(const Material &mat){
+void Scene::RegisterMaterial(const Material &mat, bool override){
     Material* material = new Material(mat);
     auto it = materials_by_name.find(material->name);
-    if(it != materials_by_name.end()) throw std::runtime_error("Cannot register a duplicate material: \"" + material->name + "\"");
-    materials.push_back(material);
-    materials_by_name[material->name] = material;
+    if(it != materials_by_name.end()){
+        // Already exists
+        if(!override){
+            return;
+            // throw std::runtime_error("Cannot register a duplicate material: \"" + material->name + "\"");
+        }else{
+            // Substitute the old material with the new one
+            Material* oldmat = it->second;
+            // Find it in the vector and remove...
+            materials.erase(std::remove(materials.begin(), materials.end(), oldmat), materials.end());
+            // Insert the new one
+            materials.push_back(material);
+            materials_by_name[material->name] = material;
+            // Free the old one
+            delete oldmat;
+        }
+    }else{
+        // New material
+        materials.push_back(material);
+        materials_by_name[material->name] = material;
+    }
 }
 
 void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){

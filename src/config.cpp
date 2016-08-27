@@ -421,6 +421,7 @@ void ConfigJSON::InstallScene(Scene& s) const{
 
             std::string model_file = getRequiredString(object, "file");
             bool import_materials = getOptionalBool(object, "import-materials", false);
+            bool override_materials = getOptionalBool(object, "override-materials", false);
 
             std::string modelfile = configdir + "/" + model_file;
             std::string modeldir  = Utils::GetDir(modelfile);
@@ -432,7 +433,7 @@ void ConfigJSON::InstallScene(Scene& s) const{
             const aiScene* scene = loadAssimpScene(importer, modelfile);
 
             if(import_materials)
-                s.LoadAiSceneMaterials(scene, brdf, modeldir + "/");
+                s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", override_materials);
             s.LoadAiSceneMeshes(scene);
         }
     }else{
