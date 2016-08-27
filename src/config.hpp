@@ -18,10 +18,9 @@ struct ConfigFileException : public std::runtime_error{
 
 class Config{
 public:
-    //static Config CreateFromFile(std::string path);
+    std::string config_file_path;
 
     std::string comment;
-    std::string model_file;
     std::string output_file;
     unsigned int recursion_level;
     unsigned int xres, yres;
@@ -37,6 +36,7 @@ public:
 
     virtual Camera GetCamera(float rotation) const = 0;
     virtual void InstallLights(Scene& scene) const = 0;
+    virtual void  InstallScene(Scene& scene) const = 0;
     virtual std::pair<Color, float> GetSky() const = 0;
 protected:
     Config(){};
@@ -47,11 +47,13 @@ public:
     static std::shared_ptr<ConfigRTC> CreateFromFile(std::string path);
     virtual Camera GetCamera(float rotation) const override;
     virtual void InstallLights(Scene& scene) const override;
+    virtual void  InstallScene(Scene& scene) const override;
     virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigRTC(){};
 
     // Pre-fetching all values when the file is loaded
+    std::string model_file;
     glm::vec3 camera_position;
     glm::vec3 camera_lookat;
     glm::vec3 camera_upvector;
@@ -68,6 +70,7 @@ public:
     static std::shared_ptr<ConfigJSON> CreateFromFile(std::string path);
     virtual Camera GetCamera(float rotation) const override;
     virtual void InstallLights(Scene& scene) const override;
+    virtual void  InstallScene(Scene& scene) const override;
     virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigJSON(){};

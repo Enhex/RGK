@@ -5,8 +5,8 @@
 #include <iomanip>
 
 const Material& Triangle::GetMaterial() const {
-    qassert_true(mat < parent_scene->n_materials);
-    return parent_scene->materials[mat]; }
+    qassert_true(mat != nullptr);
+    return *mat; }
 const glm::vec3 Triangle::GetVertexA()  const { return parent_scene->vertices[va];  }
 const glm::vec3 Triangle::GetVertexB()  const { return parent_scene->vertices[vb];  }
 const glm::vec3 Triangle::GetVertexC()  const { return parent_scene->vertices[vc];  }

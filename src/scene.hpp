@@ -24,10 +24,16 @@ public:
     Scene() {};
     ~Scene();
 
-    void LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
-    void LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform);
-    void LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cfg);
-    void LoadScene(const aiScene* scene, const std::shared_ptr<Config> cfg);
+    // Copying is forbidden
+    Scene(const Scene&) = delete;
+    Scene& operator=(const Scene&) = delete;
+
+    void LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
+    void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform);
+    void LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string working_directory);
+    void LoadAiSceneMeshes(const aiScene* scene);
+    void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory);
+    void RegisterMaterial(const Material& mat);
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();
@@ -67,8 +73,6 @@ public:
     unsigned int n_vertices  = 0;
     Triangle*      triangles = nullptr;
     unsigned int n_triangles = 0;
-    Material*      materials = nullptr;
-    unsigned int n_materials = 0;
     glm::vec3*     normals   = nullptr;
     unsigned int n_normals   = 0;
     glm::vec3*     tangents  = nullptr;
@@ -108,8 +112,6 @@ public:
     std::pair<float,float> yBB;
     std::pair<float,float> zBB;
 
-    std::string texture_directory;
-
     // Dynamically determined by examining scene's diameter
     float epsilon = 0.0001f;
 
@@ -126,16 +128,22 @@ private:
 
     mutable std::vector<aiVector3D> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
-    mutable std::vector<Material> materials_buffer;
+    //mutable std::vector<Material> materials_buffer;
     mutable std::vector<aiVector3D> normals_buffer;
     mutable std::vector<aiVector3D> tangents_buffer;
     mutable std::vector<aiVector3D> texcoords_buffer;
+
+    std::vector<Material*> materials; //TODO: This vector is redundant, the map below is enough
+    std::unordered_map<std::string, Material*> materials_by_name;
+    // TODO: Material* default_material;
+    Material* GetMaterialByName(std::string name) const;
 
     std::unordered_map<std::string, Texture*> textures;
     Texture* GetTexture(std::string name);
 
     void FreeBuffers();
     void FreeTextures();
+    void FreeMaterials();
     void FreeCompressedTree();
 };
 

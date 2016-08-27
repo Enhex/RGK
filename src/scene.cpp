@@ -13,6 +13,7 @@
 Scene::~Scene(){
     FreeBuffers();
     FreeTextures();
+    FreeMaterials();
     FreeCompressedTree();
 }
 
@@ -21,8 +22,6 @@ void Scene::FreeBuffers(){
     n_vertices = 0;
     if(triangles) delete[] triangles;
     n_triangles = 0;
-    if(materials) delete[] materials;
-    n_materials = 0;
     if(normals) delete[] normals;
     n_normals = 0;
 
@@ -30,6 +29,10 @@ void Scene::FreeBuffers(){
         uncompressed_root->FreeRecursivelly();
         delete uncompressed_root;
     }
+}
+
+void Scene::FreeMaterials(){
+    for(Material* m : materials) delete m;
 }
 
 void Scene::FreeTextures(){
@@ -46,20 +49,21 @@ void Scene::FreeCompressedTree(){
     compressed_array_size = 0;
 }
 
-void Scene::LoadScene(const aiScene* scene, const std::shared_ptr<Config> cfg){
+void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string texture_directory){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
-        LoadMaterial(scene->mMaterials[i], cfg);
+        LoadAiMaterial(scene->mMaterials[i], default_brdf, texture_directory);
     }
-    qassert_true(scene->mNumMaterials == materials_buffer.size());
+}
 
+void Scene::LoadAiSceneMeshes(const aiScene* scene){
     // Load root node
     const aiNode* root = scene->mRootNode;
-    LoadNode(scene,root);
+    LoadAiNode(scene,root);
 }
 
 
-void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cfg){
+void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string texture_directory){
 
     Material m;
     m.parent_scene = this;
@@ -91,7 +95,7 @@ void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cf
         mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has diffuse texture " << s << std::endl;
-            tex = GetTexture(s);
+            tex = GetTexture(texture_directory + s);
             m.diffuse_texture = tex;
         }
     }
@@ -100,7 +104,7 @@ void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cf
         mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has specular texture " << s << std::endl;
-            tex = GetTexture(s);
+            tex = GetTexture(texture_directory + s);
             m.specular_texture = tex;
         }
     }
@@ -109,7 +113,7 @@ void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cf
         mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has ambient texture " << s << std::endl;
-            tex = GetTexture(s);
+            tex = GetTexture(texture_directory + s);
             m.ambient_texture = tex;
         }
     }
@@ -118,7 +122,7 @@ void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cf
         mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has bump texture " << s << std::endl;
-            tex = GetTexture(s);
+            tex = GetTexture(texture_directory + s);
             m.bump_texture = tex;
         }
     }
@@ -137,41 +141,49 @@ void Scene::LoadMaterial(const aiMaterial* mat, const std::shared_ptr<Config> cf
     }
 
     // Supposedly we may support different brdfs for each material.
-    if(cfg->brdf == "diffuseuniform"){
+    if(brdf == "diffuseuniform"){
         m.brdf = std::make_unique<BRDFDiffuseUniform>();
-    }else if(cfg->brdf == "diffusecosine"){
+    }else if(brdf == "diffusecosine"){
         m.brdf = std::make_unique<BRDFDiffuseCosine>();
-    }else if(cfg->brdf == "cooktorr"){
+    }else if(brdf == "cooktorr"){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
-    }else if(cfg->brdf == "ltc_beckmann"){
+    }else if(brdf == "ltc_beckmann"){
         m.brdf = std::make_unique<BRDFLTCBeckmann>(m.exponent);
-    }else if(cfg->brdf == "ltc_ggx"){
+    }else if(brdf == "ltc_ggx"){
         m.brdf = std::make_unique<BRDFLTCGGX>(m.exponent);
-    }else if(cfg->brdf == "phongenergy"){
+    }else if(brdf == "phongenergy"){
         m.brdf = std::make_unique<BRDFPhongEnergy>(m.exponent);
     }else{
         assert(0 * (size_t)"Unsupported BRDF id in config!");
     }
 
     out::cout(4) << "Read material: " << m.name << std::endl;
-    materials_buffer.push_back(std::move(m));
+    RegisterMaterial(m);
 }
 
-void Scene::LoadNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
+void Scene::RegisterMaterial(const Material &mat){
+    Material* material = new Material(mat);
+    auto it = materials_by_name.find(material->name);
+    if(it != materials_by_name.end()) throw std::runtime_error("Cannot register a duplicate material: \"" + material->name + "\"");
+    materials.push_back(material);
+    materials_by_name[material->name] = material;
+}
+
+void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
 
     aiMatrix4x4 transform = current_transform * ainode->mTransformation;
 
     // Load meshes
     for(unsigned int i = 0; i < ainode->mNumMeshes; i++)
-        LoadMesh(scene->mMeshes[ainode->mMeshes[i]], transform);
+        LoadAiMesh(scene, scene->mMeshes[ainode->mMeshes[i]], transform);
 
     // Load children
     for(unsigned int i = 0; i < ainode->mNumChildren; i++)
-        LoadNode(scene, ainode->mChildren[i], transform);
+        LoadAiNode(scene, ainode->mChildren[i], transform);
 
 }
 
-void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
+void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform){
     out::cout(4) << "-- Loading a mesh with " << mesh->mNumFaces <<
        " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
@@ -179,10 +191,14 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
     unsigned int vertex_index_offset = vertices_buffer.size();
 
     // Get the material index.
-    unsigned int mat = mesh->mMaterialIndex;
+    unsigned int mat_id = mesh->mMaterialIndex;
+    // Find the material by name.
+    aiString mat_name;
+    scene->mMaterials[mat_id]->Get(AI_MATKEY_NAME,mat_name);
+    Material* material = GetMaterialByName(mat_name.C_Str());
 
     bool light_source = false;
-    if(materials_buffer[mat].emissive) light_source = true;
+    if(material->emissive) light_source = true;
     ArealLight al;
 
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
@@ -203,7 +219,7 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
                        face.mIndices[0] + vertex_index_offset,
                        face.mIndices[1] + vertex_index_offset,
                        face.mIndices[2] + vertex_index_offset,
-                       mat);
+                       material);
             triangles_buffer.push_back(t);
             int n = triangles_buffer.size() - 1;
             if(light_source){
@@ -242,23 +258,23 @@ void Scene::LoadMesh(const aiMesh* mesh, aiMatrix4x4 current_transform){
     }
 }
 
-Texture* Scene::GetTexture(std::string name){
-    if(name == "") return nullptr;
-    auto it = textures.find(name);
+Texture* Scene::GetTexture(std::string path){
+    if(path == "") return nullptr;
+    auto it = textures.find(path);
     if(it == textures.end()){
-        auto p = Utils::GetFileExtension(name);
+        auto p = Utils::GetFileExtension(path);
         Texture* t = nullptr;
         if(p.second == "PNG" || p.second == "png"){
-            t = Texture::CreateNewFromPNG(texture_directory + name);
+            t = Texture::CreateNewFromPNG(path);
         }else if(p.second == "JPG" || p.second == "jpg" || p.second == "JPEG" || p.second == "jpeg"){
-            t = Texture::CreateNewFromJPEG(texture_directory + name);
+            t = Texture::CreateNewFromJPEG(path);
         }else{
             std::cerr << "ERROR: Texture format '" << p.second << "' is not supported!" << std::endl;
         }
         if(!t){
-            std::cerr << "Failed to load texture '" << name << "' , ignoring it." << std::endl;
+            std::cerr << "Failed to load texture '" << path << "' , ignoring it." << std::endl;
         }else{
-            textures[name] = t;
+            textures[path] = t;
         }
         return t;
     }else{
@@ -266,19 +282,25 @@ Texture* Scene::GetTexture(std::string name){
     }
 }
 
+Material* Scene::GetMaterialByName(std::string name) const{
+    auto it = materials_by_name.find(name);
+    if(it == materials_by_name.end()){
+        throw std::runtime_error("Error: Material named \"" + name + "\" was not defined");
+    }
+    return it->second;
+}
+
 void Scene::Commit(){
     FreeBuffers();
 
     vertices = new glm::vec3[vertices_buffer.size()];
     triangles = new Triangle[triangles_buffer.size()];
-    materials = new Material[materials_buffer.size()];
     normals = new glm::vec3[normals_buffer.size()];
     texcoords = new glm::vec2[texcoords_buffer.size()];
     tangents = new glm::vec3[tangents_buffer.size()];
 
     n_vertices = vertices_buffer.size();
     n_triangles = triangles_buffer.size();
-    n_materials = materials_buffer.size();
     n_normals = normals_buffer.size();
     n_texcoords = texcoords_buffer.size();
     n_tangents = tangents_buffer.size();
@@ -289,9 +311,6 @@ void Scene::Commit(){
     for(unsigned int i = 0; i < n_triangles; i++){
         triangles[i] = triangles_buffer[i];
         triangles[i].CalculatePlane();
-    }
-    for(unsigned int i = 0; i < n_materials; i++){
-        materials[i] = std::move(materials_buffer[i]);
     }
     for(unsigned int i = 0; i < n_normals; i++)
         normals[i] = glm::vec3(normals_buffer[i].x, normals_buffer[i].y, normals_buffer[i].z);
@@ -327,12 +346,11 @@ void Scene::Commit(){
     out::cout(3) << "Total point lights power: " << total_point_power << "W" << std::endl;
 
     out::cout(2) << "Commited " << n_vertices << " vertices, " << n_normals << " normals, " << n_triangles <<
-        " triangles with " << n_materials << " materials and " << textures.size() <<  " textures, as well as " << pointlights.size() << " pointlights and " << areal_lights.size() << " areal lights to the scene." << std::endl;
+        " triangles with " << textures.size() <<  " textures, as well as " << pointlights.size() << " pointlights and " << areal_lights.size() << " areal lights to the scene." << std::endl;
 
     // Clearing vectors this way forces memory to be freed.
     vertices_buffer  = std::vector<aiVector3D>();
     triangles_buffer = std::vector<Triangle>();
-    materials_buffer = std::vector<Material>();
     normals_buffer   = std::vector<aiVector3D>();
     tangents_buffer  = std::vector<aiVector3D>();
     texcoords_buffer = std::vector<aiVector3D>();
@@ -410,7 +428,7 @@ void Scene::Dump() const{
         const glm::vec3 va = vertices[tr.va];
         const glm::vec3 vb = vertices[tr.vb];
         const glm::vec3 vc = vertices[tr.vc];
-        const Color& color = materials[tr.mat].diffuse;
+        const Color& color = tr.mat->diffuse;
         out::cout(4) << va.x << " " << va.y << " " << va.z << " | ";
         out::cout(4) << vb.x << " " << vb.y << " " << vb.z << " | ";
         out::cout(4) << vc.x << " " << vc.y << " " << vc.z << " [" ;
@@ -648,8 +666,7 @@ void Scene::CompressRec(const UncompressedKdNode *node, unsigned int &array_pos,
 
 std::set<const Material*> Scene::MakeMaterialSet(std::vector<std::string> phrases) const{
     std::set<const Material*> res;
-    for(unsigned int i = 0; i < n_materials; i++){
-        Material* m = materials + i;
+    for(Material* m : materials){
         for(const std::string& phrase : phrases){
             if(m->name.find(phrase) != std::string::npos){
                 res.insert(m);

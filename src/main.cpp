@@ -210,17 +210,17 @@ int main(int argc, char** argv){
     std::shared_ptr<Config> cfg;
     std::string cfg_ext;
     std::tie(std::ignore, cfg_ext) = Utils::GetFileExtension(configfile);
-    if(cfg_ext == "rtc"){
-        try{
+    try{
+        if(cfg_ext == "rtc"){
             cfg = ConfigRTC::CreateFromFile(configfile);
-        }catch(ConfigFileException ex){
-            std::cout << "Failed to load config file: " << ex.what() << std::endl;
+        }else if(cfg_ext == "json"){
+            cfg = ConfigJSON::CreateFromFile(configfile);
+        }else{
+            std::cout << "Config file format \"" << cfg_ext << "\" not recognized" << std::endl;
             return 1;
         }
-    }else if(cfg_ext == "json"){
-        cfg = ConfigJSON::CreateFromFile(configfile);
-    }else{
-        std::cout << "Config file format \"" << cfg_ext << "\" not recognized" << std::endl;
+    }catch(ConfigFileException ex){
+        std::cout << "Failed to load config file: " << ex.what() << std::endl;
         return 1;
     }
 
@@ -256,58 +256,11 @@ int main(int argc, char** argv){
     EXRTexture total_ob(cfg->xres, cfg->yres);
     total_ob.Write(output_file);
 
-    // Prepare file paths
-    std::string configdir = Utils::GetDir(configfile);
-    std::string modelfile = configdir + "/" + cfg->model_file;
-    std::string modeldir  = Utils::GetDir(modelfile);
-    if(!Utils::GetFileExists(modelfile)){
-        std::cout << "Unable to find model file `" << modelfile << "`. " << std::endl;
-        return 1;
-    }
-
-    // Load the model with assimp
-    Assimp::Importer importer;
-    out::cout(2) << "Loading scene... " << std::endl;
-    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
-    const aiScene* scene = importer.ReadFile(modelfile,
-                                             aiProcess_Triangulate |
-                                             //aiProcess_TransformUVCoords |
-
-                                             // Neither of these work correctly.
-                                             aiProcess_GenNormals |
-                                             //aiProcess_GenSmoothNormals |
-
-                                             aiProcess_JoinIdenticalVertices |
-
-                                             //aiProcess_RemoveRedundantMaterials |
-
-                                             aiProcess_GenUVCoords |
-                                             //aiProcess_SortByPType |
-                                             aiProcess_FindDegenerates |
-                                             // DO NOT ENABLE THIS CLEARLY BUGGED SEE SIBENIK MODEL aiProcess_FindInvalidData |
-                                             //aiProcess_ValidateDataStructure |
-                     0 );
-
-    if(!scene){
-        std::cout << "Assimp failed to load scene `" << modelfile << "`: " << importer.GetErrorString() << std::endl;
-        return 1;
-    }
-
-    // Calculating tangents is requested AFTER the scene is
-    // loaded. Otherwise this step runs before normals are calculated
-    // for vertices that are missing them.
-    scene = importer.ApplyPostProcessing(aiProcess_CalcTangentSpace);
-    //aiApplyPostProcessing(scene, aiProcess_CalcTangentSpace);
-
-    out::cout(2) << "Loaded scene with " << scene->mNumMeshes << " meshes and " <<
-        scene->mNumMaterials << " materials." << std::endl;
-
-    // Prepare the world
-    Scene s;
-    s.texture_directory = modeldir + "/";
-    s.LoadScene(scene, cfg);
-    cfg->InstallLights(s);
-    s.Commit();
+    // Prepare the scene
+    Scene scene;
+    cfg->InstallScene(scene);
+    cfg->InstallLights(scene);
+    scene.Commit();
 
     // Prepare camera.
     Camera camera = cfg->GetCamera(rotate_frac);
@@ -317,7 +270,7 @@ int main(int argc, char** argv){
     float sky_intensity;
     std::tie(sky_color, sky_intensity) = cfg->GetSky();
 
-    auto thinglass_materialset = s.MakeMaterialSet(cfg->thinglass);
+    auto thinglass_materialset = scene.MakeMaterialSet(cfg->thinglass);
 
     // Determine thread pool size.
     unsigned int concurrency = std::thread::hardware_concurrency();
@@ -364,10 +317,10 @@ int main(int argc, char** argv){
             const RenderTask& task = tasks[i];
             EXRTexture& output_buffer = output_buffers[i];
             unsigned int c = seedcount++;
-            tpool.push( [&output_buffer, seedstart, camera, &s, cfg, task, c, &thinglass_materialset, sky_color, sky_intensity](int){
+            tpool.push( [&output_buffer, seedstart, camera, &scene, cfg, task, c, &thinglass_materialset, sky_color, sky_intensity](int){
 
                     Random rnd(seedstart + c);
-                    PathTracer rt(s, camera,
+                    PathTracer rt(scene, camera,
                                   task.xres, task.yres,
                                   cfg->multisample,
                                   cfg->recursion_level,

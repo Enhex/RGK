@@ -39,8 +39,9 @@ struct Light{
 
 struct Material{
     Material(){
-        brdf = std::make_unique<BRDFDiffuseCosine>();
+        brdf = std::make_shared<BRDFDiffuseCosine>();
     }
+    Material(const Material&) = default;
     std::string name;
     const Scene* parent_scene;
     Color diffuse;
@@ -57,21 +58,21 @@ struct Material{
     Texture* specular_texture = nullptr;
     Texture* ambient_texture  = nullptr;
     Texture* bump_texture  = nullptr;
-    std::unique_ptr<BRDF> brdf;
+    std::shared_ptr<BRDF> brdf;
 };
 
 class Triangle{
 public:
     const Scene* parent_scene;
     unsigned int va, vb, vc; // Vertex and normal indices
-    unsigned int mat; // Material index
+    Material* mat; // Material pointer
     glm::vec4 p; // plane
     inline glm::vec3 generic_normal() const {return p.xyz();}
     void CalculatePlane() __attribute__((hot));
     float GetArea() const;
     glm::vec3 GetRandomPoint(Random& rnd) const;
 
-    Triangle(const Scene* parent, unsigned int va, unsigned int vb, unsigned int vc, unsigned int mat) :
+    Triangle(const Scene* parent, unsigned int va, unsigned int vb, unsigned int vc, Material* mat) :
         parent_scene(parent), va(va), vb(vb), vc(vc), mat(mat) {}
     Triangle() : parent_scene(nullptr) {}
 

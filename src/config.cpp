@@ -4,6 +4,13 @@
 
 #include "utils.hpp"
 #include "scene.hpp"
+#include "out.hpp"
+
+#include <assimp/Importer.hpp>
+#include <assimp/scene.h>
+#include <assimp/mesh.h>
+#include <assimp/postprocess.h>
+#include <assimp/cimport.h>
 
 #define NEXT_LINE()                                                                  \
     do{ std::getline(file, line);                                                    \
@@ -14,6 +21,7 @@
 std::shared_ptr<ConfigRTC> ConfigRTC::CreateFromFile(std::string path){
     auto cfgptr = std::shared_ptr<ConfigRTC>(new ConfigRTC());
     ConfigRTC& cfg = *cfgptr;
+    cfg.config_file_path = path;
 
     std::ifstream file(path, std::ios::in);
     if(!file) throw ConfigFileException("Failed to open config file ` " + path + " `.");
@@ -180,9 +188,62 @@ void ConfigRTC::InstallLights(Scene& scene) const{
         scene.AddPointLight(l);
 }
 
+static const aiScene* loadAssimpScene(Assimp::Importer& importer, std::string modelfile){
+    out::cout(2) << "Loading scene from \"" << modelfile << "\"..."  << std::endl;
+    importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
+    const aiScene* scene = importer.ReadFile(modelfile,
+                                             aiProcess_Triangulate |
+                                             //aiProcess_TransformUVCoords |
+
+                                             // Neither of these work correctly.
+                                             aiProcess_GenNormals |
+                                             //aiProcess_GenSmoothNormals |
+
+                                             aiProcess_JoinIdenticalVertices |
+
+                                             //aiProcess_RemoveRedundantMaterials |
+
+                                             aiProcess_GenUVCoords |
+                                             //aiProcess_SortByPType |
+                                             aiProcess_FindDegenerates |
+                                             // DO NOT ENABLE THIS CLEARLY BUGGED SEE SIBENIK MODEL aiProcess_FindInvalidData |
+                                             //aiProcess_ValidateDataStructure |
+                                             0 );
+
+    if(!scene) throw ConfigFileException("Assimp failed to load scene \"" + modelfile + "\": " + importer.GetErrorString());
+
+    // Calculating tangents is requested AFTER the scene is
+    // loaded. Otherwise this step runs before normals are calculated
+    // for vertices that are missing them.
+    scene = importer.ApplyPostProcessing(aiProcess_CalcTangentSpace);
+
+    out::cout(2) << "Loaded scene with " << scene->mNumMeshes << " meshes and " <<
+        scene->mNumMaterials << " materials." << std::endl;
+
+    return scene;
+}
+
+void ConfigRTC::InstallScene(Scene& s) const{
+    std::string configdir = Utils::GetDir(config_file_path);
+    std::string modelfile = configdir + "/" + model_file;
+    std::string modeldir  = Utils::GetDir(modelfile);
+    if(!Utils::GetFileExists(modelfile))
+        throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
+
+    // Load the model with assimp
+    Assimp::Importer importer;
+    const aiScene* scene = loadAssimpScene(importer, modelfile);
+
+    s.LoadAiSceneMaterials(scene, brdf, modeldir + "/");
+    s.LoadAiSceneMeshes(scene);
+}
+
 std::pair<Color, float> ConfigRTC::GetSky() const{
     return std::make_pair(sky_color, sky_brightness);
 }
+
+
+// ----- JSON ----
 
 bool JSONArrayToVec3(Json::Value v, glm::vec3& out){
     if(!v.isArray() || v.size() != 3) return false;
@@ -227,7 +288,7 @@ static inline float getOptionalFloat(const Json::Value& node, std::string key, f
     return node.get(key, def).asFloat();
 }
 static inline bool getOptionalBool(const Json::Value& node, std::string key, bool def) {
-    if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a bool.");
+    if(node.isMember(key) && !node[key].isBool()) throw ConfigFileException("Value \""+ key + "\" must be a bool.");
     return node.get(key, def).asBool();
 }
 static inline glm::vec3 getOptionalVec3(const Json::Value& node, std::string key, glm::vec3 def) {
@@ -241,6 +302,7 @@ static inline glm::vec3 getOptionalVec3(const Json::Value& node, std::string key
 std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     auto cfgptr = std::shared_ptr<ConfigJSON>(new ConfigJSON());
     ConfigJSON& cfg = *cfgptr;
+    cfg.config_file_path = path;
     Json::Value& root = cfg.root;
 
     Json::Reader reader;
@@ -251,7 +313,6 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     reader.parse(file, root, false);
     if(!reader.good()) throw ConfigFileException("Failed to parse JSON contents: " + reader.getFormattedErrorMessages());
 
-    cfg.model_file = getRequiredString(root,"model-file");
     cfg.output_file = getRequiredString(root,"output-file");
 
     cfg.xres = getRequiredInt(root,"output-width");
@@ -332,4 +393,49 @@ std::pair<Color, float> ConfigJSON::GetSky() const{
     Color sky_color = getRequiredVec3(sky, "color")/255.0f;
     float sky_intensity = getRequiredFloat(sky, "intensity");
     return std::make_pair(sky_color, sky_intensity);
+}
+
+
+void ConfigJSON::InstallScene(Scene& s) const{
+    std::string configdir = Utils::GetDir(config_file_path);
+    if(root.isMember("model-file") && root.isMember("scene"))
+        throw ConfigFileException("The input file may not contain both \"model-file\" key and \"scene\" key, maximum one of these is allowed.");
+    if(root.isMember("model-file")){
+        std::string modelfile = configdir + "/" + root["model-file"].asString();
+        std::string modeldir  = Utils::GetDir(modelfile);
+        if(!Utils::GetFileExists(modelfile))
+            throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
+
+        // Load the model with assimp
+        Assimp::Importer importer;
+        const aiScene* scene = loadAssimpScene(importer, modelfile);
+
+        s.LoadAiSceneMaterials(scene, brdf, modeldir + "/");
+        s.LoadAiSceneMeshes(scene);
+    }else if(root.isMember("scene")){
+        auto scene_node = root["scene"];
+        if(!scene_node.isArray()) throw ConfigFileException("The value of \"scene\" key must be an array of objects");
+        for(unsigned int i = 0; i < scene_node.size(); i++){
+            auto object = scene_node[i];
+
+
+            std::string model_file = getRequiredString(object, "file");
+            bool import_materials = getOptionalBool(object, "import-materials", false);
+
+            std::string modelfile = configdir + "/" + model_file;
+            std::string modeldir  = Utils::GetDir(modelfile);
+            if(!Utils::GetFileExists(modelfile))
+                throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
+
+            // Load the model with assimp
+            Assimp::Importer importer;
+            const aiScene* scene = loadAssimpScene(importer, modelfile);
+
+            if(import_materials)
+                s.LoadAiSceneMaterials(scene, brdf, modeldir + "/");
+            s.LoadAiSceneMeshes(scene);
+        }
+    }else{
+        throw ConfigFileException("The input file contains neither \"scene\" nor \"model-file\" key.");
+    }
 }

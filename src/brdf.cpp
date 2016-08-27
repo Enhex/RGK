@@ -106,7 +106,7 @@ float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug)
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
-    out::cout(3) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
+    out::cout(4) << "Created new BRDF LTC Beckmann with roughness = " << roughness << std::endl;
 }
 float BRDFLTCBeckmann::PdfDiff() const{
     return 1.0f/glm::pi<float>();
@@ -134,7 +134,7 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(
 BRDFLTCGGX::BRDFLTCGGX(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
-    out::cout(3) << "Created new BRDF LTC GGX with roughness = " << roughness << std::endl;
+    out::cout(4) << "Created new BRDF LTC GGX with roughness = " << roughness << std::endl;
 }
 float BRDFLTCGGX::PdfDiff() const{
     return 1.0f/glm::pi<float>();
