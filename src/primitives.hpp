@@ -43,21 +43,22 @@ struct Material{
     }
     Material(const Material&) = default;
     std::string name;
-    const Scene* parent_scene;
+
     Color diffuse;
     Color specular;
     Color ambient;
     Color emission;
+    bool emissive = false;
+
     float exponent;
     float refraction_index;
-    bool reflective = false;
-    bool emissive = false;
-    float reflection_strength = 0.0f;
     float translucency = 0.0f;
+
     Texture* diffuse_texture  = nullptr;
     Texture* specular_texture = nullptr;
     Texture* ambient_texture  = nullptr;
     Texture* bump_texture  = nullptr;
+
     std::shared_ptr<BRDF> brdf;
 };
 

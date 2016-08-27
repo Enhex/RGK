@@ -258,6 +258,7 @@ int main(int argc, char** argv){
 
     // Prepare the scene
     Scene scene;
+    cfg->InstallMaterials(scene);
     cfg->InstallScene(scene);
     cfg->InstallLights(scene);
     scene.Commit();

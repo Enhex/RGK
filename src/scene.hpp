@@ -28,10 +28,10 @@ public:
     Scene(const Scene&) = delete;
     Scene& operator=(const Scene&) = delete;
 
-    void LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4());
-    void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform);
+    void LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4(), std::string force_mat = "");
+    void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform, std::string force_mat = "");
     void LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string working_directory, bool override = false);
-    void LoadAiSceneMeshes(const aiScene* scene);
+    void LoadAiSceneMeshes(const aiScene* scene, std::string force_mat = "");
     void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory, bool override_materials = false);
     void RegisterMaterial(const Material& mat, bool override = false);
 
@@ -64,6 +64,9 @@ public:
     bool VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, const std::set<const Material*>& thinglass,
                                  /*out*/ std::vector<std::pair<const Triangle*, float>>&)
         __restrict__ const __attribute__((hot));
+
+    // Loads a texture from file, or returns a (scene-locally) cached version
+    Texture* GetTexture(std::string path);
 
     // Makes a set of material references that match any of given substrings.
     std::set<const Material*> MakeMaterialSet(std::vector<std::string>) const;
@@ -139,7 +142,6 @@ private:
     Material* GetMaterialByName(std::string name) const;
 
     std::unordered_map<std::string, Texture*> textures;
-    Texture* GetTexture(std::string name);
 
     void FreeBuffers();
     void FreeTextures();

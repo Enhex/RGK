@@ -56,17 +56,16 @@ void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf,
     }
 }
 
-void Scene::LoadAiSceneMeshes(const aiScene* scene){
+void Scene::LoadAiSceneMeshes(const aiScene* scene, std::string force_mat){
     // Load root node
     const aiNode* root = scene->mRootNode;
-    LoadAiNode(scene,root);
+    LoadAiNode(scene,root,aiMatrix4x4(),force_mat);
 }
 
 
 void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string texture_directory, bool override){
 
     Material m;
-    m.parent_scene = this;
     aiString name;
     mat->Get(AI_MATKEY_NAME, name);
     m.name = name.C_Str();
@@ -127,14 +126,6 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
         }
     }
 
-    if(m.name.find("refl") != std::string::npos){
-        m.reflective = true;
-        m.reflection_strength = m.exponent / 100.0f;
-        // m.exponent = 0;
-    }else{
-        m.reflection_strength = 0;
-    }
-
     if(m.emission.r > 0.0f || m.emission.g > 0.0f || m.emission.b > 0.0f){
         out::cout(4) << "Material is emissive" << std::endl;
         m.emissive = true;
@@ -187,21 +178,21 @@ void Scene::RegisterMaterial(const Material &mat, bool override){
     }
 }
 
-void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform){
+void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform, std::string force_mat){
 
     aiMatrix4x4 transform = current_transform * ainode->mTransformation;
 
     // Load meshes
     for(unsigned int i = 0; i < ainode->mNumMeshes; i++)
-        LoadAiMesh(scene, scene->mMeshes[ainode->mMeshes[i]], transform);
+        LoadAiMesh(scene, scene->mMeshes[ainode->mMeshes[i]], transform, force_mat);
 
     // Load children
     for(unsigned int i = 0; i < ainode->mNumChildren; i++)
-        LoadAiNode(scene, ainode->mChildren[i], transform);
+        LoadAiNode(scene, ainode->mChildren[i], transform, force_mat);
 
 }
 
-void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform){
+void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform, std::string force_mat){
     out::cout(4) << "-- Loading a mesh with " << mesh->mNumFaces <<
        " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
@@ -210,10 +201,15 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
 
     // Get the material index.
     unsigned int mat_id = mesh->mMaterialIndex;
+    Material* material;
     // Find the material by name.
-    aiString mat_name;
-    scene->mMaterials[mat_id]->Get(AI_MATKEY_NAME,mat_name);
-    Material* material = GetMaterialByName(mat_name.C_Str());
+    if(force_mat == ""){
+        aiString mat_name;
+        scene->mMaterials[mat_id]->Get(AI_MATKEY_NAME,mat_name);
+        material = GetMaterialByName(mat_name.C_Str());
+    }else{
+        material = GetMaterialByName(force_mat);
+    }
 
     bool light_source = false;
     if(material->emissive) light_source = true;

@@ -1,17 +1,23 @@
 {
+    "materials": [{
+        "name": "sp_00_pod",
+        "specular": [224, 220, 180],
+        "exponent": 400.0,
+        "diffuse-texture": "sponza-fixed/KAMEN.JPG",
+        "bump-map": "sponza-fixed/KAMEN-bump.jpg"
+    }],
     "scene": [{
         "file": "sponza-fixed/sponza.obj",
-        "import-materials": true,
-        "override-materials": false
+        "import-materials": true
     }],
     "output-file": "sponza4.exr",
-    "output-width": 1200,
-    "output-height": 900,
+    "output-width": 1280,
+    "output-height": 720,
     "recursion-max": 4,
     "camera": {
         "position": [-13, 1.8, -1.2],
         "lookat": [3.0, 3.5, 3.2],
-        "focal": 1.2
+        "fov": 90
     },
     "lights": [{ // Sun lighting
         "position": [-5.0, 50.0, -20.0],
@@ -25,7 +31,7 @@
         "color": [185, 220, 240],
         "intensity": 0.9
     },
-    "bumpscale": 20,
+    "bumpscale": 10,
     "clamp": 5.0,
     "russian": 0.6,
     "brdf": "ltc_ggx"

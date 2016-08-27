@@ -37,6 +37,7 @@ public:
     virtual Camera GetCamera(float rotation) const = 0;
     virtual void InstallLights(Scene& scene) const = 0;
     virtual void  InstallScene(Scene& scene) const = 0;
+    virtual void InstallMaterials(Scene& scene) const = 0;
     virtual std::pair<Color, float> GetSky() const = 0;
 protected:
     Config(){};
@@ -48,6 +49,7 @@ public:
     virtual Camera GetCamera(float rotation) const override;
     virtual void InstallLights(Scene& scene) const override;
     virtual void  InstallScene(Scene& scene) const override;
+    virtual void InstallMaterials(Scene& scene) const override;
     virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigRTC(){};
@@ -71,6 +73,7 @@ public:
     virtual Camera GetCamera(float rotation) const override;
     virtual void InstallLights(Scene& scene) const override;
     virtual void  InstallScene(Scene& scene) const override;
+    virtual void InstallMaterials(Scene& scene) const override;
     virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigJSON(){};

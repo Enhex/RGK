@@ -1,6 +1,7 @@
 #include "config.hpp"
 
 #include <fstream>
+#include <cmath>
 
 #include "utils.hpp"
 #include "scene.hpp"
@@ -238,6 +239,10 @@ void ConfigRTC::InstallScene(Scene& s) const{
     s.LoadAiSceneMeshes(scene);
 }
 
+void ConfigRTC::InstallMaterials(Scene&) const{
+    // Nothing to do, materials will be installed during scene installation
+}
+
 std::pair<Color, float> ConfigRTC::GetSky() const{
     return std::make_pair(sky_color, sky_brightness);
 }
@@ -341,6 +346,10 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     return cfgptr;
 }
 
+static float fov2xview(float fov){
+    return 2.0f*std::tan(fov*0.0174533f/2.0f);
+}
+
 Camera ConfigJSON::GetCamera(float rotation) const{
     if(!root.isMember("camera")) throw ConfigFileException("Value \"camera\" is missing.");
     auto camera = root["camera"];
@@ -350,7 +359,16 @@ Camera ConfigJSON::GetCamera(float rotation) const{
     glm::vec3 camera_lookat   = getRequiredVec3(camera, "lookat"  );
     glm::vec3 camera_upvector = getOptionalVec3(camera, "upvector", glm::vec3(0.0f, 1.0f, 0.0f));
 
-    float yview = getRequiredFloat(camera, "focal");
+    float yview, xview;
+    if(camera.isMember("focal")){
+        yview = getRequiredFloat(camera, "focal");
+        xview = yview*xres/yres;
+    }else if(camera.isMember("fov")){
+        xview = fov2xview(getRequiredFloat(camera, "fov"));
+        yview = xview*yres/xres;
+    }else{
+        throw ConfigFileException("Camera must either have a \"fov\" or \"focal\" key defined");
+    }
 
     float focus_plane = getOptionalFloat(camera, "focus-plane", 1.0f);
     float lens_size   = getOptionalFloat(camera, "lens-size"  , 0.0f);
@@ -362,7 +380,7 @@ Camera ConfigJSON::GetCamera(float rotation) const{
                   camera_lookat,
                   camera_upvector,
                   yview,
-                  yview*xres/yres,
+                  xview,
                   xres,
                   yres,
                   focus_plane,
@@ -410,7 +428,8 @@ void ConfigJSON::InstallScene(Scene& s) const{
         Assimp::Importer importer;
         const aiScene* scene = loadAssimpScene(importer, modelfile);
 
-        s.LoadAiSceneMaterials(scene, brdf, modeldir + "/");
+        // Do not override materials in this mode
+        s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", false);
         s.LoadAiSceneMeshes(scene);
     }else if(root.isMember("scene")){
         auto scene_node = root["scene"];
@@ -418,10 +437,10 @@ void ConfigJSON::InstallScene(Scene& s) const{
         for(unsigned int i = 0; i < scene_node.size(); i++){
             auto object = scene_node[i];
 
-
             std::string model_file = getRequiredString(object, "file");
             bool import_materials = getOptionalBool(object, "import-materials", false);
             bool override_materials = getOptionalBool(object, "override-materials", false);
+            std::string forced_material = getOptionalString(object, "material", "");
 
             std::string modelfile = configdir + "/" + model_file;
             std::string modeldir  = Utils::GetDir(modelfile);
@@ -434,9 +453,62 @@ void ConfigJSON::InstallScene(Scene& s) const{
 
             if(import_materials)
                 s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", override_materials);
-            s.LoadAiSceneMeshes(scene);
+            s.LoadAiSceneMeshes(scene, forced_material);
         }
     }else{
         throw ConfigFileException("The input file contains neither \"scene\" nor \"model-file\" key.");
+    }
+}
+
+void ConfigJSON::InstallMaterials(Scene& s) const{
+    if(!root.isMember("materials")) return;
+    auto materials = root["materials"];
+    std::string configdir = Utils::GetDir(config_file_path);
+    if(!materials.isArray()) throw ConfigFileException("The value of \"materials\" key must be an array of material data");
+    for(unsigned int i = 0; i < materials.size(); i++){
+        auto m = materials[i];
+        Material mat;
+        mat.name = getRequiredString(m, "name");
+
+        // TODO: Check type
+
+        mat.specular = getOptionalVec3(m, "specular", glm::vec3(0.0))/255.0f;
+        mat.diffuse  = getOptionalVec3(m, "diffuse" , glm::vec3(0.0))/255.0f;
+        mat.ambient  = getOptionalVec3(m, "ambient" , glm::vec3(0.0))/255.0f;
+        mat.emission = getOptionalVec3(m, "emission", glm::vec3(0.0))/255.0f;
+        mat.emissive = (mat.emission.r > 0.0f || mat.emission.g > 0.0f || mat.emission.b > 0.0f);
+
+        mat.exponent = getOptionalFloat(m, "exponent", 50.0f);
+        mat.refraction_index = getOptionalFloat(m, "ior", 1.0f);
+        mat.translucency = getOptionalFloat(m, "translucency", 0.0f);
+
+        std::string texfile;
+        texfile = getOptionalString(m,"diffuse-texture","");
+        if(texfile != "") mat.diffuse_texture = s.GetTexture(configdir + "/" + texfile);
+        texfile = getOptionalString(m,"specular-texture","");
+        if(texfile != "") mat.specular_texture = s.GetTexture(configdir + "/" + texfile);
+        texfile = getOptionalString(m,"ambient-texture","");
+        if(texfile != "") mat.ambient_texture = s.GetTexture(configdir + "/" + texfile);
+        texfile = getOptionalString(m,"bump-map","");
+        if(texfile != "") mat.bump_texture = s.GetTexture(configdir + "/" + texfile);
+
+        std::string brdf = getOptionalString(m,"brdf","ltc_ggx");
+        if(brdf == "diffuseuniform"){
+            mat.brdf = std::make_unique<BRDFDiffuseUniform>();
+        }else if(brdf == "diffusecosine"){
+            mat.brdf = std::make_unique<BRDFDiffuseCosine>();
+        }else if(brdf == "cooktorr"){
+            mat.brdf = std::make_unique<BRDFCookTorr>(mat.exponent, mat.refraction_index);
+        }else if(brdf == "ltc_beckmann"){
+            mat.brdf = std::make_unique<BRDFLTCBeckmann>(mat.exponent);
+        }else if(brdf == "ltc_ggx"){
+            mat.brdf = std::make_unique<BRDFLTCGGX>(mat.exponent);
+        }else if(brdf == "phongenergy"){
+            mat.brdf = std::make_unique<BRDFPhongEnergy>(mat.exponent);
+        }else{
+            throw ConfigFileException("Unsupported BRDF id in config!");
+        }
+
+        s.RegisterMaterial(mat, true);
     }
 }
