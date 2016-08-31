@@ -9,8 +9,9 @@ External libraries used:
  - png++
  - glm
  - libjpeg
- - ctpl (included with sources)
  - openEXR
+ - ctpl (included with sources)
+ - jsoncpp (included with sources)
 
 ## Building
 
@@ -53,6 +54,9 @@ argument, e.g.:
    rendered, which is useful for debugging.
 
 ## Config file format
+
+**Note: At the moment the file format is undercoming major redesign,
+the information in this section is mostly invalid.**
 
 The config file is a simple text file. Traditionally the files are
 named `*.rtc`, though any name will do. The first 9 lines of the file
