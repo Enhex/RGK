@@ -430,16 +430,22 @@ void ConfigJSON::InstallScene(Scene& s) const{
                 std::string type = JsonUtils::getRequiredString(object, "primitive");
                 primitive_data* data = nullptr;
                 if(type == "plane"){
-                    data = &Primitives::planeX;
+                    data = &Primitives::planeY;
+                }else if(type == "cube"){
+                    data = &Primitives::cube;
+                }else{
+                    throw ConfigFileException("Value \"primitive\" in " +
+                                              JsonUtils::getNodeSemanticName(object) +
+                                              " must be either 'cube' or 'plane'.");
                 }
-                std::string axis = JsonUtils::getOptionalString(object, "axis", "X");
+                std::string axis = JsonUtils::getOptionalString(object, "axis", "Y");
                 glm::mat4 transform;
-                if(axis == "X"){
+                if(axis == "Y"){
                     transform = glm::mat4();
-                }else if(axis == "Y"){
+                }else if(axis == "X"){
                     transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(0.0f, 0.0f, 1.0f));
                 }else if(axis == "Z"){
-                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
                 }else throw ConfigFileException("Optional value \"axis\" in " +
                                                 JsonUtils::getNodeSemanticName(object) +
                                                 " must be either X, Y or Z.");

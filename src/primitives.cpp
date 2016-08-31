@@ -149,11 +149,58 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
 
 }
 
-primitive_data Primitives::planeX = {
-    std::make_tuple(glm::vec3{0.0,  1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
-    std::make_tuple(glm::vec3{0.0,  1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
-    std::make_tuple(glm::vec3{0.0, -1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
-    std::make_tuple(glm::vec3{0.0, -1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
-    std::make_tuple(glm::vec3{0.0, -1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
-    std::make_tuple(glm::vec3{0.0,  1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+primitive_data Primitives::planeY = {
+    std::make_tuple(glm::vec3{ 1.0, 0.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0, 0.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, 0.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, 0.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, 0.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0, 0.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+};
+
+primitive_data Primitives::cube = {
+    // Far X wall
+    std::make_tuple(glm::vec3{ 1.0,  1.0,  1.0}, glm::vec3{-1.0, 0.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0,  1.0, -1.0}, glm::vec3{-1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0,  1.0}, glm::vec3{-1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0, -1.0}, glm::vec3{-1.0, 0.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0,  1.0}, glm::vec3{-1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0,  1.0, -1.0}, glm::vec3{-1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    // Near X wall
+    std::make_tuple(glm::vec3{-1.0,  1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+
+    // Far Y wall
+    std::make_tuple(glm::vec3{ 1.0,  1.0,  1.0}, glm::vec3{0.0, -1.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0,  1.0, -1.0}, glm::vec3{0.0, -1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0,  1.0}, glm::vec3{0.0, -1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0, -1.0}, glm::vec3{0.0, -1.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0,  1.0}, glm::vec3{0.0, -1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0,  1.0, -1.0}, glm::vec3{0.0, -1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{1.0, 0.0, 0.0}),
+    // Near Y wall
+    std::make_tuple(glm::vec3{-1.0, -1.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{1.0, 0.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{1.0, 0.0, 0.0}),
+
+    // Far Z wall
+    std::make_tuple(glm::vec3{ 1.0,  1.0,  1.0}, glm::vec3{0.0, 0.0, -1.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0,  1.0}, glm::vec3{0.0, 0.0, -1.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0,  1.0}, glm::vec3{0.0, 0.0, -1.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0,  1.0}, glm::vec3{0.0, 0.0, -1.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0,  1.0}, glm::vec3{0.0, 0.0, -1.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0,  1.0}, glm::vec3{0.0, 0.0, -1.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 1.0, 0.0}),
+    // Near Z wall
+    std::make_tuple(glm::vec3{ 1.0,  1.0, -1.0}, glm::vec3{0.0, 0.0, 1.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0, -1.0}, glm::vec3{0.0, 0.0, 1.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0, -1.0}, glm::vec3{0.0, 0.0, 1.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0, -1.0, -1.0}, glm::vec3{0.0, 0.0, 1.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{ 1.0, -1.0, -1.0}, glm::vec3{0.0, 0.0, 1.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 1.0, 0.0}),
+    std::make_tuple(glm::vec3{-1.0,  1.0, -1.0}, glm::vec3{0.0, 0.0, 1.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 1.0, 0.0}),
 };
