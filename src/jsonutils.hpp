@@ -30,6 +30,6 @@ public:
 
     static std::vector< std::string > findUnusedNodes(const Json::Value& root);
 private:
-    static bool JSONArrayToVec3(Json::Value v, glm::vec3& out);
+    static bool JSONToVec3(Json::Value v, glm::vec3& out);
     static std::string fileloc_name;
 };

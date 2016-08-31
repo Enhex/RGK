@@ -148,3 +148,12 @@ bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, flo
     return true;
 
 }
+
+primitive_data Primitives::planeX = {
+    std::make_tuple(glm::vec3{0.0,  1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{0.0,  1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{0.0, -1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{0.0, -1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{0.0, -1.0,  1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{0.0,  1.0, -1.0}, glm::vec3{1.0, 0.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+};

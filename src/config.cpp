@@ -400,27 +400,62 @@ void ConfigJSON::InstallScene(Scene& s) const{
             auto& object = scene_node[i];
             JsonUtils::setNodeSemanticName(object, "scene object " + std::to_string(i) + " configuration");
 
-            std::string model_file = JsonUtils::getRequiredString(object, "file");
-            bool import_materials = JsonUtils::getOptionalBool(object, "import-materials", false);
-            bool override_materials = JsonUtils::getOptionalBool(object, "override-materials", false);
-            std::string forced_material = JsonUtils::getOptionalString(object, "material", "");
+            if(object.isMember("file") && object.isMember("primitive")){
+                throw ConfigFileException("Both \"file\" and \"primitive\" keys found in " +
+                                          JsonUtils::getNodeSemanticName(object) +
+                                          ", only one can be present at a time.");
+            }else if(object.isMember("file")){
+                std::string model_file = JsonUtils::getRequiredString(object, "file");
+                bool import_materials = JsonUtils::getOptionalBool(object, "import-materials", false);
+                bool override_materials = JsonUtils::getOptionalBool(object, "override-materials", false);
+                std::string forced_material = JsonUtils::getOptionalString(object, "material", "");
 
-            std::string modelfile = configdir + "/" + model_file;
-            std::string modeldir  = Utils::GetDir(modelfile);
-            if(!Utils::GetFileExists(modelfile))
-                throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
+                std::string modelfile = configdir + "/" + model_file;
+                std::string modeldir  = Utils::GetDir(modelfile);
+                if(!Utils::GetFileExists(modelfile))
+                    throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
 
-            // Load the model with assimp
-            Assimp::Importer importer;
-            const aiScene* scene = loadAssimpScene(importer, modelfile);
+                // Load the model with assimp
+                Assimp::Importer importer;
+                const aiScene* scene = loadAssimpScene(importer, modelfile);
 
-            std::string brdf = JsonUtils::getOptionalString(object,"brdf",
-                                                            JsonUtils::getOptionalString(root,"brdf","ltc_ggx")
-                                                            );
+                std::string brdf = JsonUtils::getOptionalString(object,"brdf",
+                                                                JsonUtils::getOptionalString(root,"brdf","ltc_ggx")
+                                                                );
 
-            if(import_materials)
-                s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", override_materials);
-            s.LoadAiSceneMeshes(scene, forced_material);
+                if(import_materials)
+                    s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", override_materials);
+                s.LoadAiSceneMeshes(scene, forced_material);
+            }else if(object.isMember("primitive")){
+                std::string type = JsonUtils::getRequiredString(object, "primitive");
+                primitive_data* data = nullptr;
+                if(type == "plane"){
+                    data = &Primitives::planeX;
+                }
+                std::string axis = JsonUtils::getOptionalString(object, "axis", "X");
+                glm::mat4 transform;
+                if(axis == "X"){
+                    transform = glm::mat4();
+                }else if(axis == "Y"){
+                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+                }else if(axis == "Z"){
+                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(0.0f, 1.0f, 0.0f));
+                }else throw ConfigFileException("Optional value \"axis\" in " +
+                                                JsonUtils::getNodeSemanticName(object) +
+                                                " must be either X, Y or Z.");
+                glm::vec3 scale = JsonUtils::getOptionalVec3(object, "scale", glm::vec3(1.0, 1.0, 1.0));
+                glm::vec3 translate = JsonUtils::getOptionalVec3(object, "translate", glm::vec3(1.0, 1.0, 1.0));
+                transform = glm::translate(glm::scale(transform, scale), translate);
+
+                std::string material = JsonUtils::getRequiredString(object, "material");
+
+                s.AddPrimitive(*data, transform, material);
+
+            }else{
+                throw ConfigFileException("Missing mesh data in " +
+                                          JsonUtils::getNodeSemanticName(object) +
+                                          ", it must either contain a \"file\" key, or \"primitive\" key.");
+            }
         }
     }else{
         throw ConfigFileException("The input file contains neither \"scene\" nor \"model-file\" key.");

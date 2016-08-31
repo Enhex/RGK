@@ -35,6 +35,8 @@ public:
     void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory, bool override_materials = false);
     void RegisterMaterial(const Material& mat, bool override = false);
 
+    void AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material);
+
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();
     // Compresses the kd-tree. Called automatically by Commit()
@@ -93,7 +95,7 @@ public:
         mutable float total_area = 0.0f;
 
         Color emission;
-        float power;
+        float power = 0.0f;
 
         Light GetRandomLight(Random&, const Scene& parent) const;
     };
@@ -129,12 +131,12 @@ private:
 
     void CompressRec(const UncompressedKdNode* node, unsigned int& array_pos, unsigned int& triangle_pos);
 
-    mutable std::vector<aiVector3D> vertices_buffer;
+    mutable std::vector<glm::vec3> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
     //mutable std::vector<Material> materials_buffer;
-    mutable std::vector<aiVector3D> normals_buffer;
-    mutable std::vector<aiVector3D> tangents_buffer;
-    mutable std::vector<aiVector3D> texcoords_buffer;
+    mutable std::vector<glm::vec3> normals_buffer;
+    mutable std::vector<glm::vec3> tangents_buffer;
+    mutable std::vector<glm::vec2> texcoords_buffer;
 
     std::vector<Material*> materials; //TODO: This vector is redundant, the map below is enough
     std::unordered_map<std::string, Material*> materials_by_name;

@@ -10,6 +10,7 @@
 #include "brdf.hpp"
 #include "random.hpp"
 #include <memory>
+#include <vector>
 
 // I have to be c++11 compatible! :(
 namespace std{
@@ -108,5 +109,12 @@ struct Intersection{
     ThinglassIsections thinglass;
 };
 
+
+typedef std::vector<std::tuple<glm::vec3, glm::vec3, glm::vec2, glm::vec3>> primitive_data;
+class Primitives{
+public:
+    static primitive_data planeX;
+    static primitive_data cube;
+};
 
 #endif // __PRIMITITES_HPP__

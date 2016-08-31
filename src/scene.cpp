@@ -211,19 +211,18 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
         material = GetMaterialByName(force_mat);
     }
 
-    bool light_source = false;
-    if(material->emissive) light_source = true;
+    bool light_source = material->emissive;
     ArealLight al;
 
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
         aiVector3D vertex = mesh->mVertices[v];
         vertex *= current_transform;
-        vertices_buffer.push_back(vertex);
+        vertices_buffer.push_back(glm::vec3(vertex.x, vertex.y, vertex.z));
     }
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
         aiVector3D normal = mesh->mNormals[v];
-        // TODO: current transform rotation?
-        normals_buffer.push_back(normal);
+        normal *= aiMatrix3x3(current_transform);
+        normals_buffer.push_back(glm::vec3(normal.x, normal.y, normal.z));
     }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
         const aiFace& face = mesh->mFaces[f];
@@ -246,7 +245,7 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
     if(mesh->mTextureCoords[0]){
         for(unsigned int v = 0; v < mesh->mNumVertices; v++){
             aiVector3D uv = mesh->mTextureCoords[0][v];
-            texcoords_buffer.push_back(uv);
+            texcoords_buffer.push_back(glm::vec2(uv.x, uv.y));
         }
     }else{
         // Fill with empty coords
@@ -255,12 +254,54 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
     if(mesh->mTangents){
         for(unsigned int v = 0; v < mesh->mNumVertices; v++){
             aiVector3D tangent = mesh->mTangents[v];
-            // TODO: current transform rotation?
-            tangents_buffer.push_back(tangent);
+            tangent *= aiMatrix3x3(current_transform);
+            tangents_buffer.push_back(glm::vec3(tangent.x, tangent.y, tangent.z));
         }
     }else{
         // Fill with empty coords
         tangents_buffer.resize(vertices_buffer.size());
+    }
+
+    assert(normals_buffer.size() == vertices_buffer.size());
+    assert(texcoords_buffer.size() == vertices_buffer.size());
+    assert(tangents_buffer.size() == vertices_buffer.size());
+
+    if(light_source && al.triangles_with_areas.size() > 0){
+        areal_lights.push_back(std::make_pair(0.0f, al));
+    }
+}
+
+
+void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material){
+    qassert_true(primitive.size() % 3 == 0);
+    out::cout(4) << "-- Adding a primitive with " << primitive.size()/3 << " faces." << std::endl;
+    unsigned int vertex_index_offset = vertices_buffer.size();
+    Material* mat = GetMaterialByName(material);
+    bool light_source = mat->emissive;
+    ArealLight al;
+
+    for(unsigned int i = 0; i < primitive.size(); i++){
+        glm::vec3 vertex, normal, tangent; glm::vec2 texcoords;
+        std::tie(vertex, normal, texcoords, tangent) = primitive[i];
+        vertex = (transform*glm::vec4(vertex, 1.0f)).xyz();
+        normal = glm::normalize((transform*glm::vec4(normal, 0.0f)).xyz());
+        tangent = glm::normalize((transform*glm::vec4(tangent, 0.0f)).xyz());
+        vertices_buffer.push_back(vertex);
+        normals_buffer.push_back(normal);
+        tangents_buffer.push_back(tangent);
+        texcoords_buffer.push_back(texcoords);
+    }
+    for(unsigned int i = 0; i < primitive.size()/3; i++){
+        Triangle t(this,
+                   vertex_index_offset + 0 + i*3,
+                   vertex_index_offset + 1 + i*3,
+                   vertex_index_offset + 2 + i*3,
+                   mat);
+        triangles_buffer.push_back(t);
+        int n = triangles_buffer.size() - 1;
+        if(light_source){
+            al.triangles_with_areas.push_back(std::make_pair(0.0f, n));
+        }
     }
 
     assert(normals_buffer.size() == vertices_buffer.size());
@@ -363,11 +404,11 @@ void Scene::Commit(){
         " triangles with " << textures.size() <<  " textures, as well as " << pointlights.size() << " pointlights and " << areal_lights.size() << " areal lights to the scene." << std::endl;
 
     // Clearing vectors this way forces memory to be freed.
-    vertices_buffer  = std::vector<aiVector3D>();
+    vertices_buffer  = std::vector<glm::vec3>();
     triangles_buffer = std::vector<Triangle>();
-    normals_buffer   = std::vector<aiVector3D>();
-    tangents_buffer  = std::vector<aiVector3D>();
-    texcoords_buffer = std::vector<aiVector3D>();
+    normals_buffer   = std::vector<glm::vec3>();
+    tangents_buffer  = std::vector<glm::vec3>();
+    texcoords_buffer = std::vector<glm::vec2>();
 
     // Computing x/y/z bounds for all triangles.
     xevents.resize(2 * n_triangles);

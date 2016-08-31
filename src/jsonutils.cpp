@@ -4,12 +4,17 @@
 
 std::string JsonUtils::fileloc_name;
 
-bool JsonUtils::JSONArrayToVec3(Json::Value v, glm::vec3& out){
-    if(!v.isArray() || v.size() != 3) return false;
-    const auto& x = v[0]; if(!x.isNumeric()) return false; out.x = x.asFloat();
-    const auto& y = v[1]; if(!y.isNumeric()) return false; out.y = y.asFloat();
-    const auto& z = v[2]; if(!z.isNumeric()) return false; out.z = z.asFloat();
-    return true;
+bool JsonUtils::JSONToVec3(Json::Value v, glm::vec3& out){
+    if(v.isArray()){
+        if(v.size() != 3) return false;
+        const auto& x = v[0]; if(!x.isNumeric()) return false; out.x = x.asFloat();
+        const auto& y = v[1]; if(!y.isNumeric()) return false; out.y = y.asFloat();
+        const auto& z = v[2]; if(!z.isNumeric()) return false; out.z = z.asFloat();
+        return true;
+    }else if(v.isNumeric()){
+        out = glm::vec3(v.asFloat());
+    }
+    return false;
 }
 
 std::string JsonUtils::getRequiredString(const Json::Value& node, std::string key) {
@@ -40,44 +45,44 @@ glm::vec3 JsonUtils::getRequiredVec3(const Json::Value& node, std::string key) {
     if(!node.isMember(key))
         throw ConfigFileException("Required value \"" + key +"\" is missing from " + getNodeSemanticName(node) + ".");
     glm::vec3 res;
-    if(!JSONArrayToVec3(node[key], res))
-        throw ConfigFileException("Required value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers.");
+    if(!JSONToVec3(node[key], res))
+        throw ConfigFileException("Required value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return res;
 }
 std::string JsonUtils::getOptionalString(const Json::Value& node, std::string key, std::string def) {
     if(!node.isMember(key)) return def;
     if(!node[key].isString())
-        throw ConfigFileException("Value \""+ key + "\"in " + getNodeSemanticName(node) + " must be a string.");
+        throw ConfigFileException("Optional value \""+ key + "\"in " + getNodeSemanticName(node) + " must be a string.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return node[key].asString();
 }
 int JsonUtils::getOptionalInt(const Json::Value& node, std::string key, int def) {
     if(!node.isMember(key)) return def;
     if(!node[key].isNumeric())
-        throw ConfigFileException("Value \""+ key + "\" in " + getNodeSemanticName(node) + " must be a number.");
+        throw ConfigFileException("Optional value \""+ key + "\" in " + getNodeSemanticName(node) + " must be a number.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return node[key].asInt();
 }
 float JsonUtils::getOptionalFloat(const Json::Value& node, std::string key, float def) {
     if(!node.isMember(key)) return def;
     if(!node[key].isNumeric())
-        throw ConfigFileException("Value \""+ key + "\" in " + getNodeSemanticName(node) + " must be a number.");
+        throw ConfigFileException("Optional value \""+ key + "\" in " + getNodeSemanticName(node) + " must be a number.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return node[key].asFloat();
 }
 bool JsonUtils::getOptionalBool(const Json::Value& node, std::string key, bool def) {
     if(!node.isMember(key)) return def;
     if(!node[key].isBool())
-        throw ConfigFileException("Value \""+ key + "\" in " + getNodeSemanticName(node) + " must be a bool.");
+        throw ConfigFileException("Optional value \""+ key + "\" in " + getNodeSemanticName(node) + " must be a bool.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return node[key].asBool();
 }
 glm::vec3 JsonUtils::getOptionalVec3(const Json::Value& node, std::string key, glm::vec3 def) {
     if(!node.isMember(key)) return def;
     glm::vec3 res;
-    if(!JSONArrayToVec3(node[key], res))
-        throw ConfigFileException("Value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers.");
+    if(!JSONToVec3(node[key], res))
+        throw ConfigFileException("Optional value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return res;
 }
