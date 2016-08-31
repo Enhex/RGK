@@ -25,9 +25,11 @@ struct Radiance{
     Radiance() : r(0.0), g(0.0), b(0.0) {}
     Radiance(float r, float g, float b) : r(r), g(g), b(b) {}
     explicit Radiance(const Color& c){
-        r = pow(c.r, 1.0 * 2.2);
-        g = pow(c.g, 1.0 * 2.2);
-        b = pow(c.b, 1.0 * 2.2);
+        // Clearly this is a wrong place to apply gamma
+        const float gamma = 1.0;
+        r = pow(c.r, gamma);
+        g = pow(c.g, gamma);
+        b = pow(c.b, gamma);
     }
     float r,g,b; // unbounded, positive
     Radiance  operator* (float q)           const {return Radiance(q*r, q*g, q*b);}

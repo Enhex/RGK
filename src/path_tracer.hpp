@@ -59,6 +59,8 @@ private:
         Radiance transfer_coefficients;
         //
         Radiance light_from_source;
+        // True if the ray hit the face from outside (CCW)
+        bool backside = false;
     };
 
     std::vector<PathPoint> GeneratePath(Ray direction, unsigned int& raycount, unsigned int depth__, float russian__, bool debug = false) const;

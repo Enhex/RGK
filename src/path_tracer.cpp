@@ -221,6 +221,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 fromInside = true;
                 // Pretend correction.
                 p.faceN = -p.faceN;
+                p.backside = true;
             }
 
             assert(!std::isnan(p.faceN.x));
@@ -483,7 +484,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
             //IFDEBUG std::cout << "G = " << G << std::endl;
             IFDEBUG std::cout << "lightpos = " << lightpos << std::endl;
             IFDEBUG std::cout << "p.pos = " << p.pos << std::endl;
-            light_carried = Radiance(l.color) * l.intensity;// * G;
+            light_carried = Radiance(l.color) * l.intensity * l.GetDirectionalFactor(lightdir);// * G;
         }
 
         light_carried = ApplyThinglass(light_carried, p.thinglass_isect, p.Vr);
@@ -570,7 +571,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
 
                 float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
                 IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                Radiance inc_l = Radiance(l.color) * l.intensity;
+                Radiance inc_l = Radiance(l.color) * l.intensity * l.GetDirectionalFactor(-Vi);
                 inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
 
                 IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
@@ -619,7 +620,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
 
         IFDEBUG std::cerr << "total after direct and indirect: " << total << std::endl;
 
-        if(mat.emissive){
+        if(mat.emissive && !p.backside){
             total += Radiance(mat.emission);
         }
 

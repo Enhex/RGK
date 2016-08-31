@@ -36,6 +36,10 @@ struct Light{
     // TODO: union?
     float size; // Only for full_sphere lights
     glm::vec3 normal; // Only for hemisphere lights
+    float GetDirectionalFactor(glm::vec3 v) const{
+        if(type == FULL_SPHERE) return 1.0f;
+        else return glm::max(0.0f, glm::dot(v,normal));
+    }
 };
 
 struct Material{
