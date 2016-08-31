@@ -31,13 +31,14 @@ public:
     unsigned int rounds = 1;
     bool force_fresnell = false;
     unsigned int reverse = 0;
-    std::string brdf = "cooktorr";
+    //std::string brdf = "cooktorr";
     std::vector<std::string> thinglass;
 
     virtual Camera GetCamera(float rotation) const = 0;
     virtual void InstallLights(Scene& scene) const = 0;
     virtual void  InstallScene(Scene& scene) const = 0;
     virtual void InstallMaterials(Scene& scene) const = 0;
+    virtual void PerformPostCheck() const = 0;
     virtual std::pair<Color, float> GetSky() const = 0;
 protected:
     Config(){};
@@ -50,6 +51,7 @@ public:
     virtual void InstallLights(Scene& scene) const override;
     virtual void  InstallScene(Scene& scene) const override;
     virtual void InstallMaterials(Scene& scene) const override;
+    virtual void PerformPostCheck() const override;
     virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigRTC(){};
@@ -65,6 +67,7 @@ private:
     float focus_plane = 1.0f;
     Color sky_color = Color(0.0, 0.0, 0.0);
     float sky_brightness = 2.0;
+    std::string brdf;
 };
 
 class ConfigJSON : public Config{
@@ -74,11 +77,12 @@ public:
     virtual void InstallLights(Scene& scene) const override;
     virtual void  InstallScene(Scene& scene) const override;
     virtual void InstallMaterials(Scene& scene) const override;
+    virtual void PerformPostCheck() const override;
     virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigJSON(){};
 
-    Json::Value root;
+    mutable Json::Value root;
 };
 
 #endif // __CONFIG_HPP__

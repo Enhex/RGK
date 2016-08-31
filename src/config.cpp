@@ -3,15 +3,16 @@
 #include <fstream>
 #include <cmath>
 
-#include "utils.hpp"
-#include "scene.hpp"
-#include "out.hpp"
-
 #include <assimp/Importer.hpp>
 #include <assimp/scene.h>
 #include <assimp/mesh.h>
 #include <assimp/postprocess.h>
 #include <assimp/cimport.h>
+
+#include "utils.hpp"
+#include "scene.hpp"
+#include "out.hpp"
+#include "jsonutils.hpp"
 
 #define NEXT_LINE()                                                                  \
     do{ std::getline(file, line);                                                    \
@@ -247,62 +248,12 @@ std::pair<Color, float> ConfigRTC::GetSky() const{
     return std::make_pair(sky_color, sky_brightness);
 }
 
+void ConfigRTC::PerformPostCheck() const{
+    // nop
+}
 
 // ----- JSON ----
 
-bool JSONArrayToVec3(Json::Value v, glm::vec3& out){
-    if(!v.isArray() || v.size() != 3) return false;
-    const auto& x = v[0]; if(!x.isNumeric()) return false; out.x = x.asFloat();
-    const auto& y = v[1]; if(!y.isNumeric()) return false; out.y = y.asFloat();
-    const auto& z = v[2]; if(!z.isNumeric()) return false; out.z = z.asFloat();
-    return true;
-}
-
-static inline std::string getRequiredString(const Json::Value& node, std::string key) {
-    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
-    if(!node[key].isString()) throw ConfigFileException("Value \""+ key + "\" must be a string.");
-    return node[key].asString();
-}
-static inline int getRequiredInt(const Json::Value& node, std::string key) {
-    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
-    if(!node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
-    return node[key].asInt();
-}
-static inline float getRequiredFloat(const Json::Value& node, std::string key) {
-    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
-    if(!node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
-    return node[key].asFloat();
-}
-static inline glm::vec3 getRequiredVec3(const Json::Value& node, std::string key) {
-    if(!node.isMember(key)) throw ConfigFileException("Value \"" + key +"\" is missing.");
-    glm::vec3 res;
-    if(!JSONArrayToVec3(node[key], res))
-        throw ConfigFileException("Value \"" + key + "\" must be an array of 3 numbers.");
-    return res;
-}
-static inline std::string getOptionalString(const Json::Value& node, std::string key, std::string def) {
-    if(node.isMember(key) && !node[key].isString()) throw ConfigFileException("Value \""+ key + "\" must be a string.");
-    return node.get(key, def).asString();
-}
-static inline int getOptionalInt(const Json::Value& node, std::string key, int def) {
-    if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
-    return node.get(key, def).asInt();
-}
-static inline float getOptionalFloat(const Json::Value& node, std::string key, float def) {
-    if(node.isMember(key) && !node[key].isNumeric()) throw ConfigFileException("Value \""+ key + "\" must be a number.");
-    return node.get(key, def).asFloat();
-}
-static inline bool getOptionalBool(const Json::Value& node, std::string key, bool def) {
-    if(node.isMember(key) && !node[key].isBool()) throw ConfigFileException("Value \""+ key + "\" must be a bool.");
-    return node.get(key, def).asBool();
-}
-static inline glm::vec3 getOptionalVec3(const Json::Value& node, std::string key, glm::vec3 def) {
-    if(!node.isMember(key)) return def;
-    glm::vec3 res;
-    if(!JSONArrayToVec3(node[key], res))
-        throw ConfigFileException("Value \"" + key + "\" must be an array of 3 numbers.");
-    return res;
-}
 
 std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     auto cfgptr = std::shared_ptr<ConfigJSON>(new ConfigJSON());
@@ -318,20 +269,22 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     reader.parse(file, root, false);
     if(!reader.good()) throw ConfigFileException("Failed to parse JSON contents: " + reader.getFormattedErrorMessages());
 
-    cfg.output_file = getRequiredString(root,"output-file");
+    JsonUtils::prepareNodeMetadata(root, true);
+    JsonUtils::setNodeSemanticName(root, "the config file");
 
-    cfg.xres = getRequiredInt(root,"output-width");
-    cfg.yres = getRequiredInt(root,"output-height");
+    cfg.output_file = JsonUtils::getRequiredString(root,"output-file");
 
-    cfg.recursion_level = getOptionalInt(root, "recursion-max", 1);
-    cfg.rounds = getOptionalInt(root, "rounds", 1);
-    cfg.multisample = getOptionalInt(root, "multisample", 1);
-    cfg.clamp = getOptionalFloat(root, "clamp", 10000000.0f);
-    cfg.bumpmap_scale = getOptionalFloat(root, "bumpscale", 1.0f);
-    cfg.russian = getOptionalFloat(root, "russian", -1.0f);
-    cfg.reverse = getOptionalInt(root, "reverse", 0);
-    cfg.brdf = getOptionalString(root, "brdf", "cooktorr");
-    cfg.force_fresnell = getOptionalBool(root, "force-fresnell", false);
+    cfg.xres = JsonUtils::getRequiredInt(root,"output-width");
+    cfg.yres = JsonUtils::getRequiredInt(root,"output-height");
+
+    cfg.recursion_level = JsonUtils::getOptionalInt(root, "recursion-max", 1);
+    cfg.rounds =          JsonUtils::getOptionalInt(root, "rounds", 1);
+    cfg.multisample =     JsonUtils::getOptionalInt(root, "multisample", 1);
+    cfg.clamp =           JsonUtils::getOptionalFloat(root, "clamp", 10000000.0f);
+    cfg.bumpmap_scale =   JsonUtils::getOptionalFloat(root, "bumpscale", 1.0f);
+    cfg.russian =         JsonUtils::getOptionalFloat(root, "russian", -1.0f);
+    cfg.reverse =         JsonUtils::getOptionalInt(root, "reverse", 0);
+    cfg.force_fresnell =  JsonUtils::getOptionalBool(root, "force-fresnell", false);
 
     if(root.isMember("thinglass")){
         auto thinglass = root["thinglass"];
@@ -352,26 +305,28 @@ static float fov2xview(float fov){
 
 Camera ConfigJSON::GetCamera(float rotation) const{
     if(!root.isMember("camera")) throw ConfigFileException("Value \"camera\" is missing.");
-    auto camera = root["camera"];
+    auto& camera = root["camera"];
+    JsonUtils::markNodeUsed(camera);
+    JsonUtils::setNodeSemanticName(camera, "camera configuration");
     if(!camera.isObject()) throw ConfigFileException("Value \"camera\" is not a dictionary.");
 
-    glm::vec3 camera_position = getRequiredVec3(camera, "position");
-    glm::vec3 camera_lookat   = getRequiredVec3(camera, "lookat"  );
-    glm::vec3 camera_upvector = getOptionalVec3(camera, "upvector", glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 camera_position = JsonUtils::getRequiredVec3(camera, "position");
+    glm::vec3 camera_lookat   = JsonUtils::getRequiredVec3(camera, "lookat"  );
+    glm::vec3 camera_upvector = JsonUtils::getOptionalVec3(camera, "upvector", glm::vec3(0.0f, 1.0f, 0.0f));
 
     float yview, xview;
     if(camera.isMember("focal")){
-        yview = getRequiredFloat(camera, "focal");
+        yview = JsonUtils::getRequiredFloat(camera, "focal");
         xview = yview*xres/yres;
     }else if(camera.isMember("fov")){
-        xview = fov2xview(getRequiredFloat(camera, "fov"));
+        xview = fov2xview(JsonUtils::getRequiredFloat(camera, "fov"));
         yview = xview*yres/xres;
     }else{
         throw ConfigFileException("Camera must either have a \"fov\" or \"focal\" key defined");
     }
 
-    float focus_plane = getOptionalFloat(camera, "focus-plane", 1.0f);
-    float lens_size   = getOptionalFloat(camera, "lens-size"  , 0.0f);
+    float focus_plane = JsonUtils::getOptionalFloat(camera, "focus-plane", 1.0f);
+    float lens_size   = JsonUtils::getOptionalFloat(camera, "lens-size"  , 0.0f);
 
     glm::vec3 p = camera_lookat - camera_position;
     p = glm::rotate(p, rotation * 2.0f * glm::pi<float>(), camera_upvector);
@@ -390,26 +345,30 @@ Camera ConfigJSON::GetCamera(float rotation) const{
 
 void ConfigJSON::InstallLights(Scene &scene) const{
     if(!root.isMember("lights")) return; // no lights!
-    auto lights = root["lights"];
+    auto& lights = root["lights"];
+    JsonUtils::markNodeUsed(lights);
     if(!lights.isArray()) throw ConfigFileException("Value \"lights\" must be an array.");
     for(unsigned int i = 0; i < lights.size(); i++){
-        auto light = lights[i];
+        auto& light = lights[i];
+        JsonUtils::setNodeSemanticName(light, "light " + std::to_string(i) + " configuration");
         Light l;
-        l.pos = getRequiredVec3(light, "position");
-        l.color = getOptionalVec3(light, "color", glm::vec3(255.0f, 255.0f, 255.0f))/255.0f;
-        l.intensity = getRequiredFloat(light, "intensity");
-        l.size = getOptionalFloat(light, "size", 0.0f);
+        l.pos = JsonUtils::getRequiredVec3(light, "position");
+        l.color = JsonUtils::getOptionalVec3(light, "color", glm::vec3(255.0f, 255.0f, 255.0f))/255.0f;
+        l.intensity = JsonUtils::getRequiredFloat(light, "intensity");
+        l.size = JsonUtils::getOptionalFloat(light, "size", 0.0f);
         scene.AddPointLight(l);
     }
 }
 
 std::pair<Color, float> ConfigJSON::GetSky() const{
     if(!root.isMember("sky")) return std::make_pair(Color(0.0f, 0.0f, 0.0f), 0.0f);
-    auto sky = root["sky"];
+    auto& sky = root["sky"];
+    JsonUtils::markNodeUsed(sky);
+    JsonUtils::setNodeSemanticName(sky, "sky configuration");
     if(!sky.isObject()) throw ConfigFileException("Value \"sky\" must be a dictionary.");
 
-    Color sky_color = getRequiredVec3(sky, "color")/255.0f;
-    float sky_intensity = getRequiredFloat(sky, "intensity");
+    Color sky_color = JsonUtils::getRequiredVec3(sky, "color")/255.0f;
+    float sky_intensity = JsonUtils::getRequiredFloat(sky, "intensity");
     return std::make_pair(sky_color, sky_intensity);
 }
 
@@ -422,25 +381,29 @@ void ConfigJSON::InstallScene(Scene& s) const{
         std::string modelfile = configdir + "/" + root["model-file"].asString();
         std::string modeldir  = Utils::GetDir(modelfile);
         if(!Utils::GetFileExists(modelfile))
-            throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
+            throw ConfigFileException("Unable to open model file \"" + modelfile + "\"");
 
         // Load the model with assimp
         Assimp::Importer importer;
         const aiScene* scene = loadAssimpScene(importer, modelfile);
 
+        std::string brdf = JsonUtils::getOptionalString(root,"brdf","ltc_ggx");
+
         // Do not override materials in this mode
         s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", false);
         s.LoadAiSceneMeshes(scene);
     }else if(root.isMember("scene")){
-        auto scene_node = root["scene"];
+        auto& scene_node = root["scene"];
+        JsonUtils::markNodeUsed(scene_node);
         if(!scene_node.isArray()) throw ConfigFileException("The value of \"scene\" key must be an array of objects");
         for(unsigned int i = 0; i < scene_node.size(); i++){
-            auto object = scene_node[i];
+            auto& object = scene_node[i];
+            JsonUtils::setNodeSemanticName(object, "scene object " + std::to_string(i) + " configuration");
 
-            std::string model_file = getRequiredString(object, "file");
-            bool import_materials = getOptionalBool(object, "import-materials", false);
-            bool override_materials = getOptionalBool(object, "override-materials", false);
-            std::string forced_material = getOptionalString(object, "material", "");
+            std::string model_file = JsonUtils::getRequiredString(object, "file");
+            bool import_materials = JsonUtils::getOptionalBool(object, "import-materials", false);
+            bool override_materials = JsonUtils::getOptionalBool(object, "override-materials", false);
+            std::string forced_material = JsonUtils::getOptionalString(object, "material", "");
 
             std::string modelfile = configdir + "/" + model_file;
             std::string modeldir  = Utils::GetDir(modelfile);
@@ -450,6 +413,10 @@ void ConfigJSON::InstallScene(Scene& s) const{
             // Load the model with assimp
             Assimp::Importer importer;
             const aiScene* scene = loadAssimpScene(importer, modelfile);
+
+            std::string brdf = JsonUtils::getOptionalString(object,"brdf",
+                                                            JsonUtils::getOptionalString(root,"brdf","ltc_ggx")
+                                                            );
 
             if(import_materials)
                 s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", override_materials);
@@ -462,37 +429,39 @@ void ConfigJSON::InstallScene(Scene& s) const{
 
 void ConfigJSON::InstallMaterials(Scene& s) const{
     if(!root.isMember("materials")) return;
-    auto materials = root["materials"];
+    auto& materials = root["materials"];
+    JsonUtils::markNodeUsed(materials);
     std::string configdir = Utils::GetDir(config_file_path);
     if(!materials.isArray()) throw ConfigFileException("The value of \"materials\" key must be an array of material data");
     for(unsigned int i = 0; i < materials.size(); i++){
-        auto m = materials[i];
+        auto& m = materials[i];
+        JsonUtils::setNodeSemanticName(m, "material " + std::to_string(i) + " configuration");
         Material mat;
-        mat.name = getRequiredString(m, "name");
+        mat.name = JsonUtils::getRequiredString(m, "name");
 
         // TODO: Check type
 
-        mat.specular = getOptionalVec3(m, "specular", glm::vec3(0.0))/255.0f;
-        mat.diffuse  = getOptionalVec3(m, "diffuse" , glm::vec3(0.0))/255.0f;
-        mat.ambient  = getOptionalVec3(m, "ambient" , glm::vec3(0.0))/255.0f;
-        mat.emission = getOptionalVec3(m, "emission", glm::vec3(0.0))/255.0f;
+        mat.specular = JsonUtils::getOptionalVec3(m, "specular", glm::vec3(0.0))/255.0f;
+        mat.diffuse  = JsonUtils::getOptionalVec3(m, "diffuse" , glm::vec3(0.0))/255.0f;
+        mat.ambient  = JsonUtils::getOptionalVec3(m, "ambient" , glm::vec3(0.0))/255.0f;
+        mat.emission = JsonUtils::getOptionalVec3(m, "emission", glm::vec3(0.0))/255.0f;
         mat.emissive = (mat.emission.r > 0.0f || mat.emission.g > 0.0f || mat.emission.b > 0.0f);
 
-        mat.exponent = getOptionalFloat(m, "exponent", 50.0f);
-        mat.refraction_index = getOptionalFloat(m, "ior", 1.0f);
-        mat.translucency = getOptionalFloat(m, "translucency", 0.0f);
+        mat.exponent = JsonUtils::getOptionalFloat(m, "exponent", 50.0f);
+        mat.refraction_index = JsonUtils::getOptionalFloat(m, "ior", 1.0f);
+        mat.translucency = JsonUtils::getOptionalFloat(m, "translucency", 0.0f);
 
         std::string texfile;
-        texfile = getOptionalString(m,"diffuse-texture","");
+        texfile = JsonUtils::getOptionalString(m,"diffuse-texture","");
         if(texfile != "") mat.diffuse_texture = s.GetTexture(configdir + "/" + texfile);
-        texfile = getOptionalString(m,"specular-texture","");
+        texfile = JsonUtils::getOptionalString(m,"specular-texture","");
         if(texfile != "") mat.specular_texture = s.GetTexture(configdir + "/" + texfile);
-        texfile = getOptionalString(m,"ambient-texture","");
+        texfile = JsonUtils::getOptionalString(m,"ambient-texture","");
         if(texfile != "") mat.ambient_texture = s.GetTexture(configdir + "/" + texfile);
-        texfile = getOptionalString(m,"bump-map","");
+        texfile = JsonUtils::getOptionalString(m,"bump-map","");
         if(texfile != "") mat.bump_texture = s.GetTexture(configdir + "/" + texfile);
 
-        std::string brdf = getOptionalString(m,"brdf","ltc_ggx");
+        std::string brdf = JsonUtils::getOptionalString(m,"brdf","ltc_ggx");
         if(brdf == "diffuseuniform"){
             mat.brdf = std::make_unique<BRDFDiffuseUniform>();
         }else if(brdf == "diffusecosine"){
@@ -511,4 +480,16 @@ void ConfigJSON::InstallMaterials(Scene& s) const{
 
         s.RegisterMaterial(mat, true);
     }
+}
+
+void ConfigJSON::PerformPostCheck() const{
+    auto unused_nodes = JsonUtils::findUnusedNodes(root);
+    if(unused_nodes.empty()) return;
+    out::cout(2) << "WARNING: Following configuration values are present in the config file," << std::endl;
+    out::cout(2) << "but were not used when loading the file. Please check them for typos." << std::endl;
+    out::cout(2) << "It is recommended to remove them from the config file." << std::endl;
+    for(const std::string& str : unused_nodes){
+        out::cout(2) << "    " << str << std::endl;
+    }
+
 }

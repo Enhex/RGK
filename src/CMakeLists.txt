@@ -11,7 +11,7 @@ include_directories(
   ${assimp_INCLUDE_DIRS}
   ${JPEG_INCLUDE_DIRS}
   ${OPENEXR_INCLUDE_DIRS}
-  ../external/
+  SYSTEM ../external/
   )
 
 add_definitions(

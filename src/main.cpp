@@ -243,7 +243,6 @@ int main(int argc, char** argv){
         std::cout << "Not overwriting existing file in rotate mode: " << output_file << std::endl;
         return 1;
     }
-    out::cout(2) << "Writing to file " << output_file << std::endl;
 
     // Enable preview mode
     if(preview_mode){
@@ -258,9 +257,14 @@ int main(int argc, char** argv){
 
     // Prepare the scene
     Scene scene;
-    cfg->InstallMaterials(scene);
-    cfg->InstallScene(scene);
-    cfg->InstallLights(scene);
+    try{
+        cfg->InstallMaterials(scene);
+        cfg->InstallScene(scene);
+        cfg->InstallLights(scene);
+    }catch(ConfigFileException ex){
+        std::cout << "Failed to load data from config file: " << ex.what() << std::endl;
+        return 1;
+    }
     scene.Commit();
 
     // Prepare camera.
@@ -272,6 +276,12 @@ int main(int argc, char** argv){
     std::tie(sky_color, sky_intensity) = cfg->GetSky();
 
     auto thinglass_materialset = scene.MakeMaterialSet(cfg->thinglass);
+
+    // The config file is not parsed anymore from this point on. This
+    // is a good moment to warn user about e.g. unused keys
+    cfg->PerformPostCheck();
+
+    out::cout(2) << "Writing to file " << output_file << std::endl;
 
     // Determine thread pool size.
     unsigned int concurrency = std::thread::hardware_concurrency();
