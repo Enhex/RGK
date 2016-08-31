@@ -51,6 +51,22 @@ glm::vec3 JsonUtils::getRequiredVec3(const Json::Value& node, std::string key) {
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return res;
 }
+glm::vec3 JsonUtils::getRequiredVec3_255(const Json::Value& node, std::string key) {
+    if(!node.isMember(key) && !node.isMember(key+"255"))
+        throw ConfigFileException("Required value \"" + key +"\" is missing from " + getNodeSemanticName(node) + ".");
+    glm::vec3 res;
+    if(node.isMember(key)){
+        if(!JSONToVec3(node[key], res))
+            throw ConfigFileException("Required value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
+        markNodeUsed(*const_cast<Json::Value*>(&node[key]));
+        return res;
+    }else{
+        if(!JSONToVec3(node[key+"255"], res))
+            throw ConfigFileException("Required value \"" + key + "255\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
+        markNodeUsed(*const_cast<Json::Value*>(&node[key+"255"]));
+        return res/255.0f;
+    }
+}
 std::string JsonUtils::getOptionalString(const Json::Value& node, std::string key, std::string def) {
     if(!node.isMember(key)) return def;
     if(!node[key].isString())
@@ -86,6 +102,21 @@ glm::vec3 JsonUtils::getOptionalVec3(const Json::Value& node, std::string key, g
         throw ConfigFileException("Optional value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
     markNodeUsed(*const_cast<Json::Value*>(&node[key]));
     return res;
+}
+glm::vec3 JsonUtils::getOptionalVec3_255(const Json::Value& node, std::string key, glm::vec3 def) {
+    if(!node.isMember(key) && !node.isMember(key+"255")) return def;
+    glm::vec3 res;
+    if(node.isMember(key)){
+        if(!JSONToVec3(node[key], res))
+            throw ConfigFileException("Optional value \"" + key + "\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
+        markNodeUsed(*const_cast<Json::Value*>(&node[key]));
+        return res;
+    }else{
+        if(!JSONToVec3(node[key+"255"], res))
+            throw ConfigFileException("Optional value \"" + key + "255\" in " + getNodeSemanticName(node) + " must be an array of 3 numbers or a single number.");
+        markNodeUsed(*const_cast<Json::Value*>(&node[key+"255"]));
+        return res/255.0f;
+    }
 }
 
 

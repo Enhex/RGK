@@ -353,7 +353,7 @@ void ConfigJSON::InstallLights(Scene &scene) const{
         JsonUtils::setNodeSemanticName(light, "light " + std::to_string(i) + " configuration");
         Light l;
         l.pos = JsonUtils::getRequiredVec3(light, "position");
-        l.color = JsonUtils::getOptionalVec3(light, "color", glm::vec3(255.0f, 255.0f, 255.0f))/255.0f;
+        l.color = JsonUtils::getOptionalVec3_255(light, "color", glm::vec3(255.0f, 255.0f, 255.0f));
         l.intensity = JsonUtils::getRequiredFloat(light, "intensity");
         l.size = JsonUtils::getOptionalFloat(light, "size", 0.0f);
         scene.AddPointLight(l);
@@ -367,7 +367,7 @@ std::pair<Color, float> ConfigJSON::GetSky() const{
     JsonUtils::setNodeSemanticName(sky, "sky configuration");
     if(!sky.isObject()) throw ConfigFileException("Value \"sky\" must be a dictionary.");
 
-    Color sky_color = JsonUtils::getRequiredVec3(sky, "color")/255.0f;
+    Color sky_color = JsonUtils::getRequiredVec3_255(sky, "color");
     float sky_intensity = JsonUtils::getRequiredFloat(sky, "intensity");
     return std::make_pair(sky_color, sky_intensity);
 }
@@ -492,10 +492,10 @@ void ConfigJSON::InstallMaterials(Scene& s) const{
 
         // TODO: Check type
 
-        mat.specular = JsonUtils::getOptionalVec3(m, "specular", glm::vec3(0.0))/255.0f;
-        mat.diffuse  = JsonUtils::getOptionalVec3(m, "diffuse" , glm::vec3(0.0))/255.0f;
-        mat.ambient  = JsonUtils::getOptionalVec3(m, "ambient" , glm::vec3(0.0))/255.0f;
-        mat.emission = JsonUtils::getOptionalVec3(m, "emission", glm::vec3(0.0))/255.0f;
+        mat.specular = JsonUtils::getOptionalVec3_255(m, "specular", glm::vec3(0.0));
+        mat.diffuse  = JsonUtils::getOptionalVec3_255(m, "diffuse" , glm::vec3(0.0));
+        mat.ambient  = JsonUtils::getOptionalVec3_255(m, "ambient" , glm::vec3(0.0));
+        mat.emission = JsonUtils::getOptionalVec3_255(m, "emission", glm::vec3(0.0));
         mat.emissive = (mat.emission.r > 0.0f || mat.emission.g > 0.0f || mat.emission.b > 0.0f);
 
         mat.exponent = JsonUtils::getOptionalFloat(m, "exponent", 50.0f);

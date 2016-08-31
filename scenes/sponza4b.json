@@ -1,7 +1,7 @@
 {
     "materials": [{
         "name": "sp_00_pod",
-        "specular": [209, 197, 181],
+        "specular255": [209, 197, 181],
         "exponent": 400.0,
         "diffuse-texture": "sponza-fixed/KAMEN.JPG",
         "bump-map": "sponza-fixed/KAMEN-bump.jpg"
@@ -22,14 +22,14 @@
     },
     "lights": [{ // Sun lighting
         "position": [-5.0, 50.0, -20.0],
-        "color": [255, 240, 200],
+        "color255": [255, 240, 200],
         "intensity": 20000.0,
         "size": 1.0
     }],
     "multisample": 90,
     "rounds": 20,
     "sky": {
-        "color": [185, 220, 240],
+        "color255": [185, 220, 240],
         "intensity": 0.9
     },
     "bumpscale": 10,

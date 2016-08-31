@@ -9,7 +9,7 @@
         "focal": 2.0
     },
     "lights": [
-        { "position": [4.5, 6.5, 3.0], "color": [255, 255, 200], "intensity": 15.0 }
+        { "position": [4.5, 6.5, 3.0], "color255x": [255, 255, 200], "intensity": 15.0 }
     ],
     "multisample": 20,
     "rounds": 10

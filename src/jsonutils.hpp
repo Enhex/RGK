@@ -13,12 +13,14 @@ public:
     static int         getRequiredInt   (const Json::Value& node, std::string key);
     static float       getRequiredFloat (const Json::Value& node, std::string key);
     static glm::vec3   getRequiredVec3  (const Json::Value& node, std::string key);
+    static glm::vec3   getRequiredVec3_255(const Json::Value& node, std::string key);
 
     static std::string getOptionalString(const Json::Value& node, std::string key, std::string def);
     static int         getOptionalInt   (const Json::Value& node, std::string key, int def);
     static float       getOptionalFloat (const Json::Value& node, std::string key, float def);
     static bool        getOptionalBool  (const Json::Value& node, std::string key, bool def);
     static glm::vec3   getOptionalVec3  (const Json::Value& node, std::string key, glm::vec3 def);
+    static glm::vec3   getOptionalVec3_255(const Json::Value& node, std::string key, glm::vec3 def);
 
     static void prepareNodeMetadata(Json::Value& node, bool recursive=1);
     static void markNodeUsed(Json::Value& node);

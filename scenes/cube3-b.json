@@ -11,7 +11,7 @@
         "focus-plane": 1.75
     },
     "lights": [
-        { "position": [4.5, 6.5, -2.0], "color": [255, 255, 200], "intensity": 200.0, "size": 0.4 }
+        { "position": [4.5, 6.5, -2.0], "color255": [255, 255, 200], "intensity": 200.0, "size": 0.4 }
     ],
     "multisample": 40,
     "rounds": 20,

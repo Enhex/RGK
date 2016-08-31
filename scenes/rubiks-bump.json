@@ -10,7 +10,7 @@
     },
     "lights": [{
         "position": [4.0, 4.0, -4.0],
-        "color": [255, 255, 255],
+        "color255": [255, 255, 255],
         "intensity": 300.0
     }],
     "multisample": 40,

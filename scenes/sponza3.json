@@ -11,14 +11,14 @@
     },
     "lights": [{ // Sun lighting
         "position": [-16.0, 100.0, -10.0],
-        "color": [255, 240, 200],
+        "color255": [255, 240, 200],
         "intensity": 20000.0,
         "size": 1.0
     }],
     "multisample": 40,
     "rounds": 40,
     "sky": {
-        "color": [185, 220, 240],
+        "color255": [185, 220, 240],
         "intensity": 0.4
     },
     "bumpscale": 20,
