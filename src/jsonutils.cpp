@@ -13,6 +13,7 @@ bool JsonUtils::JSONToVec3(Json::Value v, glm::vec3& out){
         return true;
     }else if(v.isNumeric()){
         out = glm::vec3(v.asFloat());
+        return true;
     }
     return false;
 }

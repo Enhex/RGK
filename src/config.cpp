@@ -451,11 +451,21 @@ void ConfigJSON::InstallScene(Scene& s) const{
                                                 " must be either X, Y or Z.");
                 glm::vec3 scale = JsonUtils::getOptionalVec3(object, "scale", glm::vec3(1.0, 1.0, 1.0));
                 glm::vec3 translate = JsonUtils::getOptionalVec3(object, "translate", glm::vec3(1.0, 1.0, 1.0));
-                transform = glm::translate(glm::scale(transform, scale), translate);
+                glm::vec3 rotate = JsonUtils::getOptionalVec3(object, "rotate", glm::vec3(0.0, 0.0, 0.0));
+                // 1. Scale
+                transform = glm::scale(transform, scale);
+                // 2. Rotation
+                transform = glm::rotate(transform, 0.0174533f * rotate.z, glm::vec3(0.0, 0.0, 1.0f));
+                transform = glm::rotate(transform, 0.0174533f * rotate.y, glm::vec3(0.0, 1.0, 0.0f));
+                transform = glm::rotate(transform, 0.0174533f * rotate.x, glm::vec3(1.0, 0.0, 0.0f));
+                // 3. Translation
+                transform = glm::translate(transform, translate);
 
                 std::string material = JsonUtils::getRequiredString(object, "material");
 
                 s.AddPrimitive(*data, transform, material);
+
+                out::cout(2) << "Added a primitive with " << data->size()/3 << " faces." << std::endl;
 
             }else{
                 throw ConfigFileException("Missing mesh data in " +

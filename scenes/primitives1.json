@@ -3,11 +3,12 @@
         "primitive": "cube",
         "scale": [3.0, 1.0, 2.0],
         "translate": [0, 0, 0],
+        "rotate": [0, -80, 0],
         "material": "mat1"
     },{
         "primitive": "plane",
         "scale": [5.0, 1.0, 5.0],
-        "translate": [0, -4, 0],
+        "translate": [0, -1, 0],
         "material": "mat2"
     }],
     "materials": [{
@@ -15,12 +16,13 @@
         "diffuse": [180, 200, 150]
     },{
         "name": "mat2",
-        "diffuse": [200, 160, 150]
+        "diffuse": [240, 210, 200],
+        "specular": 200
     }],
     "output-file": "primitives1.exr",
-    "output-width": 500,
-    "output-height": 500,
-    "multisample": 10,
+    "output-width": 400,
+    "output-height": 400,
+    "multisample": 30,
     "rounds": 10,
     "russian": 0.6,
     "sky": {
@@ -28,13 +30,13 @@
         "intensity": 0.02
     },
     "camera": {
-        "position": [8, 10, 10],
+        "position": [8, 6, 10],
         "lookat": [0, 0, 0],
         "fov": 60
     },
     "lights": [{
-        "position": [6, 6, 4],
+        "position": [6, 6, -4],
         "color": [255, 240, 200],
-        "intensity": 100.0
+        "intensity": 150.0
     }]
 }
