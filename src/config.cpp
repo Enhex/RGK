@@ -14,6 +14,8 @@
 #include "out.hpp"
 #include "jsonutils.hpp"
 
+#include <glm/gtx/string_cast.hpp>
+
 #define NEXT_LINE()                                                                  \
     do{ std::getline(file, line);                                                    \
         line = Utils::Trim(line);                                                    \
@@ -428,24 +430,25 @@ void ConfigJSON::InstallScene(Scene& s) const{
                 s.LoadAiSceneMeshes(scene, forced_material);
             }else if(object.isMember("primitive")){
                 std::string type = JsonUtils::getRequiredString(object, "primitive");
+                glm::mat4 transform;
                 primitive_data* data = nullptr;
                 if(type == "plane"){
                     data = &Primitives::planeY;
                 }else if(type == "cube"){
                     data = &Primitives::cube;
+                    transform = glm::scale(glm::vec3(0.5)) * transform;
                 }else{
                     throw ConfigFileException("Value \"primitive\" in " +
                                               JsonUtils::getNodeSemanticName(object) +
                                               " must be either 'cube' or 'plane'.");
                 }
                 std::string axis = JsonUtils::getOptionalString(object, "axis", "Y");
-                glm::mat4 transform;
                 if(axis == "Y"){
-                    transform = glm::mat4();
+                    // nop
                 }else if(axis == "X"){
-                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(0.0f, 0.0f, 1.0f));
+                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(0.0f, 0.0f, 1.0f)) * transform;
                 }else if(axis == "Z"){
-                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(1.0f, 0.0f, 0.0f));
+                    transform = glm::rotate(glm::pi<float>()/2.0f, glm::vec3(1.0f, 0.0f, 0.0f)) * transform;
                 }else throw ConfigFileException("Optional value \"axis\" in " +
                                                 JsonUtils::getNodeSemanticName(object) +
                                                 " must be either X, Y or Z.");
@@ -453,13 +456,13 @@ void ConfigJSON::InstallScene(Scene& s) const{
                 glm::vec3 translate = JsonUtils::getOptionalVec3(object, "translate", glm::vec3(1.0, 1.0, 1.0));
                 glm::vec3 rotate = JsonUtils::getOptionalVec3(object, "rotate", glm::vec3(0.0, 0.0, 0.0));
                 // 1. Scale
-                transform = glm::scale(transform, scale);
+                transform = glm::scale(scale) * transform;
                 // 2. Rotation
-                transform = glm::rotate(transform, 0.0174533f * rotate.z, glm::vec3(0.0, 0.0, 1.0f));
-                transform = glm::rotate(transform, 0.0174533f * rotate.y, glm::vec3(0.0, 1.0, 0.0f));
-                transform = glm::rotate(transform, 0.0174533f * rotate.x, glm::vec3(1.0, 0.0, 0.0f));
+                transform = glm::rotate(0.0174533f * rotate.z, glm::vec3(0.0, 0.0, 1.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.y, glm::vec3(0.0, 1.0, 0.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.x, glm::vec3(1.0, 0.0, 0.0f)) * transform;
                 // 3. Translation
-                transform = glm::translate(transform, translate);
+                transform = glm::translate(translate) * transform;
 
                 std::string material = JsonUtils::getRequiredString(object, "material");
 
@@ -515,7 +518,7 @@ void ConfigJSON::InstallMaterials(Scene& s) const{
         std::string brdf = JsonUtils::getOptionalString(m,"brdf","ltc_ggx");
         if(brdf == "diffuseuniform"){
             mat.brdf = std::make_unique<BRDFDiffuseUniform>();
-        }else if(brdf == "diffusecosine"){
+        }else if(brdf == "diffusecosine" || brdf == "diffuse"){
             mat.brdf = std::make_unique<BRDFDiffuseCosine>();
         }else if(brdf == "cooktorr"){
             mat.brdf = std::make_unique<BRDFCookTorr>(mat.exponent, mat.refraction_index);
