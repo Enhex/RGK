@@ -378,7 +378,7 @@ void ConfigJSON::InstallScene(Scene& s) const{
     if(root.isMember("model-file") && root.isMember("scene"))
         throw ConfigFileException("The input file may not contain both \"model-file\" key and \"scene\" key, maximum one of these is allowed.");
     if(root.isMember("model-file")){
-        std::string modelfile = configdir + "/" + root["model-file"].asString();
+        std::string modelfile = configdir + "/" + JsonUtils::getRequiredString(root,"model-file");
         std::string modeldir  = Utils::GetDir(modelfile);
         if(!Utils::GetFileExists(modelfile))
             throw ConfigFileException("Unable to open model file \"" + modelfile + "\"");
