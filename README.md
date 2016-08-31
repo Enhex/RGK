@@ -228,3 +228,8 @@ Example config file:
     lens_size 0.0095
     focus_plane 3.0
     brdf cooktorr
+
+
+## License
+
+This software is published under the terms of the zlib license, see `./LICENSE` for details.
