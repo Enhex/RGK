@@ -275,7 +275,7 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
 }
 
 
-void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material){
+void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material, glm::mat3 texture_transform){
     qassert_true(primitive.size() % 3 == 0);
     out::cout(4) << "-- Adding a primitive with " << primitive.size()/3 << " faces." << std::endl;
     unsigned int vertex_index_offset = vertices_buffer.size();
@@ -289,6 +289,7 @@ void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, s
         vertex = (transform*glm::vec4(vertex, 1.0f)).xyz();
         normal = glm::normalize((transform*glm::vec4(normal, 0.0f)).xyz());
         tangent = glm::normalize((transform*glm::vec4(tangent, 0.0f)).xyz());
+        texcoords = (texture_transform*glm::vec3(texcoords, 1.0f)).xy();
         vertices_buffer.push_back(vertex);
         normals_buffer.push_back(normal);
         tangents_buffer.push_back(tangent);

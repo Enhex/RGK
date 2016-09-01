@@ -35,7 +35,7 @@ public:
     void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory, bool override_materials = false);
     void RegisterMaterial(const Material& mat, bool override = false);
 
-    void AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material);
+    void AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material, glm::mat3 texture_transform);
 
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();

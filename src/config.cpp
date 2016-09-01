@@ -443,6 +443,7 @@ void ConfigJSON::InstallScene(Scene& s) const{
             }else if(object.isMember("primitive")){
                 std::string type = JsonUtils::getRequiredString(object, "primitive");
                 glm::mat4 transform;
+                glm::mat3 texture_transform;
                 primitive_data* data = nullptr;
                 if(type == "plane"){
                     data = &Primitives::planeY;
@@ -465,20 +466,23 @@ void ConfigJSON::InstallScene(Scene& s) const{
                                                 JsonUtils::getNodeSemanticName(object) +
                                                 " must be either X, Y or Z.");
                 glm::vec3 scale = JsonUtils::getOptionalVec3(object, "scale", glm::vec3(1.0, 1.0, 1.0));
-                glm::vec3 translate = JsonUtils::getOptionalVec3(object, "translate", glm::vec3(1.0, 1.0, 1.0));
+                glm::vec3 translate = JsonUtils::getOptionalVec3(object, "translate", glm::vec3(0.0, 0.0, 0.0));
                 glm::vec3 rotate = JsonUtils::getOptionalVec3(object, "rotate", glm::vec3(0.0, 0.0, 0.0));
                 // 1. Scale
                 transform = glm::scale(scale) * transform;
                 // 2. Rotation
-                transform = glm::rotate(0.0174533f * rotate.z, glm::vec3(0.0, 0.0, 1.0f)) * transform;
-                transform = glm::rotate(0.0174533f * rotate.y, glm::vec3(0.0, 1.0, 0.0f)) * transform;
-                transform = glm::rotate(0.0174533f * rotate.x, glm::vec3(1.0, 0.0, 0.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.z, glm::vec3(0.0, 0.0, -1.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.y, glm::vec3(0.0, -1.0, 0.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.x, glm::vec3(-1.0, 0.0, 0.0f)) * transform;
                 // 3. Translation
                 transform = glm::translate(translate) * transform;
 
+                glm::vec3 texscale = JsonUtils::getOptionalVec3(object, "texture-scale", glm::vec3(1.0, 1.0, 1.0));
+                texture_transform = glm::mat3(glm::scale(texscale)) * texture_transform;
+
                 std::string material = JsonUtils::getRequiredString(object, "material");
 
-                s.AddPrimitive(*data, transform, material);
+                s.AddPrimitive(*data, transform, material, texture_transform);
 
                 out::cout(2) << "Added a primitive with " << data->size()/3 << " faces." << std::endl;
 
