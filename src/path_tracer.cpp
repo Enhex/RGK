@@ -170,6 +170,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             IFDEBUG std::cout << "Sky ray!" << std::endl;
             p.infinity = true;
             p.Vr = -current_ray.direction;
+            qassert_false(std::isnan(p.Vr.x));
             path.push_back(p);
             // End path.
             break;
@@ -209,6 +210,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             p.faceN = glm::normalize(p.faceN);
             // Prepare incoming direction
             p.Vr = -current_ray.direction;
+            qassert_false(std::isnan(p.Vr.x));
 
             const Material& mat = i.triangle->GetMaterial();
             p.mat = &mat;
@@ -426,6 +428,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                               p.faceN * scene.epsilon * 10.0f *
                               ((p.type == PathPoint::ENTERED || p.type == PathPoint::LEFT)?-1.0f:1.0f)
                               , glm::normalize(dir));
+            qassert_false(std::isnan(current_ray.direction.x));
 
             IFDEBUG std::cout << "Next ray will be from " << p. pos << " dir " << dir << std::endl;
 
@@ -534,6 +537,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
         bool last = ((unsigned int)n == path.size()-1);
         const PathPoint& p = path[n];
         if(p.infinity){
+            qassert_false(std::isnan(p.Vr.x));
             Radiance sky_radiance = scene.GetSkyboxRay(p.Vr, debug);
             IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
             from_next = ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);

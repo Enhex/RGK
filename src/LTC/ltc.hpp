@@ -29,5 +29,5 @@ public:
     static const LTCdef Beckmann;
     static const LTCdef GGX;
 private:
-    static std::pair<glm::mat3, float> get_bilinear(LTCdef ltc, const float theta, const float alpha);
+    static std::pair<glm::mat3, float> get_bilinear(LTCdef ltc, const float theta, const float alpha, bool debug = false);
 };

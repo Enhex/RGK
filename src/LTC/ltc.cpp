@@ -16,15 +16,16 @@ inline float getAMP_n(LTCdef ltc, int theta, int alpha){
     return ltc.tabAmplitude[alpha + theta*ltc.size];
 }
 
-std::pair<glm::mat3, float> LTC::get_bilinear(LTCdef ltc, const float theta, const float alpha)
+std::pair<glm::mat3, float> LTC::get_bilinear(LTCdef ltc, const float theta, const float alpha, bool)
 {
     float t = glm::max(0.0f, glm::min(1.0f, theta / (0.5f*3.14159f)));
     float a = glm::max(0.0f, glm::min(1.0f, sqrtf(alpha)));
     if(t >= 1.0f) t = 0.999f;
     if(a >= 1.0f) a = 0.999f;
-    int t1 = floorf(t * ltc.size);
+    int s = ltc.size - 1;
+    int t1 = floorf(t * s);
     int t2 = t1 + 1;
-    int a1 = floorf(a * ltc.size);
+    int a1 = floorf(a * s);
     int a2 = a1 + 1;
     glm::mat3 Mt1a1 = get_n(ltc,t1,a1);
     glm::mat3 Mt1a2 = get_n(ltc,t1,a2);
@@ -35,10 +36,10 @@ std::pair<glm::mat3, float> LTC::get_bilinear(LTCdef ltc, const float theta, con
     float At2a1 = getAMP_n(ltc,t2,a1);
     float At2a2 = getAMP_n(ltc,t2,a2);
 
-    float dt1 = t*ltc.size - t1;
-    float dt2 = t2 - t*ltc.size;
-    float da1 = a*ltc.size - a1;
-    float da2 = a2 - a*ltc.size;
+    float dt1 = t*s - t1;
+    float dt2 = t2 - t*s;
+    float da1 = a*s - a1;
+    float da2 = a2 - a*s;
 
     glm::mat3 resM =
         Mt1a1 * dt2 * da2 +
@@ -94,7 +95,7 @@ glm::vec3 LTC::GetRandom(LTCdef ltc, glm::vec3 N, glm::vec3 Vi, float roughness,
     glm::mat3 rotate(Vi_cast, tangent, N);
 
     float theta = glm::angle(Vi, N);
-    auto q = get_bilinear(ltc, glm::max(theta, glm::pi<float>()/4.0f), roughness);
+    auto q = get_bilinear(ltc, glm::max(theta, glm::pi<float>()/4.0f), roughness, debug);
     glm::mat3 M = q.first;
 
     IFDEBUG std::cout << "N = " << N << ", Vi = " << Vi << std::endl;

@@ -821,6 +821,7 @@ Radiance Scene::GetSkyboxRay(glm::vec3 direction, bool) const{
         // TODO: Respect scene (or maybe skybox's) up direction
         float alpha = glm::asin(direction.y);
         float beta = -glm::atan(direction.x, direction.z);
+        qassert_false(std::isnan(alpha));
         beta += skybox_rotate * 0.0174533f;
         // Converting to range 0-1
         float x = beta/(2.0f*glm::pi<float>()) + 0.5f;

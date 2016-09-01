@@ -294,7 +294,7 @@ Texture* Texture::CreateNewFromHDR(std::string path){
     }
 
     int w,h,n;
-    float *data = stbi_loadf(path.c_str(), &w, &h, &n, 0);
+    float *file_data = stbi_loadf(path.c_str(), &w, &h, &n, 0);
     if(n != 3){
         std::cerr << "Failed to load texture '" << path << "', it does not contain exactly 3 color components." << std::endl;
         return nullptr;
@@ -306,13 +306,13 @@ Texture* Texture::CreateNewFromHDR(std::string path){
     for(int y = 0; y < h; y++){
         for(int x = 0; x < w; x++){
             int p = y*w + x;
-            Color c = Color(data[3*p + 0],
-                            data[3*p + 1],
-                            data[3*p + 2]);
+            Color c = Color(file_data[3*p + 0],
+                            file_data[3*p + 1],
+                            file_data[3*p + 2]);
             t->SetPixel(x, y, c);
         }
     }
-    free(data);
+    free(file_data);
     return t;
 }
 
