@@ -5,7 +5,7 @@
 #define ENABLE_DEBUG 1
 #endif
 
-#define TILE_SIZE 50
+#define TILE_SIZE 64
 
 #define PREVIEW_DIMENTIONS_RATIO 4
 #define PREVIEW_RAYS_RATIO 2
