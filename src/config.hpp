@@ -38,8 +38,8 @@ public:
     virtual void InstallLights(Scene& scene) const = 0;
     virtual void  InstallScene(Scene& scene) const = 0;
     virtual void InstallMaterials(Scene& scene) const = 0;
+    virtual void InstallSky(Scene& scene) const = 0;
     virtual void PerformPostCheck() const = 0;
-    virtual std::pair<Color, float> GetSky() const = 0;
 protected:
     Config(){};
 };
@@ -51,8 +51,8 @@ public:
     virtual void InstallLights(Scene& scene) const override;
     virtual void  InstallScene(Scene& scene) const override;
     virtual void InstallMaterials(Scene& scene) const override;
+    virtual void InstallSky(Scene& scene) const override;
     virtual void PerformPostCheck() const override;
-    virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigRTC(){};
 
@@ -77,8 +77,8 @@ public:
     virtual void InstallLights(Scene& scene) const override;
     virtual void  InstallScene(Scene& scene) const override;
     virtual void InstallMaterials(Scene& scene) const override;
+    virtual void InstallSky(Scene& scene) const override;
     virtual void PerformPostCheck() const override;
-    virtual std::pair<Color, float> GetSky() const override;
 private:
     ConfigJSON(){};
 

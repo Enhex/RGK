@@ -5,8 +5,11 @@
 #include <cmath>
 #include <stack>
 
+#include <glm/gtx/wrap.hpp>
+
 #include "utils.hpp"
 #include "out.hpp"
+#include "global_config.hpp"
 
 // #define NO_COMPRESS
 
@@ -323,6 +326,8 @@ Texture* Scene::GetTexture(std::string path){
             t = Texture::CreateNewFromPNG(path);
         }else if(p.second == "JPG" || p.second == "jpg" || p.second == "JPEG" || p.second == "jpeg"){
             t = Texture::CreateNewFromJPEG(path);
+        }else if(p.second == "HDR" || p.second == "hdr"){
+            t = Texture::CreateNewFromHDR(path);
         }else{
             std::cerr << "ERROR: Texture format '" << p.second << "' is not supported!" << std::endl;
         }
@@ -806,4 +811,21 @@ Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
     out::cout(4) << "Internal error: GetRandomLight out of bounds for triangle areas." << std::endl;
     // Sigh. Return just anything for compatibility.
     return Light(Light::Type::FULL_SPHERE);
+}
+
+
+Radiance Scene::GetSkyboxRay(glm::vec3 direction, bool) const{
+    if(skybox_mode == Scene::SkyboxMode::SimpleRadiance){
+        return Radiance(skybox_color) * skybox_intensity;
+    }else{
+        // TODO: Respect scene (or maybe skybox's) up direction
+        float alpha = glm::asin(direction.y);
+        float beta = -glm::atan(direction.x, direction.z);
+        beta += skybox_rotate * 0.0174533f;
+        // Converting to range 0-1
+        float x = beta/(2.0f*glm::pi<float>()) + 0.5f;
+        float y = alpha/glm::pi<float>() + 0.5f;
+        Color c = skybox_texture->GetPixelInterpolated(glm::vec2(x,y));
+        return Radiance(c) * skybox_intensity;
+    }
 }

@@ -13,8 +13,6 @@ public:
                unsigned int yres,
                unsigned int multisample,
                unsigned int depth,
-               Color sky_color,
-               float sky_brightness,
                float clamp,
                float russian,
                float bumpmap_scale,
@@ -67,7 +65,7 @@ private:
 
     Radiance ApplyThinglass(Radiance input, const ThinglassIsections& isections, glm::vec3 ray_direction) const;
 
-    Radiance sky_radiance;
+    //Radiance sky_radiance;
     float clamp;
     float russian;
     unsigned int depth;

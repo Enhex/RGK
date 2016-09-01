@@ -261,6 +261,7 @@ int main(int argc, char** argv){
         cfg->InstallMaterials(scene);
         cfg->InstallScene(scene);
         cfg->InstallLights(scene);
+        cfg->InstallSky(scene);
     }catch(ConfigFileException ex){
         std::cout << "Failed to load data from config file: " << ex.what() << std::endl;
         return 1;
@@ -269,11 +270,6 @@ int main(int argc, char** argv){
 
     // Prepare camera.
     Camera camera = cfg->GetCamera(rotate_frac);
-
-    // Prepare sky properties
-    Color sky_color;
-    float sky_intensity;
-    std::tie(sky_color, sky_intensity) = cfg->GetSky();
 
     auto thinglass_materialset = scene.MakeMaterialSet(cfg->thinglass);
 
@@ -328,15 +324,13 @@ int main(int argc, char** argv){
             const RenderTask& task = tasks[i];
             EXRTexture& output_buffer = output_buffers[i];
             unsigned int c = seedcount++;
-            tpool.push( [&output_buffer, seedstart, camera, &scene, cfg, task, c, &thinglass_materialset, sky_color, sky_intensity](int){
+            tpool.push( [&output_buffer, seedstart, camera, &scene, cfg, task, c, &thinglass_materialset](int){
 
                     Random rnd(seedstart + c);
                     PathTracer rt(scene, camera,
                                   task.xres, task.yres,
                                   cfg->multisample,
                                   cfg->recursion_level,
-                                  sky_color,
-                                  sky_intensity,
                                   cfg->clamp,
                                   cfg->russian,
                                   cfg->bumpmap_scale,
@@ -344,8 +338,8 @@ int main(int argc, char** argv){
                                   cfg->reverse,
                                   thinglass_materialset,
                                   rnd);
-                    out::cout(5) << "Starting a new task with params: " << std::endl;
-                    out::cout(5) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << ", sky_color = " << sky_color << std::endl;
+                    out::cout(6) << "Starting a new task with params: " << std::endl;
+                    out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
 
                     rt.Render(task, &output_buffer, pixels_done, raycount);
 

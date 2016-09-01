@@ -120,6 +120,19 @@ public:
     // Dynamically determined by examining scene's diameter
     float epsilon = 0.0001f;
 
+    void SetSkyboxColor(Color c, float intensity){
+        skybox_mode = SimpleRadiance;
+        skybox_color = c;
+        skybox_intensity = intensity;
+    }
+    void SetSkyboxEnvmap(std::string path, float intensity, float rotate){
+        skybox_mode = Envmap;
+        skybox_texture = GetTexture(path);
+        skybox_intensity = intensity;
+        skybox_rotate = rotate;
+    }
+    Radiance GetSkyboxRay(glm::vec3 direction, bool debug=false) const;
+
 private:
 
     UncompressedKdNode* uncompressed_root = nullptr;
@@ -144,6 +157,16 @@ private:
     Material* GetMaterialByName(std::string name) const;
 
     std::unordered_map<std::string, Texture*> textures;
+
+    enum SkyboxMode : int{
+        SimpleRadiance,
+        Envmap,
+    };
+    SkyboxMode skybox_mode;
+    Color skybox_color;
+    Texture* skybox_texture;
+    float skybox_intensity;
+    float skybox_rotate;
 
     void FreeBuffers();
     void FreeTextures();

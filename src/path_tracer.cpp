@@ -18,8 +18,6 @@ PathTracer::PathTracer(const Scene& scene,
                        unsigned int yres,
                        unsigned int multisample,
                        unsigned int depth,
-                       Color sky_color,
-                       float sky_brightness,
                        float clamp,
                        float russian,
                        float bumpmap_scale,
@@ -36,7 +34,6 @@ PathTracer::PathTracer(const Scene& scene,
   reverse(reverse),
   rnd(rnd)
 {
-    sky_radiance = Radiance(sky_color) * sky_brightness;
 }
 
 PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount, bool debug){
@@ -537,6 +534,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
         bool last = ((unsigned int)n == path.size()-1);
         const PathPoint& p = path[n];
         if(p.infinity){
+            Radiance sky_radiance = scene.GetSkyboxRay(p.Vr, debug);
             IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
             from_next = ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);
             continue;

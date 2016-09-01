@@ -12,6 +12,8 @@
 #include "glm.hpp"
 #include <glm/gtx/wrap.hpp>
 
+#include "stbi.hpp"
+
 #include <OpenEXR/ImfRgbaFile.h>
 
 Texture::Texture(int xsize, int ysize):
@@ -282,6 +284,36 @@ Texture* Texture::CreateNewFromJPEG(std::string path){
         return nullptr;
     }
 
+}
+
+
+Texture* Texture::CreateNewFromHDR(std::string path){
+    if(!Utils::GetFileExists(path)){
+        std::cerr << "Failed to load texture '" << path << ", file does not exist." << std::endl;
+        return nullptr;
+    }
+
+    int w,h,n;
+    float *data = stbi_loadf(path.c_str(), &w, &h, &n, 0);
+    if(n != 3){
+        std::cerr << "Failed to load texture '" << path << "', it does not contain exactly 3 color components." << std::endl;
+        return nullptr;
+    }
+
+    out::cout(5) << "Opened image '" << path << "', " << w << "x" << h << std::endl;
+
+    Texture* t = new Texture(w,h);
+    for(int y = 0; y < h; y++){
+        for(int x = 0; x < w; x++){
+            int p = y*w + x;
+            Color c = Color(data[3*p + 0],
+                            data[3*p + 1],
+                            data[3*p + 2]);
+            t->SetPixel(x, y, c);
+        }
+    }
+    free(data);
+    return t;
 }
 
 

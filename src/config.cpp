@@ -245,8 +245,8 @@ void ConfigRTC::InstallMaterials(Scene&) const{
     // Nothing to do, materials will be installed during scene installation
 }
 
-std::pair<Color, float> ConfigRTC::GetSky() const{
-    return std::make_pair(sky_color, sky_brightness);
+void ConfigRTC::InstallSky(Scene& s) const{
+    s.SetSkyboxColor(sky_color, sky_brightness);
 }
 
 void ConfigRTC::PerformPostCheck() const{
@@ -361,16 +361,29 @@ void ConfigJSON::InstallLights(Scene &scene) const{
     }
 }
 
-std::pair<Color, float> ConfigJSON::GetSky() const{
-    if(!root.isMember("sky")) return std::make_pair(Color(0.0f, 0.0f, 0.0f), 0.0f);
+void ConfigJSON::InstallSky(Scene& s) const{
+    if(!root.isMember("sky")){
+        s.SetSkyboxColor(Color(0.0f, 0.0f, 0.0f), 1.0f);
+        return;
+    }
     auto& sky = root["sky"];
     JsonUtils::markNodeUsed(sky);
     JsonUtils::setNodeSemanticName(sky, "sky configuration");
     if(!sky.isObject()) throw ConfigFileException("Value \"sky\" must be a dictionary.");
 
-    Color sky_color = JsonUtils::getRequiredVec3_255(sky, "color");
-    float sky_intensity = JsonUtils::getRequiredFloat(sky, "intensity");
-    return std::make_pair(sky_color, sky_intensity);
+    if(sky.isMember("envmap")){
+        std::string configdir = Utils::GetDir(config_file_path);
+        std::string path = JsonUtils::getRequiredString(sky, "envmap");
+        float intensity = JsonUtils::getOptionalFloat(sky, "intensity", 1.0f);
+        float rotate = JsonUtils::getOptionalFloat(sky, "rotate", 0.0f);
+        s.SetSkyboxEnvmap(configdir + "/" + path, intensity, rotate);
+    }else if(sky.isMember("color") || sky.isMember("color255")){
+        Color color = JsonUtils::getRequiredVec3_255(sky, "color");
+        float intensity = JsonUtils::getOptionalFloat(sky, "intensity", 1.0f);
+        s.SetSkyboxColor(color, intensity);
+    }else{
+        throw ConfigFileException("Sky configuration must either contain an \"envmap\" key or a \"color\" key");
+    }
 }
 
 
