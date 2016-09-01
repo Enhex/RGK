@@ -21,13 +21,15 @@
         "focus-plane": 15
     },
     "lights": [{ // Sun lighting
-        "position": [-5.0, 50.0, -20.0],
-        "color255": [255, 240, 200],
-        "intensity": 20000.0,
+        //"position": [-5.0, 50.0, -20.0],
+        //"position": [-2.0, 50.0, -5.0],
+        "position": [-2.0, 50.0, -50.0],
+        "color": [1.0, 0.85, 0.6],
+        "intensity": 2000.0,
         "size": 1.0
     }],
     "multisample": 90,
-    "rounds": 20,
+    "rounds": 40,
     "sky": {
         "color255": [185, 220, 240],
         "intensity": 0.9

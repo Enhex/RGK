@@ -14,5 +14,5 @@
     "clamp": 5.0,
     "russian": 0.7,
     "reverse": 3,
-    "brdf": "ltc_beckmann"
+    "brdf": "ltc_ggx"
 }

@@ -14,5 +14,5 @@
     "clamp": 5.0,
     "russian": 0.7,
     "reverse": 2,
-    "brdf": "ltc_ggx"
+    "brdf": "diffuse"
 }

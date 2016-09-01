@@ -28,7 +28,7 @@ struct Light{
         FULL_SPHERE,
         HEMISPHERE,
     };
-    Light() {}
+    Light(Type t) : type(t) {}
     Type type;
     glm::vec3 pos;
     Color color;

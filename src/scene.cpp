@@ -134,7 +134,7 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     // Supposedly we may support different brdfs for each material.
     if(brdf == "diffuseuniform"){
         m.brdf = std::make_unique<BRDFDiffuseUniform>();
-    }else if(brdf == "diffusecosine"){
+    }else if(brdf == "diffusecosine" || brdf == "diffuse"){
         m.brdf = std::make_unique<BRDFDiffuseCosine>();
     }else if(brdf == "cooktorr"){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
@@ -752,7 +752,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
     float total_power = total_point_power + total_areal_power;
     if(total_power <= 0.0f){
         // Sigh. Return just anything for compatibility.
-        return Light();
+        return Light(Light::Type::FULL_SPHERE);
     }
     float q = rnd.GetFloat(0.0f, total_power);
     if(q < total_point_power){
@@ -768,7 +768,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
         }
         out::cout(4) << "Internal error: GetRandomLight out of bounds for point lights." << std::endl;
         // Sigh. Return just anything for compatibility.
-        return Light();
+        return Light(Light::Type::FULL_SPHERE);
     }else{
         // Choose areal light
         q = rnd.GetFloat(0.0f, total_areal_power);
@@ -783,7 +783,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
         }
         out::cout(4) << "Internal error: GetRandomLight out of bounds for areal lights." << std::endl;
         // Sigh. Return just anything for compatibility.
-        return Light();
+        return Light(Light::Type::FULL_SPHERE);
     }
 }
 
@@ -794,8 +794,7 @@ Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
         if(p <= 0.0f){
             const Triangle& t = parent.triangles[triangles_with_areas[j].second];
             glm::vec3 p = t.GetRandomPoint(rnd);
-            Light res;
-            res.type = Light::HEMISPHERE;
+            Light res(Light::Type::HEMISPHERE);
             res.pos = p;
             res.color = emission;
             res.intensity = 1.0f;
@@ -806,5 +805,5 @@ Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
     }
     out::cout(4) << "Internal error: GetRandomLight out of bounds for triangle areas." << std::endl;
     // Sigh. Return just anything for compatibility.
-    return Light();
+    return Light(Light::Type::FULL_SPHERE);
 }

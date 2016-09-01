@@ -93,8 +93,7 @@ std::shared_ptr<ConfigRTC> ConfigRTC::CreateFromFile(std::string path){
             float i = std::stof(vs[7]);
             float s = 0.0f;
             if(vs.size() == 9) s = std::stof(vs[8]);
-            Light l;
-            l.type = Light::FULL_SPHERE;
+            Light l(Light::Type::FULL_SPHERE);
             l.pos = glm::vec3(l1,l2,l3);
             l.color = Color(c1,c2,c3);
             l.size = s;
@@ -353,7 +352,7 @@ void ConfigJSON::InstallLights(Scene &scene) const{
     for(unsigned int i = 0; i < lights.size(); i++){
         auto& light = lights[i];
         JsonUtils::setNodeSemanticName(light, "light " + std::to_string(i) + " configuration");
-        Light l;
+        Light l(Light::Type::FULL_SPHERE);
         l.pos = JsonUtils::getRequiredVec3(light, "position");
         l.color = JsonUtils::getOptionalVec3_255(light, "color", glm::vec3(255.0f, 255.0f, 255.0f));
         l.intensity = JsonUtils::getRequiredFloat(light, "intensity");
