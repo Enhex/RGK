@@ -60,7 +60,7 @@ int main(int argc, char** argv){
             {"debug", required_argument, 0, 'd'},
 #endif // ENABLE_DEBUG
             {"dir", required_argument, 0, 'D'},
-            {"rotate", required_argument, 0, 'r'},
+            {"rotate", no_argument, 0, 'r'},
             {"timed", required_argument, 0, 't'},
             {"preview", no_argument, 0, 'p'},
             {"help", no_argument, 0, 'h'},
