@@ -177,7 +177,8 @@ int main(int argc, char** argv){
     }
 
     // Prepare output file name
-    std::string output_file = directory + "/" + cfg->output_file;
+    if(directory != "") directory += "/";
+    std::string output_file = directory + cfg->output_file;
     if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
     if(compare_mode) output_file = Utils::InsertFileSuffix(output_file, "cmp");
 
