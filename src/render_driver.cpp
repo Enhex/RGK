@@ -159,9 +159,9 @@ void RenderDriver::RenderRound(const Scene& scene,
     // Push all render tasks to thread pool
     for(unsigned int i = 0; i < tasks.size(); i++){
         const RenderTask& task = tasks[i];
-        EXRTexture& output_buffer = output_buffers[i];
+        EXRTexture* output_buffer = &output_buffers[i];
         unsigned int c = seedcount++;
-        tpool.push( [&output_buffer, seedstart, camera, &scene, &cfg, task, c](int){
+        tpool.push( [output_buffer, seedstart, camera, &scene, &cfg, task, c](int){
 
                 // THIS is the thread task
                 Random rnd(seedstart + c);
@@ -178,7 +178,7 @@ void RenderDriver::RenderRound(const Scene& scene,
                 out::cout(6) << "Starting a new task with params: " << std::endl;
                 out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
 
-                rt.Render(task, &output_buffer, pixels_done, rays_done);
+                rt.Render(task, output_buffer, pixels_done, rays_done);
 
             });
     }
@@ -234,7 +234,7 @@ void RenderDriver::RenderFrame(const Scene& scene,
             // Render a single round
             RenderRound(scene, cfg, camera, tasks, seedcount, seedstart, concurrency, total_ob);
             // Write out current progress to the output file.
-            total_ob.Normalize().Write(output_file);
+            total_ob.Normalize(cfg->output_scale).Write(output_file);
         }
         break;
     case RenderLimitMode::Timed:
@@ -246,7 +246,7 @@ void RenderDriver::RenderFrame(const Scene& scene,
             // Render a single round
             RenderRound(scene, cfg, camera, tasks, seedcount, seedstart, concurrency, total_ob);
             // Write out current progress to the output file.
-            total_ob.Normalize().Write(output_file);
+            total_ob.Normalize(cfg->output_scale).Write(output_file);
         }
         break;
     }

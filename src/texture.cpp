@@ -368,24 +368,28 @@ bool EXRTexture::Write(std::string path) const{
     return true;
 }
 
-EXRTexture EXRTexture::Normalize() const{
+EXRTexture EXRTexture::Normalize(float val) const{
     EXRTexture out(xsize, ysize);
     out.data = data;
     out.count = count;
-    float m = 0.0f;
-    for(unsigned int y = 0; y < ysize; y++)
-        for(unsigned int x = 0; x < xsize; x++){
-            auto q = GetPixel(x, y);
-            m = std::max(m, q.r);
-            m = std::max(m, q.g);
-            m = std::max(m, q.b);
-        }
+
+    if(val <= 0.0f){
+        float m = 0.0f;
+        for(unsigned int y = 0; y < ysize; y++)
+            for(unsigned int x = 0; x < xsize; x++){
+                auto q = GetPixel(x, y);
+                m = std::max(m, q.r);
+                m = std::max(m, q.g);
+                m = std::max(m, q.b);
+            }
+        val = 1.0f/m;
+    }
 
     for(unsigned int y = 0; y < ysize; y++)
         for(unsigned int x = 0; x < xsize; x++){
-            out.data[y*xsize + x].r /= m;
-            out.data[y*xsize + x].g /= m;
-            out.data[y*xsize + x].b /= m;
+            out.data[y*xsize + x].r *= val;
+            out.data[y*xsize + x].g *= val;
+            out.data[y*xsize + x].b *= val;
         }
     return out;
 }

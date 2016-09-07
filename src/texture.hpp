@@ -46,7 +46,9 @@ public:
     bool Write(std::string path) const;
     void AddPixel(int x, int y, Radiance c, unsigned int n = 1);
     Radiance GetPixel(int x, int y) const;
-    EXRTexture Normalize() const;
+    // A positive value will be applied as a scaling factor to the entire texture.
+    // A negative value enables automatic scaling factor detection
+    EXRTexture Normalize(float val) const;
 
     void Accumulate(const EXRTexture& other);
 

@@ -299,6 +299,17 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     cfg.reverse =         JsonUtils::getOptionalInt(root, "reverse", 0);
     cfg.force_fresnell =  JsonUtils::getOptionalBool(root, "force-fresnell", false);
 
+    if(root.isMember("output-scale")){
+        JsonUtils::markNodeUsed(root["output-scale"]);
+        if(root["output-scale"].isString()){
+            if(root["output-scale"].asString() == "auto"){
+                cfg.output_scale = -1.0;
+            }else throw ConfigFileException("The value of \"output-scale\" must either be a number, or \"auto\".");
+        }else if(root["output-scale"].isNumeric()){
+            cfg.output_scale = root["output-scale"].asFloat();
+        }else throw ConfigFileException("The value of \"output-scale\" must either be a number, or \"auto\".");
+    }
+
     if(root.isMember("thinglass")){
         auto thinglass = root["thinglass"];
         JsonUtils::markNodeUsed(thinglass);

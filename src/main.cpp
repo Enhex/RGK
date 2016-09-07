@@ -28,6 +28,9 @@ Runs the RGK Ray Tracer using scene configuration from FILE.
  --timed MINUTES     settings from the scene configuration file.
  --no-overwrite    Aborts rendering if the output file already exists. Useful
                      for rendering on multiple machines that share filesystem.
+ -s, --scale VALUE Manually configures output image brightness scaling factor.
+                     This is only relevant if you intend to process the output
+                     image with a photo editor.
  -D, --dir DIR     The directory where output file will be stored.
 
  -h, --help        Prints out this message.
@@ -62,6 +65,7 @@ int main(int argc, char** argv){
             {"dir", required_argument, 0, 'D'},
             {"rotate", no_argument, 0, 'r'},
             {"timed", required_argument, 0, 't'},
+            {"scale", required_argument, 0, 's'},
             {"preview", no_argument, 0, 'p'},
             {"help", no_argument, 0, 'h'},
             {"no-overwrite", no_argument, &no_overwrite, true},
@@ -72,14 +76,15 @@ int main(int argc, char** argv){
     int c;
     bool rotate = false;
     bool force_timed = false; int force_timed_minutes = 0;
+    bool force_scale = false; float force_scale_value = 1.0f;
     bool preview_mode = false;
     bool compare_mode = false;
     std::string directory = "";
     int opt_index = 0;
 #if ENABLE_DEBUG
-    #define OPTSTRING "hpcvqrt:d:"
+    #define OPTSTRING "hpcvqrt:d:s:"
 #else
-    #define OPTSTRING "hpcvqrt:"
+    #define OPTSTRING "hpcvqrt:s:"
 #endif
     while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
@@ -110,6 +115,9 @@ int main(int argc, char** argv){
                 std::cout << "ERROR: Invalid argument for -t (--time).\n";
                 usage(argv[0]);
             }
+        case 's':
+            force_scale = true;
+            force_scale_value = std::stof(optarg);
             break;
         case 'D':
             directory = optarg;
@@ -174,6 +182,10 @@ int main(int argc, char** argv){
         //out::cout(2) << "Command line forced render time to " << Utils::FormatTime(force_timed_minutes*60) << " minutes." << std::endl;
         cfg->render_limit_mode = RenderLimitMode::Timed;
         cfg->render_minutes = force_timed_minutes;
+    }
+    // Enable scale
+    if(force_scale){
+        cfg->output_scale = force_scale_value;
     }
 
     // Prepare output file name
