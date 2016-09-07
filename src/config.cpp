@@ -301,6 +301,7 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
 
     if(root.isMember("thinglass")){
         auto thinglass = root["thinglass"];
+        JsonUtils::markNodeUsed(thinglass);
         if(!thinglass.isArray()) throw ConfigFileException("Value \"thinglass\" must be an array of strings");
         for(unsigned int i = 0; i < thinglass.size(); i++){
             auto t = thinglass[i];
