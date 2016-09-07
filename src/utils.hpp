@@ -34,7 +34,9 @@ public:
     static std::string JoinString(std::vector<std::string> str, std::string c);
     static std::string FormatIntThousands(unsigned int value);
     static std::string FormatFraction5(float value);
+    static std::string FormatInt5(unsigned int value);
     static std::string FormatTime(float seconds);
+    static std::string FormatPercent(float f);
     static std::string GetDir(std::string path);
     // Extracts filename from a path
     static std::string GetFilename(std::string path);

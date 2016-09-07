@@ -1,17 +1,17 @@
 {
     "output-file": "floor2.exr",
-    "output-width": 1200,
-    "output-height": 900,
-    "recursion-max": 3,
+    "output-width": 1280,
+    "output-height": 720,
+    "recursion-max": 2,
     "camera": {
         "position": [3.0, 0.9, 0.2],
         "lookat": [0.0, 0.5, 0.0],
         "fov": 95
     },
-    "multisample": 120,
-    "rounds": 5,
+    "multisample": 400,
+    "rounds": 2,
     "bumpscale": 0.9,
-    "clamp": 100.0,
+    "clamp": 150.0,
     "scene": [{
         "primitive": "plane",
         "axis": "Y",
@@ -21,7 +21,7 @@
     }],
     "materials": [{
         "name": "floor",
-        "brdf": "ltc_ggx",
+        "brdf": "ltc_beckmann",
         "specular": [0.9, 0.9, 0.9],
         "diffuse-texture": "floor/grid2.png",
         "bump-map": "floor/intensity.jpg",

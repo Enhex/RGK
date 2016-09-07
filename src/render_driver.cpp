@@ -27,13 +27,6 @@ void RenderDriver::ResetCounters(){
     rays_done = 0;
 }
 
-
-std::string float_to_percent_string(float f){
-    std::stringstream ss;
-    ss << /*std::setw(5) <<*/ std::fixed << std::setprecision(1) << f << "%";
-    return ss.str();
-}
-
 std::vector<RenderTask> GenerateTaskList(unsigned int tile_size,
                                          unsigned int xres,
                                          unsigned int yres,
@@ -107,7 +100,7 @@ void RenderDriver::FrameMonitorThread(RenderLimitMode render_limit_mode,
             }
         }
         std::string eta_str = "ETA: " + std::string(((mask_eta)?"???":Utils::FormatTime(eta_seconds)));
-        std::string percent_str = float_to_percent_string(percent);
+        std::string percent_str = Utils::FormatPercent(percent);
         std::string elapsed_str = "time elapsed: " + Utils::FormatTime(elapsed_seconds);
         unsigned int bar_fill = fraction * BARSIZE;
         unsigned int bar_empty = BARSIZE - bar_fill;
@@ -144,7 +137,6 @@ void RenderDriver::FrameMonitorThread(RenderLimitMode render_limit_mode,
 
 }
 
-// TODO: Thinglass material set should not be an argument here.
 // TODO: Seed generator should be a standalone object
 // TODO: Create a different 'lite config' struct, which will only
 // contain render parameters, ideal for passing here

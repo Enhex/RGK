@@ -116,6 +116,14 @@ std::string Utils::FormatFraction5(float value){
     return SplitString(ss.str(), ".")[1];
 }
 
+
+std::string Utils::FormatInt5(unsigned int i){
+    if(i == 0) return "00000";
+    std::stringstream ss;
+    ss << std::setw(5) << std::setfill('0') << i;
+    return ss.str();
+}
+
 std::string Utils::FormatTime(float s){
     int seconds = (s + 0.5f);
     int minutes = seconds / 60;
@@ -129,6 +137,12 @@ std::string Utils::FormatTime(float s){
     if(result.back() == ' ')
         result.pop_back();
     return result;
+}
+
+std::string Utils::FormatPercent(float f){
+    std::stringstream ss;
+    ss << /*std::setw(5) <<*/ std::fixed << std::setprecision(1) << f << "%";
+    return ss.str();
 }
 
 

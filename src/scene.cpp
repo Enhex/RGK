@@ -406,8 +406,13 @@ void Scene::Commit(){
     out::cout(3) << "Total areal lights power: " << total_areal_power << "W" << std::endl;
     out::cout(3) << "Total point lights power: " << total_point_power << "W" << std::endl;
 
-    out::cout(2) << "Commited " << n_vertices << " vertices, " << n_normals << " normals, " << n_triangles <<
-        " triangles with " << textures.size() <<  " textures, as well as " << pointlights.size() << " pointlights and " << areal_lights.size() << " areal lights to the scene." << std::endl;
+    out::cout(2) << "Commited " << n_vertices << " vertices, "
+                                << n_normals << " normals, "
+                                << n_triangles << " triangles, "
+                                << textures.size() <<  " textures, "
+                                << pointlights.size() << " pointlights and "
+                                << areal_lights.size() << " areal lights to the scene."
+                 << std::endl;
 
     // Clearing vectors this way forces memory to be freed.
     vertices_buffer  = std::vector<glm::vec3>();

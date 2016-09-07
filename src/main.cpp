@@ -28,6 +28,7 @@ Runs the RGK Ray Tracer using scene configuration from FILE.
  --timed MINUTES     settings from the scene configuration file.
  --no-overwrite    Aborts rendering if the output file already exists. Useful
                      for rendering on multiple machines that share filesystem.
+ -D, --dir DIR     The directory where output file will be stored.
 
  -h, --help        Prints out this message.
 )--";
@@ -58,6 +59,7 @@ int main(int argc, char** argv){
 #if ENABLE_DEBUG
             {"debug", required_argument, 0, 'd'},
 #endif // ENABLE_DEBUG
+            {"dir", required_argument, 0, 'D'},
             {"rotate", required_argument, 0, 'r'},
             {"timed", required_argument, 0, 't'},
             {"preview", no_argument, 0, 'p'},
@@ -72,6 +74,7 @@ int main(int argc, char** argv){
     bool force_timed = false; int force_timed_minutes = 0;
     bool preview_mode = false;
     bool compare_mode = false;
+    std::string directory = "";
     int opt_index = 0;
 #if ENABLE_DEBUG
     #define OPTSTRING "hpcvqr:t:d:"
@@ -115,6 +118,9 @@ int main(int argc, char** argv){
                 std::cout << "ERROR: Invalid argument for -t (--time).\n";
                 usage(argv[0]);
             }
+            break;
+        case 'D':
+            directory = optarg;
             break;
         case 'p':
             preview_mode = true;
@@ -188,7 +194,7 @@ int main(int argc, char** argv){
     }
 
     // Prepare output file name
-    std::string output_file = cfg->output_file;
+    std::string output_file = directory + "/" + cfg->output_file;
     if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
     if(compare_mode) output_file = Utils::InsertFileSuffix(output_file, "cmp");
 
@@ -220,13 +226,38 @@ int main(int argc, char** argv){
     // is a good moment to warn user about e.g. unused keys
     cfg->PerformPostCheck();
 
-    if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
-    if(no_overwrite && Utils::GetFileExists(output_file)){
-        std::cout << "File `" << output_file << "` exists, not overwriting." << std::endl;
-        return 1;
-    }
+    // TODO: Configurable FPS and length
+    float fps = 50.0;
+    float time_length = 0.0f, time_increment = 1.0f/fps;
+    if(rotate) time_length = 2.0f;
 
-    RenderDriver::RenderFrame(scene, cfg, camera, output_file);
+    bool animated = (time_length > 0.0f);
+
+    std::string base_output_file = output_file;
+
+    unsigned int frame_no = -1;
+    for(float t = 0.0f; t <= time_length; t += time_increment){
+        frame_no++;
+
+        if(animated) output_file = Utils::InsertFileSuffix(base_output_file, Utils::FormatInt5(frame_no));
+        else output_file = base_output_file;
+
+        if(no_overwrite && Utils::GetFileExists(output_file)){
+            out::cout(1) << "File `" << output_file << "` exists, not overwriting." << std::endl;
+            continue;
+        }
+        if(animated){
+            float fraction = t / time_length;
+            out::cout(1) << "Rendering frame #" << frame_no << " of ~" << int(time_length*fps) << " (" << Utils::FormatPercent(fraction*100.0f) << ")" << std::endl;
+        }
+
+        Camera c = camera;
+        if(rotate){
+            c = cfg->GetCamera(t / time_length);
+        }
+
+        RenderDriver::RenderFrame(scene, cfg, c, output_file);
+    }
 
     return 0;
 }
