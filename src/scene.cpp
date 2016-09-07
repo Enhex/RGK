@@ -468,7 +468,7 @@ void Scene::Commit(){
     // Prepare kd-tree
     int l = std::log2(n_triangles) + 8;
     //l = 1;
-    out::cout(2) << "Building kD-tree with max depth " << l << "..." << std::endl;
+    out::cout(3) << "Building kD-tree with max depth " << l << "..." << std::endl;
     uncompressed_root->Subdivide(l);
 
     auto totals = uncompressed_root->GetTotals();
@@ -479,7 +479,7 @@ void Scene::Commit(){
     out::cout(3) << "Total avg cost with kd-tree: " << uncompressed_root->GetCost() << std::endl;
 
 #ifndef NO_COMPRESS
-    out::cout(2) << "Compressing kD-tree..." << std::endl;
+    out::cout(3) << "Compressing kD-tree..." << std::endl;
     Compress();
 
     uncompressed_root->FreeRecursivelly();
@@ -704,7 +704,7 @@ void Scene::Compress(){
     out::cout(3) << "Compression appears successful!" << std::endl;
     out::cout(3) << "Uncompressed node size: " << sizeof(UncompressedKdNode) << "B " << std::endl;
     out::cout(3) << "Compressed node size: " << sizeof(CompressedKdNode) << "B " << std::endl;
-    out::cout(2) << "Total compressed Kd tree size: " << sizeof(CompressedKdNode)*compressed_array_size/1024 << "kiB " << std::endl;
+    out::cout(3) << "Total compressed Kd tree size: " << sizeof(CompressedKdNode)*compressed_array_size/1024 << "kiB " << std::endl;
 
 }
 

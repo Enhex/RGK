@@ -116,6 +116,7 @@ void RenderDriver::FrameMonitorThread(RenderLimitMode render_limit_mode,
         out::cout(1).flush();
     };
 
+    out::cout(1) << std::endl;
     while(!stop_monitor){
         print_progress_f();
         //if(pixels_done >= total_pixels) break;
