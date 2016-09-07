@@ -22,8 +22,8 @@ Runs the RGK Ray Tracer using scene configuration from FILE.
                      Default verbosity level is 2. At 0, the program operates
                      quietly. Increasig verbosity causes the program to output
                      more statistics and diagnostic details.
- -r N M            Rotates the camera by N/M of full angle around the lookat
-                     point. Temporary substitute for a flying camera.
+ -r, --rotate      Renders a set of images, rotating the camera around the
+                     lookat point. Temporary substitute for a flying camera.
  -t MINUTES,       Forces a predetermined render time, ignoring time and rounds
  --timed MINUTES     settings from the scene configuration file.
  --no-overwrite    Aborts rendering if the output file already exists. Useful
@@ -70,16 +70,16 @@ int main(int argc, char** argv){
 
     // Recognize command-line arguments
     int c;
-    bool rotate = false; int rotate_N = 0, rotate_M = 0;
+    bool rotate = false;
     bool force_timed = false; int force_timed_minutes = 0;
     bool preview_mode = false;
     bool compare_mode = false;
     std::string directory = "";
     int opt_index = 0;
 #if ENABLE_DEBUG
-    #define OPTSTRING "hpcvqr:t:d:"
+    #define OPTSTRING "hpcvqrt:d:"
 #else
-    #define OPTSTRING "hpcvqr:t:"
+    #define OPTSTRING "hpcvqrt:"
 #endif
     while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
@@ -102,14 +102,6 @@ int main(int argc, char** argv){
         case 'r':
             rotate = true;
             no_overwrite = true;
-            rotate_N = std::stoi(optarg);
-            if (optind < argc && *argv[optind] != '-'){
-                rotate_M = std::stoi(argv[optind]);
-                optind++;
-            } else {
-                std::cout << "ERROR: Not enough arguments for --rotate.\n";
-                usage(argv[0]);
-            }
             break;
         case 't':
             force_timed = true;
@@ -177,15 +169,6 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    // Prepare camera rotation, needed for generating file name.
-    float rotate_frac = 0.0f;
-    if(rotate){
-        if(rotate_M == 0){
-            std::cout << "Invalid argument to --rotate, cannot divide by zero" << std::endl;
-            return 1;
-        }
-        rotate_frac = (float)rotate_N/rotate_M;
-    }
     // If requested, force timed mode
     if(force_timed){
         //out::cout(2) << "Command line forced render time to " << Utils::FormatTime(force_timed_minutes*60) << " minutes." << std::endl;
@@ -220,7 +203,7 @@ int main(int argc, char** argv){
     scene.Commit();
 
     // Prepare camera.
-    Camera camera = cfg->GetCamera(rotate_frac);
+    Camera camera = cfg->GetCamera(0.0f);
 
     // The config file is not parsed anymore from this point on. This
     // is a good moment to warn user about e.g. unused keys
