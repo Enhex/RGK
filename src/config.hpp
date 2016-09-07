@@ -16,6 +16,11 @@ struct ConfigFileException : public std::runtime_error{
     ConfigFileException(const std::string& what ) : std::runtime_error(what) {}
 };
 
+enum class RenderLimitMode{
+    Rounds,
+    Timed,
+};
+
 class Config{
 public:
     std::string config_file_path;
@@ -28,7 +33,9 @@ public:
     float bumpmap_scale = 10.0f;
     float clamp = 100000.0f;
     float russian = -1.0f;
-    unsigned int rounds = 1;
+    RenderLimitMode render_limit_mode = RenderLimitMode::Rounds;
+    unsigned int render_rounds = 1;
+    unsigned int render_minutes = -1;
     bool force_fresnell = false;
     unsigned int reverse = 0;
     //std::string brdf = "cooktorr";

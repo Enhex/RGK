@@ -11,7 +11,7 @@
 #define PREVIEW_RAYS_RATIO 2
 #define PREVIEW_SPEED_RATIO (PREVIEW_DIMENTIONS_RATIO*PREVIEW_DIMENTIONS_RATIO*PREVIEW_RAYS_RATIO)
 
-#define BARSIZE 40
+#define BARSIZE 75
 
 // =======================================
 

@@ -31,54 +31,94 @@
 
 #include "LTC/ltc.hpp"
 
-std::atomic<int> rounds_done(0);
-unsigned int total_rounds;
-std::atomic<int> pixels_done(0);
-std::atomic<unsigned int> raycount(0);
+std::chrono::high_resolution_clock::time_point render_start;
 std::atomic<bool> stop_monitor(false);
-int total_pixels;
+
+// Performance counters
+std::atomic<int> rounds_done(0);
+std::atomic<int> pixels_done(0);
+std::atomic<unsigned int> rays_done(0);
 
 bool preview_mode = false;
 bool compare_mode = false;
 
 std::string float_to_percent_string(float f){
     std::stringstream ss;
-    ss << std::setw(5) << std::fixed << std::setprecision(1) << f << "%";
+    ss << /*std::setw(5) <<*/ std::fixed << std::setprecision(1) << f << "%";
     return ss.str();
 }
 
-void Monitor(){
-
-    std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
-    Utils::LowPass eta_lp(40);
+void Monitor(RenderLimitMode render_limit_mode,
+             unsigned int limit_rounds,
+             unsigned int limit_minutes,
+             unsigned int pixels_per_round){
 
     // Helper function that prints out the progress bar.
-    auto print_progress_f = [start, &eta_lp](bool end = false){
+    auto print_progress_f = [=](bool final_print = false){
+        static Utils::LowPass eta_lp(40);
+
         std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
-        float elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - start).count() / 1000.0f;
-        int d = pixels_done;
-        float fraction = d/(float)total_pixels;
+        float elapsed_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(now - render_start).count() / 1000.0f;
+        float elapsed_minutes = elapsed_seconds / 60.0f;
+
+        // Prepare variables and text that varies with render limit mode
+        float fraction = 0.0f, eta_seconds = 0.0f;
+        std::string pixels_text, rounds_text;
+        std::stringstream ss;
+        bool mask_eta = false;
+        switch(render_limit_mode){
+        case RenderLimitMode::Rounds:
+            const static unsigned int total_pixels = pixels_per_round * limit_rounds;
+            fraction = pixels_done/(float)total_pixels;
+            eta_seconds = (1.0f - fraction)*elapsed_seconds/fraction;
+            // Smooth ETA with a simple low-pass filter
+            eta_seconds = eta_lp.Add(eta_seconds);
+            ss << "Rendered " << std::setw(log10(total_pixels) + 1) << pixels_done << "/" << total_pixels << " pixels";
+            pixels_text = ss.str();
+            ss = std::stringstream();
+            ss << "round " << std::min((unsigned int)rounds_done + 1, limit_rounds) << "/" << limit_rounds;
+            rounds_text = ss.str();
+            mask_eta = (fraction < 0.03f && elapsed_seconds < 20.0f);
+            break;
+        case RenderLimitMode::Timed:
+            fraction = std::min(1.0f, elapsed_minutes/limit_minutes);
+            eta_seconds = std::max(0.0f, limit_minutes*60 - elapsed_seconds);
+            pixels_text = "Rendered " + std::to_string(pixels_done) + " pixels";
+            ss << "round " << rounds_done + (final_print?0:1);
+            rounds_text = ss.str();
+            mask_eta = false;
+            break;
+        }
+
         float percent = int(fraction*1000.0f + 0.5f) / 10.0f;
-        float eta = (1.0f - fraction)*elapsed/fraction;
-        eta = eta_lp.Add(eta);
-        if(end) eta = 0.0f;
-        unsigned int fill = fraction * BARSIZE;
-        unsigned int empty = BARSIZE - fill;
-        // Line 1
+        // If this is the last time we're displayin the bar, make sure to nicely round numbers
+        if(final_print){
+            eta_seconds = 0.0f;
+            if(render_limit_mode == RenderLimitMode::Rounds){
+                fraction = 1.0f;
+                percent = 100.0f;
+            }
+        }
+        std::string eta_str = "ETA: " + std::string(((mask_eta)?"???":Utils::FormatTime(eta_seconds)));
+        std::string percent_str = float_to_percent_string(percent);
+        std::string elapsed_str = "time elapsed: " + Utils::FormatTime(elapsed_seconds);
+        unsigned int bar_fill = fraction * BARSIZE;
+        unsigned int bar_empty = BARSIZE - bar_fill;
+        // Output text
         out::cout(1) << "\033[1A"; // Cursor up 1 line
-        out::cout(1) << "\33[2K\rRendered " << std::setw(log10(total_pixels) + 1) << d << "/" << total_pixels << " pixels, [";
-        for(unsigned int i = 0; i <  fill; i++) out::cout(1) << "#";
-        for(unsigned int i = 0; i < empty; i++) out::cout(1) << "-";
-        out::cout(1) << "] " << std::endl;
+        // Line 1
+        out::cout(1) << "\33[2K\r" << "[";
+        for(unsigned int i = 0; i < bar_fill ; i++) out::cout(1) << "#";
+        for(unsigned int i = 0; i < bar_empty; i++) out::cout(1) << "-";
+        out::cout(1) << "] " << percent_str << std::endl;
         // Line 2
-        std::string eta_str = (percent >= 2.0f)?Utils::FormatTime(eta):"???";
-        out::cout(1) << "\33[2K\r" << float_to_percent_string(percent) << " done, round " << std::min((unsigned int)rounds_done + 1, total_rounds) << "/" << total_rounds << ", time elapsed: " << Utils::FormatTime(elapsed) << ", ETA: " << eta_str;
+        out::cout(1) << "\33[2K\r" << pixels_text << ", " << rounds_text << ", " << elapsed_str << ", " << eta_str;
         out::cout(1).flush();
     };
 
     while(!stop_monitor){
         print_progress_f();
-        if(pixels_done >= total_pixels) break;
+        //if(pixels_done >= total_pixels) break;
         usleep(1000*100); // 50ms
     }
 
@@ -88,35 +128,105 @@ void Monitor(){
 
     // Measure total wallclock time
     std::chrono::high_resolution_clock::time_point end = std::chrono::high_resolution_clock::now();
-    float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - start).count() / 1000.0f;
-    unsigned int total_rays = raycount;
+    float total_seconds = std::chrono::duration_cast<std::chrono::milliseconds>(end - render_start).count() / 1000.0f;
 
     out::cout(2) << "Total rendering time: " << Utils::FormatTime(total_seconds) << std::endl;
-    out::cout(3) << "Total rays: " << total_rays << std::endl;
-    out::cout(2) << "Average pixels per second: " << Utils::FormatIntThousands(total_pixels / total_seconds) << "." << std::endl;
-    out::cout(3) << "Average rays per second: " << Utils::FormatIntThousands(total_rays / total_seconds) << std::endl;
+    out::cout(3) << "Total rays: " << rays_done << std::endl;
+    out::cout(2) << "Average pixels per second: " << Utils::FormatIntThousands(pixels_done / total_seconds) << "." << std::endl;
+    out::cout(3) << "Average rays per second: " << Utils::FormatIntThousands(rays_done / total_seconds) << std::endl;
 
 }
+
+// TODO: Thinglass material set should not be an argument here.
+// TODO: Seed generator should be a standalone object
+// TODO: Create a different 'lite config' struct, which will only
+// contain render parameters, ideal for passing here
+void RenderRound(const Scene& scene,
+                 std::shared_ptr<Config> cfg,
+                 const Camera& camera,
+                 const std::vector<RenderTask>& tasks,
+                 std::set<const Material*> thinglass_materialset,
+                 unsigned int& seedcount,
+                 const int seedstart,
+                 unsigned int concurrency,
+                 EXRTexture& total_ob
+                 ){
+
+    ctpl::thread_pool tpool(concurrency);
+
+    // Prepare per-task output buffers
+    std::vector<EXRTexture> output_buffers(tasks.size(), EXRTexture(cfg->xres, cfg->yres));
+
+    // Push all render tasks to thread pool
+    for(unsigned int i = 0; i < tasks.size(); i++){
+        const RenderTask& task = tasks[i];
+        EXRTexture& output_buffer = output_buffers[i];
+        unsigned int c = seedcount++;
+        tpool.push( [&output_buffer, seedstart, camera, &scene, &cfg, task, c, &thinglass_materialset](int){
+
+                // THIS is the thread task
+                Random rnd(seedstart + c);
+                PathTracer rt(scene, camera,
+                              task.xres, task.yres,
+                              cfg->multisample,
+                              cfg->recursion_level,
+                              cfg->clamp,
+                              cfg->russian,
+                              cfg->bumpmap_scale,
+                              cfg->force_fresnell,
+                              cfg->reverse,
+                              thinglass_materialset,
+                              rnd);
+                out::cout(6) << "Starting a new task with params: " << std::endl;
+                out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
+
+                rt.Render(task, &output_buffer, pixels_done, rays_done);
+
+            });
+    }
+
+    // Wait for all remaining worker threads to complete.
+    tpool.stop(true);
+
+    rounds_done++;
+
+    // Merge all outputs into a single one
+    for(const EXRTexture& o : output_buffers)
+        total_ob.Accumulate(o);
+}
+
+std::string usage_text = R"--(
+Runs the RGK Ray Tracer using scene configuration from FILE.
+ -p, --preview     Renders a fast preview, using smaller dimentions and less
+                     samples per pixel than the target image.
+ -v                Each occurrence of this option increases verbosity by 1.
+ -q                Each occurrence of this option decreases verbosity by 1.
+                     Default verbosity level is 2. At 0, the program operates
+                     quietly. Increasig verbosity causes the program to output
+                     more statistics and diagnostic details.
+ -r N M            Rotates the camera by N/M of full angle around the lookat
+                     point. Temporary substitute for a flying camera.
+ -t MINUTES,       Forces a predetermined render time, ignoring time and rounds
+ --timed MINUTES     settings from the scene configuration file.
+
+ -h, --help        Prints out this message.
+)--";
+std::string debug_option_text = R"--(
+ -d, --debug X Y   Prints debug information while rendering the X Y pixel.
+)--";
+std::string debug_disabled_text = R"--(
+ -d                (unavailable) Debugging support was disabled compile-time.
+)--";
 
 void usage(const char* prog) __attribute__((noreturn));
 void usage(const char* prog){
     std::cout << "Usage: " << prog << " [OPTIONS]... [FILE] \n";
-    std::cout << "\n";
-    std::cout << "Runs the RGK Ray Tracer using configuration from FILE.\n";
-    std::cout << " -p, --preview      Renders a preview (" << PREVIEW_DIMENTIONS_RATIO << "x smaller dimentions, " << PREVIEW_RAYS_RATIO << " times less rays per pixel, yielding " << PREVIEW_SPEED_RATIO << "\n";
-    std::cout << "                       times faster render time).\n";
-    std::cout << " -v                 Each occurence of this option increases verbosity by 1.\n";
-    std::cout << " -q                 Each occurence of this option decreases verbosity by 1.\n";
-    std::cout << "                      Default verbosity level is 2. At 0, the program operates quietly.\n";
-    std::cout << "                      Increasing verbosity makes the program output more statistics and diagnostic details.\n";
-    std::cout << " -r N M             Rotates the camera by N/M of full angle around the lookat point.\n";
+    std::cout << usage_text;
 #if ENABLE_DEBUG
-    std::cout << " -d, --debug X Y    Prints verbose debug information about rendering the X Y pixel.\n";
+    std::cout << debug_option_text;
 #else
-    std::cout << " -d                 (unavailable) Debugging support was disabled compile-time.\n";
+    std::cout <<debug_disabled_text;
 #endif // ENABLE_DEBUG
-    std::cout << " -h, --help         Prints out this message.\n";
-    std::cout << "\n";
     exit(0);
 }
 
@@ -128,6 +238,7 @@ int main(int argc, char** argv){
             {"debug", required_argument, 0, 'd'},
 #endif // ENABLE_DEBUG
             {"rotate", required_argument, 0, 'r'},
+            {"timed", required_argument, 0, 't'},
             {"preview", no_argument, 0, 'p'},
             {"help", no_argument, 0, 'h'},
             {0,0,0,0}
@@ -136,11 +247,12 @@ int main(int argc, char** argv){
     // Recognize command-line arguments
     int c;
     bool rotate = false; int rotate_N = 0, rotate_M = 0;
+    bool force_timed = false; int force_timed_minutes = 0;
     int opt_index = 0;
 #if ENABLE_DEBUG
-    #define OPTSTRING "hpcd:vqr:"
+    #define OPTSTRING "hpcvqr:t:d:"
 #else
-    #define OPTSTRING "hpcvqr:"
+    #define OPTSTRING "hpcvqr:t:"
 #endif
     while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
@@ -168,6 +280,14 @@ int main(int argc, char** argv){
                 optind++;
             } else {
                 std::cout << "ERROR: Not enough arguments for --rotate.\n";
+                usage(argv[0]);
+            }
+            break;
+        case 't':
+            force_timed = true;
+            force_timed_minutes = std::stoi(optarg);
+            if(force_timed_minutes <= 0){
+                std::cout << "ERROR: Invalid argument for -t (--time).\n";
                 usage(argv[0]);
             }
             break;
@@ -233,6 +353,12 @@ int main(int argc, char** argv){
         }
         rotate_frac = (float)rotate_N/rotate_M;
     }
+    // If requested, force timed mode
+    if(force_timed){
+        out::cout(2) << "Command line forced render time to " << Utils::FormatTime(force_timed_minutes*60) << " minutes." << std::endl;
+        cfg->render_limit_mode = RenderLimitMode::Timed;
+        cfg->render_minutes = force_timed_minutes;
+    }
 
     // Prepare output file name
     std::string output_file = cfg->output_file;
@@ -271,7 +397,7 @@ int main(int argc, char** argv){
     // Prepare camera.
     Camera camera = cfg->GetCamera(rotate_frac);
 
-    auto thinglass_materialset = scene.MakeMaterialSet(cfg->thinglass);
+    std::set<const Material*> thinglass_materialset = scene.MakeMaterialSet(cfg->thinglass);
 
     // The config file is not parsed anymore from this point on. This
     // is a good moment to warn user about e.g. unused keys
@@ -307,56 +433,35 @@ int main(int argc, char** argv){
         });
 
     // Start monitor thread.
-    total_pixels = cfg->xres * cfg->yres * cfg->rounds;
-    total_rounds = cfg->rounds;
-    std::thread monitor_thread(Monitor);
+    std::thread monitor_thread(Monitor, cfg->render_limit_mode, cfg->render_rounds, cfg->render_minutes,
+                               cfg->xres * cfg->yres);
 
-    // Repeat for each rendering round.
-    unsigned int seedcount = 0, seedstart = 42; // time(nullptr);
-    for(unsigned int roundno = 0; roundno < cfg->rounds; roundno++){
-        ctpl::thread_pool tpool(concurrency);
+    unsigned int seedcount = 0, seedstart = 42;
 
-        // Prepare per-task output buffers
-        std::vector<EXRTexture> output_buffers(tasks.size(), EXRTexture(cfg->xres, cfg->yres));
+    // Measuring render time, both for timed mode, and monitor output
+    render_start = std::chrono::high_resolution_clock::now();
 
-        // Push all render tasks to thread pool
-        for(unsigned int i = 0; i < tasks.size(); i++){
-            const RenderTask& task = tasks[i];
-            EXRTexture& output_buffer = output_buffers[i];
-            unsigned int c = seedcount++;
-            tpool.push( [&output_buffer, seedstart, camera, &scene, cfg, task, c, &thinglass_materialset](int){
-
-                    Random rnd(seedstart + c);
-                    PathTracer rt(scene, camera,
-                                  task.xres, task.yres,
-                                  cfg->multisample,
-                                  cfg->recursion_level,
-                                  cfg->clamp,
-                                  cfg->russian,
-                                  cfg->bumpmap_scale,
-                                  cfg->force_fresnell,
-                                  cfg->reverse,
-                                  thinglass_materialset,
-                                  rnd);
-                    out::cout(6) << "Starting a new task with params: " << std::endl;
-                    out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
-
-                    rt.Render(task, &output_buffer, pixels_done, raycount);
-
-                });
+    switch(cfg->render_limit_mode){
+    case RenderLimitMode::Rounds:
+        for(unsigned int roundno = 0; roundno < cfg->render_rounds; roundno++){
+            // Render a single round
+            RenderRound(scene, cfg, camera, tasks, thinglass_materialset, seedcount, seedstart, concurrency, total_ob);
+            // Write out current progress to the output file.
+            total_ob.Normalize().Write(output_file);
         }
-
-        // Wait for all remaining worker threads to complete.
-        tpool.stop(true);
-
-        rounds_done++;
-
-        // Merge all outputs into a single one
-        for(const EXRTexture& o : output_buffers)
-            total_ob.Accumulate(o);
-
-        // Write out current progress to the output file.
-        total_ob.Normalize().Write(output_file);
+        break;
+    case RenderLimitMode::Timed:
+        while(true){
+            // Break loop if too much time elapsed
+            std::chrono::high_resolution_clock::time_point now = std::chrono::high_resolution_clock::now();
+            float minutes_elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - render_start).count() / 60.0;
+            if(minutes_elapsed >= cfg->render_minutes) break;
+            // Render a single round
+            RenderRound(scene, cfg, camera, tasks, thinglass_materialset, seedcount, seedstart, concurrency, total_ob);
+            // Write out current progress to the output file.
+            total_ob.Normalize().Write(output_file);
+        }
+        break;
     }
 
     // Shutdown monitor thread.

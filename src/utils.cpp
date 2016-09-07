@@ -126,6 +126,8 @@ std::string Utils::FormatTime(float s){
     if(hours > 0) result += std::to_string(hours) + "h ";
     if(hours > 0 || minutes > 0) result += std::to_string(minutes) + "m ";
     if(hours == 0) result += std::to_string(seconds) + "s ";
+    if(result.back() == ' ')
+        result.pop_back();
     return result;
 }
 

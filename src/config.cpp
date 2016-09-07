@@ -130,7 +130,7 @@ std::shared_ptr<ConfigRTC> ConfigRTC::CreateFromFile(std::string path){
             cfg.russian = std::stof(vs[1]);
         }else if(vs[0] == "rounds"){
             if(vs.size() != 2) throw ConfigFileException("Invalid rounds config line.");
-            cfg.rounds = std::stoi(vs[1]);
+            cfg.render_rounds = std::stoi(vs[1]);
         }else if(vs[0] == "reverse"){
             if(vs.size() != 2) throw ConfigFileException("Invalid reverse config line.");
             cfg.reverse = std::stoi(vs[1]);
@@ -278,8 +278,20 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     cfg.xres = JsonUtils::getRequiredInt(root,"output-width");
     cfg.yres = JsonUtils::getRequiredInt(root,"output-height");
 
+    if(root.isMember("rounds") && root.isMember("render-time")){
+        throw ConfigFileException("The config file may not contain both \"rounds\" and \"render-time\" keys simultaneously.");
+    }else if(root.isMember("rounds")){
+        cfg.render_limit_mode = RenderLimitMode::Rounds;
+        cfg.render_rounds =  JsonUtils::getRequiredInt(root, "rounds");
+    }else if(root.isMember("render-time")){
+        cfg.render_limit_mode = RenderLimitMode::Timed;
+        cfg.render_minutes = JsonUtils::getRequiredInt(root, "render-time");
+    }else{
+        cfg.render_limit_mode = RenderLimitMode::Rounds;
+        cfg.render_rounds = 1;
+    }
+
     cfg.recursion_level = JsonUtils::getOptionalInt(root, "recursion-max", 1);
-    cfg.rounds =          JsonUtils::getOptionalInt(root, "rounds", 1);
     cfg.multisample =     JsonUtils::getOptionalInt(root, "multisample", 1);
     cfg.clamp =           JsonUtils::getOptionalFloat(root, "clamp", 10000000.0f);
     cfg.bumpmap_scale =   JsonUtils::getOptionalFloat(root, "bumpscale", 1.0f);
