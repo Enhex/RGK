@@ -225,7 +225,7 @@ int main(int argc, char** argv){
     // TODO: Configurable FPS and length
     float fps = 50.0;
     float time_length = 0.0f, time_increment = 1.0f/fps;
-    if(rotate) time_length = 2.0f;
+    if(rotate) time_length = 5.0f;
 
     bool animated = (time_length > 0.0f);
 
