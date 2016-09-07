@@ -75,7 +75,7 @@ void Monitor(RenderLimitMode render_limit_mode,
             eta_seconds = eta_lp.Add(eta_seconds);
             ss << "Rendered " << std::setw(log10(total_pixels) + 1) << pixels_done << "/" << total_pixels << " pixels";
             pixels_text = ss.str();
-            std::stringstream().swap(ss);
+            ss.str(std::string()); ss.clear();
             ss << "round " << std::min((unsigned int)rounds_done + 1, limit_rounds) << "/" << limit_rounds;
             rounds_text = ss.str();
             mask_eta = (fraction < 0.03f && elapsed_seconds < 20.0f);
