@@ -11,9 +11,7 @@ public:
     static void RenderFrame(const Scene& scene,
                             std::shared_ptr<Config> cfg,
                             const Camera& camera,
-                            std::string output_file,
-                            //TODO: Thinglass should be a property of scene
-                            std::set<const Material*> thinglass_materialset
+                            std::string output_file
                             );
 private:
 
@@ -25,12 +23,11 @@ private:
                             std::shared_ptr<Config> cfg,
                             const Camera& camera,
                             const std::vector<RenderTask>& tasks,
-                            std::set<const Material*> thinglass_materialset,
                             unsigned int& seedcount,
                             const int seedstart,
                             unsigned int concurrency,
                             EXRTexture& total_ob
-                     );
+                            );
 
     static std::chrono::high_resolution_clock::time_point frame_render_start;
     static std::atomic<bool> stop_monitor;

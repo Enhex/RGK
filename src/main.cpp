@@ -206,6 +206,7 @@ int main(int argc, char** argv){
         cfg->InstallScene(scene);
         cfg->InstallLights(scene);
         cfg->InstallSky(scene);
+        scene.MakeThinglassSet(cfg->thinglass);
     }catch(ConfigFileException ex){
         std::cout << "Failed to load data from config file: " << ex.what() << std::endl;
         return 1;
@@ -214,9 +215,6 @@ int main(int argc, char** argv){
 
     // Prepare camera.
     Camera camera = cfg->GetCamera(rotate_frac);
-
-    // TODO: This should be a property of scene
-    std::set<const Material*> thinglass_materialset = scene.MakeMaterialSet(cfg->thinglass);
 
     // The config file is not parsed anymore from this point on. This
     // is a good moment to warn user about e.g. unused keys
@@ -228,9 +226,7 @@ int main(int argc, char** argv){
         return 1;
     }
 
-    RenderDriver::RenderFrame(scene, cfg, camera, output_file, thinglass_materialset);
-
-    RenderDriver::RenderFrame(scene, cfg, camera, output_file, thinglass_materialset);
+    RenderDriver::RenderFrame(scene, cfg, camera, output_file);
 
     return 0;
 }

@@ -326,7 +326,7 @@ Intersection Scene::FindIntersectKdOtherThan(const Ray& __restrict__ r, const Tr
 }
 
 
-Intersection Scene::FindIntersectKdOtherThanWithThinglass(const Ray& r, const Triangle* ignored, const std::set<const Material*>& thinglass) __restrict__ const{
+Intersection Scene::FindIntersectKdOtherThanWithThinglass(const Ray& r, const Triangle* ignored) __restrict__ const{
 
     Intersection res;
     res.triangle = nullptr;

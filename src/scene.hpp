@@ -37,6 +37,9 @@ public:
 
     void AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material, glm::mat3 texture_transform);
 
+    // Makes a set of thin glass material references that match any of given substrings.
+    void MakeThinglassSet(std::vector<std::string>);
+
     // Copies the data from load buffers to optimized, contignous structures.
     void Commit();
     // Compresses the kd-tree. Called automatically by Commit()
@@ -57,21 +60,18 @@ public:
     // Searches for the nearest intersection, but ignores both the specified ignored triangle, as well as all triangles
     //  that use material specified in thinglass set. However, such materials are gathered into a list (ordered) in the
     //  returned value. Useful for simulating thin colored glass.
-    Intersection    FindIntersectKdOtherThanWithThinglass(const Ray& r, const Triangle* ignored, const std::set<const Material*>& thinglass)
+    Intersection    FindIntersectKdOtherThanWithThinglass(const Ray& r, const Triangle* ignored)
         __restrict__ const __attribute__((hot));
 
     // Returns true IFF the two points are visible from each other.
     // Incorporates no cache of any kind.
     bool Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const __attribute__((hot));
-    bool VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, const std::set<const Material*>& thinglass,
+    bool VisibilityWithThinglass(glm::vec3 a, glm::vec3 b,
                                  /*out*/ std::vector<std::pair<const Triangle*, float>>&)
         __restrict__ const __attribute__((hot));
 
     // Loads a texture from file, or returns a (scene-locally) cached version
     Texture* GetTexture(std::string path);
-
-    // Makes a set of material references that match any of given substrings.
-    std::set<const Material*> MakeMaterialSet(std::vector<std::string>) const;
 
     // TODO: have triangle access these, and keep these fields private
     glm::vec3*     vertices  = nullptr;
@@ -132,6 +132,8 @@ public:
         skybox_rotate = rotate;
     }
     Radiance GetSkyboxRay(glm::vec3 direction, bool debug=false) const;
+
+    std::set<const Material*> thinglass;
 
 private:
 

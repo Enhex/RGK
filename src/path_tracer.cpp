@@ -23,13 +23,11 @@ PathTracer::PathTracer(const Scene& scene,
                        float bumpmap_scale,
                        bool force_fresnell,
                        unsigned int reverse,
-                       std::set<const Material*> thinglass,
                        Random rnd)
 : Tracer(scene, camera, xres, yres, multisample, bumpmap_scale),
   clamp(clamp),
   russian(russian),
   depth(depth),
-  thinglass(thinglass),
   force_fresnell(force_fresnell),
   reverse(reverse),
   rnd(rnd)
@@ -157,11 +155,11 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
         raycount++;
         Intersection i;
-        if(thinglass.size() == 0){
+        if(scene.thinglass.size() == 0){
             // This variant is a bit faster.
             i = scene.FindIntersectKdOtherThan(current_ray, last_triangle);
         }else{
-            i = scene.FindIntersectKdOtherThanWithThinglass(current_ray, last_triangle, thinglass);
+            i = scene.FindIntersectKdOtherThanWithThinglass(current_ray, last_triangle);
         }
         PathPoint p;
         p.thinglass_isect = i.thinglass;
@@ -559,8 +557,8 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
 
             std::vector<std::pair<const Triangle*, float>> thinglass_isect;
             // Visibility factor
-            if((thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
-               (thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass, thinglass_isect))){
+            if((scene.thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
+               (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass_isect))){
 
                 IFDEBUG std::cout << "====> Light is visible" << std::endl;
 

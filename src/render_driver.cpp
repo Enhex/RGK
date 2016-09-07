@@ -152,7 +152,6 @@ void RenderDriver::RenderRound(const Scene& scene,
                                std::shared_ptr<Config> cfg,
                                const Camera& camera,
                                const std::vector<RenderTask>& tasks,
-                               std::set<const Material*> thinglass_materialset,
                                unsigned int& seedcount,
                                const int seedstart,
                                unsigned int concurrency,
@@ -169,7 +168,7 @@ void RenderDriver::RenderRound(const Scene& scene,
         const RenderTask& task = tasks[i];
         EXRTexture& output_buffer = output_buffers[i];
         unsigned int c = seedcount++;
-        tpool.push( [&output_buffer, seedstart, camera, &scene, &cfg, task, c, &thinglass_materialset](int){
+        tpool.push( [&output_buffer, seedstart, camera, &scene, &cfg, task, c](int){
 
                 // THIS is the thread task
                 Random rnd(seedstart + c);
@@ -182,7 +181,6 @@ void RenderDriver::RenderRound(const Scene& scene,
                               cfg->bumpmap_scale,
                               cfg->force_fresnell,
                               cfg->reverse,
-                              thinglass_materialset,
                               rnd);
                 out::cout(6) << "Starting a new task with params: " << std::endl;
                 out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
@@ -205,9 +203,7 @@ void RenderDriver::RenderRound(const Scene& scene,
 void RenderDriver::RenderFrame(const Scene& scene,
                                std::shared_ptr<Config> cfg,
                                const Camera& camera,
-                               std::string output_file,
-                               //TODO: Thinglass should be a property of scene
-                               std::set<const Material*> thinglass_materialset
+                               std::string output_file
                                ){
     ResetCounters();
 
@@ -243,7 +239,7 @@ void RenderDriver::RenderFrame(const Scene& scene,
     case RenderLimitMode::Rounds:
         for(unsigned int roundno = 0; roundno < cfg->render_rounds; roundno++){
             // Render a single round
-            RenderRound(scene, cfg, camera, tasks, thinglass_materialset, seedcount, seedstart, concurrency, total_ob);
+            RenderRound(scene, cfg, camera, tasks, seedcount, seedstart, concurrency, total_ob);
             // Write out current progress to the output file.
             total_ob.Normalize().Write(output_file);
         }
@@ -255,7 +251,7 @@ void RenderDriver::RenderFrame(const Scene& scene,
             float minutes_elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - frame_render_start).count() / 60.0;
             if(minutes_elapsed >= cfg->render_minutes) break;
             // Render a single round
-            RenderRound(scene, cfg, camera, tasks, thinglass_materialset, seedcount, seedstart, concurrency, total_ob);
+            RenderRound(scene, cfg, camera, tasks, seedcount, seedstart, concurrency, total_ob);
             // Write out current progress to the output file.
             total_ob.Normalize().Write(output_file);
         }

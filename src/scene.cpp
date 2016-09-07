@@ -725,26 +725,24 @@ void Scene::CompressRec(const UncompressedKdNode *node, unsigned int &array_pos,
     }
 }
 
-std::set<const Material*> Scene::MakeMaterialSet(std::vector<std::string> phrases) const{
-    std::set<const Material*> res;
-    for(Material* m : materials){
+void Scene::MakeThinglassSet(std::vector<std::string> phrases){
+    for(const Material* m : materials){
         for(const std::string& phrase : phrases){
             if(m->name.find(phrase) != std::string::npos){
-                res.insert(m);
+                thinglass.insert(m);
                 break;
             }
         }
     }
-    return res;
 }
 
 bool Scene::Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const {
     Ray r(a, b, epsilon * 20.0f);
     return !FindIntersectKd(r).triangle;
 }
-bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, const std::set<const Material *>& thinglass, std::vector<std::pair<const Triangle*, float>>& out) __restrict__ const {
+bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, std::vector<std::pair<const Triangle*, float>>& out) __restrict__ const {
     Ray r(a, b, epsilon * 20.0f);
-    auto i = FindIntersectKdOtherThanWithThinglass(r,nullptr,thinglass);
+    auto i = FindIntersectKdOtherThanWithThinglass(r,nullptr);
     if(i.triangle != nullptr) return false;
     out = i.thinglass;
     return true;
