@@ -75,7 +75,7 @@ void Monitor(RenderLimitMode render_limit_mode,
             eta_seconds = eta_lp.Add(eta_seconds);
             ss << "Rendered " << std::setw(log10(total_pixels) + 1) << pixels_done << "/" << total_pixels << " pixels";
             pixels_text = ss.str();
-            ss = std::stringstream();
+            std::stringstream().swap(ss);
             ss << "round " << std::min((unsigned int)rounds_done + 1, limit_rounds) << "/" << limit_rounds;
             rounds_text = ss.str();
             mask_eta = (fraction < 0.03f && elapsed_seconds < 20.0f);
@@ -208,6 +208,8 @@ Runs the RGK Ray Tracer using scene configuration from FILE.
                      point. Temporary substitute for a flying camera.
  -t MINUTES,       Forces a predetermined render time, ignoring time and rounds
  --timed MINUTES     settings from the scene configuration file.
+ --no-overwrite    Aborts rendering if the output file already exists. Useful
+                     for rendering on multiple machines that share filesystem.
 
  -h, --help        Prints out this message.
 )--";
@@ -232,6 +234,7 @@ void usage(const char* prog){
 
 int main(int argc, char** argv){
 
+    int no_overwrite = false;
     static struct option long_opts[] =
         {
 #if ENABLE_DEBUG
@@ -241,6 +244,7 @@ int main(int argc, char** argv){
             {"timed", required_argument, 0, 't'},
             {"preview", no_argument, 0, 'p'},
             {"help", no_argument, 0, 'h'},
+            {"no-overwrite", no_argument, &no_overwrite, true},
             {0,0,0,0}
         };
 
@@ -274,6 +278,7 @@ int main(int argc, char** argv){
 #endif // ENABLE_DEBUG
         case 'r':
             rotate = true;
+            no_overwrite = true;
             rotate_N = std::stoi(optarg);
             if (optind < argc && *argv[optind] != '-'){
                 rotate_M = std::stoi(argv[optind]);
@@ -305,9 +310,11 @@ int main(int argc, char** argv){
             break;
         default:
             std::cout << "ERROR: Unrecognized option " << (char)c << std::endl;
-            /* FALLTHROUGH */
-        case 0:
             usage(argv[0]);
+            break;
+        case 0:
+            // NOP
+            break;
         }
     }
 
@@ -365,8 +372,8 @@ int main(int argc, char** argv){
     if(rotate) output_file = Utils::InsertFileSuffix(output_file, Utils::FormatFraction5(rotate_frac));
     if(preview_mode) output_file = Utils::InsertFileSuffix(output_file, "preview");
     if(compare_mode) output_file = Utils::InsertFileSuffix(output_file, "cmp");
-    if(rotate && Utils::GetFileExists(output_file)){
-        std::cout << "Not overwriting existing file in rotate mode: " << output_file << std::endl;
+    if(no_overwrite && Utils::GetFileExists(output_file)){
+        std::cout << "File `" << output_file << "` exists, not overwriting." << std::endl;
         return 1;
     }
 
