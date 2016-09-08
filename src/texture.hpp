@@ -39,10 +39,25 @@ private:
 
 class EXRTexture{
 public:
-    EXRTexture(int xsize, int ysize);
+    EXRTexture(int xsize = 0, int ysize = 0);
     EXRTexture(const EXRTexture& other) :
         xsize(other.xsize), ysize(other.ysize),
-        data(other.data),  count(other.count) {}
+        data(other.data),  count(other.count) {
+        std::cout << "Copying exrtexture" << std::endl;
+    }
+    EXRTexture(EXRTexture&& other){
+        std::swap(xsize,other.xsize);
+        std::swap(ysize,other.ysize);
+        std::swap(data,other.data);
+        std::swap(count,other.count);
+    }
+    EXRTexture& operator=(EXRTexture&& other){
+        std::swap(xsize,other.xsize);
+        std::swap(ysize,other.ysize);
+        std::swap(data,other.data);
+        std::swap(count,other.count);
+        return *this;
+    }
     bool Write(std::string path) const;
     void AddPixel(int x, int y, Radiance c, unsigned int n = 1);
     Radiance GetPixel(int x, int y) const;

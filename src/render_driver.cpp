@@ -153,15 +153,12 @@ void RenderDriver::RenderRound(const Scene& scene,
 
     ctpl::thread_pool tpool(concurrency);
 
-    // Prepare per-task output buffers
-    std::vector<EXRTexture> output_buffers(tasks.size(), EXRTexture(cfg->xres, cfg->yres));
-
+    std::mutex total_ob_mx;
     // Push all render tasks to thread pool
     for(unsigned int i = 0; i < tasks.size(); i++){
         const RenderTask& task = tasks[i];
-        EXRTexture* output_buffer = &output_buffers[i];
         unsigned int c = seedcount++;
-        tpool.push( [output_buffer, seedstart, camera, &scene, &cfg, task, c](int){
+        tpool.push( [seedstart, camera, &scene, &cfg, task, c, &total_ob_mx, &total_ob](int){
 
                 // THIS is the thread task
                 Random rnd(seedstart + c);
@@ -178,8 +175,12 @@ void RenderDriver::RenderRound(const Scene& scene,
                 out::cout(6) << "Starting a new task with params: " << std::endl;
                 out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
 
-                rt.Render(task, output_buffer, pixels_done, rays_done);
-
+                EXRTexture output_buffer(cfg->xres, cfg->yres);
+                rt.Render(task, &output_buffer, pixels_done, rays_done);
+                {
+                    std::lock_guard<std::mutex> lk(total_ob_mx);
+                    total_ob.Accumulate(output_buffer);
+                }
             });
     }
 
@@ -187,10 +188,6 @@ void RenderDriver::RenderRound(const Scene& scene,
     tpool.stop(true);
 
     rounds_done++;
-
-    // Merge all outputs into a single one
-    for(const EXRTexture& o : output_buffers)
-        total_ob.Accumulate(o);
 }
 
 void RenderDriver::RenderFrame(const Scene& scene,

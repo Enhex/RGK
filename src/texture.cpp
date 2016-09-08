@@ -337,12 +337,13 @@ EXRTexture::EXRTexture(int xsize, int ysize):
 
 void EXRTexture::AddPixel(int x, int y, Radiance c, unsigned int n)
 {
-    std::lock_guard<std::mutex> lk(mx);
+    // Current implementation assumes single-thread access
+    //std::lock_guard<std::mutex> lk(mx);
     data[y*xsize + x] += c;
     count[y*xsize + x] += n;
 }
 Radiance EXRTexture::GetPixel(int x, int y) const{
-    std::lock_guard<std::mutex> lk(mx);
+    //std::lock_guard<std::mutex> lk(mx);
     int n = y*xsize + x;
     if(count[n] == 0) return Radiance();
     return data[n]/count[n];
