@@ -28,10 +28,10 @@ public:
     Scene(const Scene&) = delete;
     Scene& operator=(const Scene&) = delete;
 
-    void LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform = aiMatrix4x4(), std::string force_mat = "");
-    void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform, std::string force_mat = "");
+    void LoadAiNode(const aiScene* scene, const aiNode* ainode, glm::mat4 transform, std::string force_mat = "");
+    void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, glm::mat4 transform, std::string force_mat = "");
     void LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string working_directory, bool override = false);
-    void LoadAiSceneMeshes(const aiScene* scene, std::string force_mat = "");
+    void LoadAiSceneMeshes(const aiScene* scene, glm::mat4 transform, std::string force_mat = "");
     void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory, bool override_materials = false);
     void RegisterMaterial(const Material& mat, bool override = false);
 

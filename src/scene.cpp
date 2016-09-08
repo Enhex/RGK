@@ -59,10 +59,10 @@ void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf,
     }
 }
 
-void Scene::LoadAiSceneMeshes(const aiScene* scene, std::string force_mat){
+void Scene::LoadAiSceneMeshes(const aiScene* scene, glm::mat4 transform, std::string force_mat){
     // Load root node
     const aiNode* root = scene->mRootNode;
-    LoadAiNode(scene,root,aiMatrix4x4(),force_mat);
+    LoadAiNode(scene,root,transform,force_mat);
 }
 
 
@@ -181,9 +181,29 @@ void Scene::RegisterMaterial(const Material &mat, bool override){
     }
 }
 
-void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 current_transform, std::string force_mat){
+void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, glm::mat4 current_transform, std::string force_mat){
 
-    aiMatrix4x4 transform = current_transform * ainode->mTransformation;
+    aiMatrix4x4 aiTransform = ainode->mTransformation;
+    glm::mat4 aiTransformMat4;
+    //TODO: Move this to utils
+    aiTransformMat4[0][0] = aiTransform[0][0];
+    aiTransformMat4[0][1] = aiTransform[0][1];
+    aiTransformMat4[0][2] = aiTransform[0][2];
+    aiTransformMat4[0][3] = aiTransform[0][3];
+    aiTransformMat4[1][0] = aiTransform[1][0];
+    aiTransformMat4[1][1] = aiTransform[1][1];
+    aiTransformMat4[1][2] = aiTransform[1][2];
+    aiTransformMat4[1][3] = aiTransform[1][3];
+    aiTransformMat4[2][0] = aiTransform[2][0];
+    aiTransformMat4[2][1] = aiTransform[2][1];
+    aiTransformMat4[2][2] = aiTransform[2][2];
+    aiTransformMat4[2][3] = aiTransform[2][3];
+    aiTransformMat4[3][0] = aiTransform[3][0];
+    aiTransformMat4[3][1] = aiTransform[3][1];
+    aiTransformMat4[3][2] = aiTransform[3][2];
+    aiTransformMat4[3][3] = aiTransform[3][3];
+
+    glm::mat4 transform = aiTransformMat4 * current_transform;
 
     // Load meshes
     for(unsigned int i = 0; i < ainode->mNumMeshes; i++)
@@ -195,7 +215,7 @@ void Scene::LoadAiNode(const aiScene* scene, const aiNode* ainode, aiMatrix4x4 c
 
 }
 
-void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 current_transform, std::string force_mat){
+void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, glm::mat4 current_transform, std::string force_mat){
     out::cout(4) << "-- Loading a mesh with " << mesh->mNumFaces <<
        " faces and " << mesh->mNumVertices <<  " vertices." << std::endl;
 
@@ -218,13 +238,13 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
     ArealLight al;
 
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
-        aiVector3D vertex = mesh->mVertices[v];
-        vertex *= current_transform;
+        glm::vec3 vertex(mesh->mVertices[v].x, mesh->mVertices[v].y, mesh->mVertices[v].z);
+        vertex = (current_transform * glm::vec4(vertex, 1.0)).xyz();
         vertices_buffer.push_back(glm::vec3(vertex.x, vertex.y, vertex.z));
     }
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
-        aiVector3D normal = mesh->mNormals[v];
-        normal *= aiMatrix3x3(current_transform);
+        glm::vec3 normal(mesh->mNormals[v].x, mesh->mNormals[v].y, mesh->mNormals[v].z);
+        normal = glm::mat3(current_transform) * normal;
         normals_buffer.push_back(glm::vec3(normal.x, normal.y, normal.z));
     }
     for(unsigned int f = 0; f < mesh->mNumFaces; f++){
@@ -256,8 +276,8 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, aiMatrix4x4 cur
     }
     if(mesh->mTangents){
         for(unsigned int v = 0; v < mesh->mNumVertices; v++){
-            aiVector3D tangent = mesh->mTangents[v];
-            tangent *= aiMatrix3x3(current_transform);
+            glm::vec3 tangent(mesh->mTangents[v].x, mesh->mTangents[v].y, mesh->mTangents[v].z);
+            tangent = glm::mat3(current_transform) * tangent;
             tangents_buffer.push_back(glm::vec3(tangent.x, tangent.y, tangent.z));
         }
     }else{

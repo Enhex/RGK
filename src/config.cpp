@@ -191,7 +191,7 @@ void ConfigRTC::InstallLights(Scene& scene) const{
         scene.AddPointLight(l);
 }
 
-static const aiScene* loadAssimpScene(Assimp::Importer& importer, std::string modelfile){
+static const aiScene* loadAssimpScene(Assimp::Importer& importer, std::string modelfile, bool smooth_normals = false){
     out::cout(2) << "Loading scene from \"" << modelfile << "\"..."  << std::endl;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
     const aiScene* scene = importer.ReadFile(modelfile,
@@ -199,8 +199,7 @@ static const aiScene* loadAssimpScene(Assimp::Importer& importer, std::string mo
                                              //aiProcess_TransformUVCoords |
 
                                              // Neither of these work correctly.
-                                             aiProcess_GenNormals |
-                                             //aiProcess_GenSmoothNormals |
+                                             ((smooth_normals)?aiProcess_GenSmoothNormals:aiProcess_GenNormals) |
 
                                              aiProcess_JoinIdenticalVertices |
 
@@ -238,7 +237,7 @@ void ConfigRTC::InstallScene(Scene& s) const{
     const aiScene* scene = loadAssimpScene(importer, modelfile);
 
     s.LoadAiSceneMaterials(scene, brdf, modeldir + "/");
-    s.LoadAiSceneMeshes(scene);
+    s.LoadAiSceneMeshes(scene, glm::mat4());
 }
 
 void ConfigRTC::InstallMaterials(Scene&) const{
@@ -429,7 +428,7 @@ void ConfigJSON::InstallScene(Scene& s) const{
 
         // Do not override materials in this mode
         s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", false);
-        s.LoadAiSceneMeshes(scene);
+        s.LoadAiSceneMeshes(scene,glm::mat4());
     }else if(root.isMember("scene")){
         auto& scene_node = root["scene"];
         JsonUtils::markNodeUsed(scene_node);
@@ -453,17 +452,35 @@ void ConfigJSON::InstallScene(Scene& s) const{
                 if(!Utils::GetFileExists(modelfile))
                     throw ConfigFileException("Unable to find model file \"" + modelfile + "\"");
 
+                bool smooth_normals = JsonUtils::getOptionalBool(object, "smooth-normals", false);
+
                 // Load the model with assimp
                 Assimp::Importer importer;
-                const aiScene* scene = loadAssimpScene(importer, modelfile);
+                const aiScene* scene = loadAssimpScene(importer, modelfile, smooth_normals);
 
                 std::string brdf = JsonUtils::getOptionalString(object,"brdf",
                                                                 JsonUtils::getOptionalString(root,"brdf","ltc_ggx")
                                                                 );
 
+                // Get transformation details
+                glm::mat4 transform;
+                glm::vec3 scale = JsonUtils::getOptionalVec3(object, "scale", glm::vec3(1.0, 1.0, 1.0));
+                glm::vec3 translate = JsonUtils::getOptionalVec3(object, "translate", glm::vec3(0.0, 0.0, 0.0));
+                glm::vec3 rotate = JsonUtils::getOptionalVec3(object, "rotate", glm::vec3(0.0, 0.0, 0.0));
+                // 1. Scale
+                transform = glm::scale(scale) * transform;
+                // 2. Rotation
+                transform = glm::rotate(0.0174533f * rotate.z, glm::vec3(0.0, 0.0, -1.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.y, glm::vec3(0.0, -1.0, 0.0f)) * transform;
+                transform = glm::rotate(0.0174533f * rotate.x, glm::vec3(-1.0, 0.0, 0.0f)) * transform;
+                // 3. Translation
+                transform = glm::translate(translate) * transform;
+
                 if(import_materials)
                     s.LoadAiSceneMaterials(scene, brdf, modeldir + "/", override_materials);
-                s.LoadAiSceneMeshes(scene, forced_material);
+
+                s.LoadAiSceneMeshes(scene, transform, forced_material);
+
             }else if(object.isMember("primitive")){
                 std::string type = JsonUtils::getRequiredString(object, "primitive");
                 glm::mat4 transform;
