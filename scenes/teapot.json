@@ -1,19 +1,67 @@
 {
     // The teapot model can be downloaded from http://graphics.cs.williams.edu/data/meshes.xml
-    "model-file": "teapot/teapot.obj",
     "output-file": "teapot.exr",
-    "output-width": 1200,
-    "output-height": 900,
-    "recursion-max": 2,
+    "output-width": 1280,
+    "output-height": 720,
+    "recursion-max": 3,
     "camera": {
-        "position": [50.0, 100.0, 120.0],
-        "lookat": [0.0, 40.0, 0.0],
-        "focal": 1.6
+        "position": [1.0, 1.6, -2.4],
+        "lookat": [0.0, 0.3, 0.0],
+        "fov": 95
     },
-    "lights": [{
-        "position": [0.0, 90.0, 100.0],
-        "intensity": 15000.0
+    "multisample": 200,
+    "rounds": 5,
+    "clamp": 150.0,
+    "scene": [{
+        "primitive": "plane",
+        "axis": "Y",
+        "scale": [1.8, 1, 1.8],
+        "material": "floor"
+    },{
+        "file": "teapot/teapot.obj",
+        "scale": [0.01, 0.01, 0.01],
+        "translate": [1.0, 0.0, 1.0],
+        "smooth-normals": true,
+        "material": "teapot1"
+    },{
+        "file": "teapot/teapot.obj",
+        "scale": [0.01, 0.01, 0.01],
+        "translate": [0.0, 0.0, 0.0],
+        "smooth-normals": true,
+        "material": "teapot2"
+    },{
+        "file": "teapot/teapot.obj",
+        "scale": [0.01, 0.01, 0.01],
+        "translate": [-1.0, 0.0, -1.0],
+        "smooth-normals": true,
+        "material": "teapot3"
     }],
-    "multisample": 20,
-    "rounds": 10
+    "materials": [{
+        "name": "floor",
+        "brdf": "diffuse",
+        "diffuse": [0.35, 0.28, 0.2]
+    },{
+        "name": "teapot1",
+        "brdf": "ltc_ggx",
+        "specular": [0.2, 0.2, 0.2],
+        "diffuse": [0.8, 0.8, 0.8],
+        "exponent": 1500
+    },{
+        "name": "teapot2",
+        "brdf": "ltc_beckmann",
+        "specular": [0.8, 0.8, 0.8],
+        "diffuse": [0.2, 0.2, 0.2],
+        "exponent": 1500
+    },{
+        "name": "teapot3",
+        "brdf": "ltc_beckmann",
+        "specular": [0.8, 0.6, 0.6],
+        "diffuse": [0.2, 0.16, 0.16],
+        "exponent": 80
+    }],
+    "sky": {
+        "envmap": "envmap/cloudy1.hdr",
+        "rotate": 90,
+        "intensity": 1.0
+    }
 }

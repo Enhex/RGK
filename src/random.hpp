@@ -5,6 +5,9 @@
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
 
+#include <stack>
+#include <algorithm>
+#include <iostream>
 
 class Random{
 public:
@@ -26,17 +29,59 @@ public:
     int GetInt(float from, float to){
         return std::uniform_int_distribution<>(from, to)(gen);
     }
-    // Returns a uniformly distributed float in range [from, to].
+    // Returns an independently distributed float in range [from, to].
     float GetFloat(float from, float to){
         return std::uniform_real_distribution<float>(from, to)(gen);
+    }
+    // Returns a uniformly distributed float in range [from, to].
+    // TODO: faster?
+    float GetFloat1D(){
+        if(LHS_buffer.empty())
+            RefillLHSBuffer();
+
+        auto res = LHS_buffer.top();
+        LHS_buffer.pop();
+        return res.x;
+    }
+    // Latin Hypercube Sampling
+    // TODO: sobol ??
+    glm::vec2 GetFloat2D(){
+        if(LHS_buffer.empty())
+            RefillLHSBuffer();
+
+        auto res = LHS_buffer.top();
+        //std::cout << "Taken from buffer" << std::endl;
+        LHS_buffer.pop();
+        return res;
+
+        // Alternatively, independent sampling
+    }
+    void RefillLHSBuffer(){
+        //std::cout << "Refilling buffer" << std::endl;
+        const int size = 64;
+        std::vector<unsigned int> V(size);
+        for(unsigned int i = 0; i < V.size(); i++) V[i] = i;
+        std::vector<unsigned int> W(size);
+        for(unsigned int i = 0; i < W.size(); i++) W[i] = i;
+        int t = 1000;
+        while(t--){
+            std::shuffle(V.begin(), V.end(), gen);
+            std::shuffle(W.begin(), W.end(), gen);
+            for(unsigned int i = 0; i < V.size(); i++){
+                unsigned int x = V[i];
+                unsigned int y = W[V[i]];
+                float xf = GetFloat(x/(float)size, (x+1)/(float)size);
+                float yf = GetFloat(y/(float)size, (y+1)/(float)size);
+                LHS_buffer.push(glm::vec2(xf,yf));
+            }
+        }
     }
     // Returns a uniformly distributed point within a disc of given radius.
     glm::vec2 GetDisc(float radius){
         // Rejection sampling.
         glm::vec2 q;
         do{
-            q.x = GetFloat(-1.0, 1.0);
-            q.y = GetFloat(-1.0, 1.0);
+            q = GetFloat2D()*2.0f - 1.0f;
         }while(q.x*q.x + q.y*q.y > 1.0f);
         return q*radius;
     }
@@ -50,8 +95,9 @@ public:
     }
     // Returns a uniformly distributed random vector on a hemishpere, such that y > 0.
     glm::vec3 GetHSUniform(){
-        float k1 = GetFloat(0.0f, 1.0f);
-        float k2 = GetFloat(-1.0f, 1.0f);
+        glm::vec2 k = GetFloat2D();
+        float k1 = k.x;
+        float k2 = k.y*2.0f - 1.0f;
         float z = 1.0f - k2*k2;
         float s = glm::sqrt(z);
         float w = 2.0f*glm::pi<float>()*k1;
@@ -81,8 +127,9 @@ public:
     }
     // Returns a uniformly random vector on a sphere
     glm::vec3 GetSphere(float radius){
-        float z = GetFloat(-1, 1);
-        float a = GetFloat(0, 6.283185);
+        glm::vec2 v = GetFloat2D();
+        float z = v.x * 2.0f - 1.0f;
+        float a = v.y * 6.283185;
         float r = glm::sqrt(1 - z * z);
         float x = r * glm::cos(a);
         float y = r * glm::sin(a);
@@ -90,6 +137,8 @@ public:
     }
 private:
     std::mt19937_64 gen;
+
+    std::stack<glm::vec2> LHS_buffer;
 };
 
 #endif // __RANDOM_HPP_

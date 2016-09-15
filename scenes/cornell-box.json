@@ -2,9 +2,10 @@
     "output-file": "cornell-box.exr",
     "output-width": 1024,
     "output-height": 1024,
-    "multisample": 80,
-    "rounds": 50,
-    "russian": 0.74,
+    "multisample": 2,
+    "rounds": 1,
+    //"russian": 0.74,
+    "recursion-max": 1,
     "clamp": 1500.0,
     "camera": {
         "position": [0, 1, 6.8],
@@ -66,12 +67,13 @@
             "primitive": "cube",
             "translate": [0.328631, 0.3, 0.374592],
             "scale": [0.594811, 0.604394, 0.6],
-            "rotate": [0, 163.36, 0],
+            "rotate": [0, -163.36, 0],
            "material": "WallsAndBoxes"
         },{ // Light source
             "primitive": "plane",
             "translate": [-0.005, 1.98, -0.03],
             "scale": [0.235, -1.0, 0.19],
+            //"scale": [0.01, -1.0, 0.01],
             "material": "Light"
         }
     ]

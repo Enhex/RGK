@@ -22,7 +22,7 @@ float BRDFDiffuseUniform::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
 }
 std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFDiffuseUniform::GetRay(glm::vec3 normal, glm::vec3, Radiance, Radiance, Random &rnd, bool) const{
     glm::vec3 v = rnd.GetHSUniformDir(normal);
-    assert(glm::dot(normal, v) > 0.0f);
+    assert(glm::dot(normal, v) >= 0.0f);
     return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_UNIFORM);
 }
 
@@ -118,7 +118,7 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCBeckmann::GetRay(
     assert(glm::dot(normal, inc) > 0.0f);
     float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
     float specular_power = specular.r + specular.g + specular.b; // Integral over specular spectrum...
-    if(rnd.GetFloat(0.0f, diffuse_power + specular_power) < diffuse_power){
+    if(rnd.GetFloat1D() * (diffuse_power + specular_power) < diffuse_power){
         // Diffuse ray
         auto res = BRDF::GetRay(normal, inc, diffuse, specular, rnd);
         std::get<1>(res) = Radiance(diffuse);
@@ -146,7 +146,7 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCGGX::GetRay(glm::
     qassert_directed(normal, inc);
     float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
     float specular_power = specular.r + specular.g + specular.b; // Integral over specular spectrum...
-    if(rnd.GetFloat(0.0f, diffuse_power + specular_power) < diffuse_power){
+    if(rnd.GetFloat1D() * (diffuse_power + specular_power) < diffuse_power){
         // Diffuse ray
         auto res = BRDF::GetRay(normal, inc, diffuse, specular, rnd);
         std::get<1>(res) = Radiance(diffuse);

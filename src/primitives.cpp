@@ -47,13 +47,12 @@ float Triangle::GetArea() const{
 // According to paper at http://www.cs.princeton.edu/~funk/tog02.pdf
 // page 814, this should give uniform resolution
 glm::vec3 Triangle::GetRandomPoint(Random& rnd) const{
-    float r1 = rnd.Get01();
-    float r2 = rnd.Get01();
-    float sr1 = glm::sqrt(r1);
+    glm::vec2 r = rnd.GetFloat2D();
+    float sr1 = glm::sqrt(r.x);
     glm::vec3 a = parent_scene->vertices[va];
     glm::vec3 b = parent_scene->vertices[vb];
     glm::vec3 c = parent_scene->vertices[vc];
-    return (1.0f-sr1)*a + sr1*(1.0f-r2)*b + sr1*r2*c;
+    return (1.0f-sr1)*a + sr1*(1.0f-r.y)*b + sr1*r.y*c;
 }
 
 bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, float& a, float& b, bool debug) const{

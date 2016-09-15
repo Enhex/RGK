@@ -448,22 +448,32 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
     IFDEBUG std::cout << "== FORWARD PATH" << std::endl;
     std::vector<PathPoint> path = GeneratePath(r, raycount, depth, russian, debug);
 
-    // Choose a light source.
-    const Light& l = scene.GetRandomLight(rnd);
-    glm::vec3 lightpos = l.pos;
-    glm::vec3 lightdir;
-    if(l.type == Light::FULL_SPHERE){
-        glm::vec3 q = rnd.GetSphere(l.size);
-        lightpos += q;
-        if(glm::length(q) < 0.01f) q = rnd.GetSphere(1.0f);
-        lightdir = rnd.GetHSCosDir(glm::normalize(q));
-    }else{
-        lightdir = rnd.GetHSCosDir(l.normal);
-    }
+    std::vector<Light> lights;
+
+    // Choose a main light source.
+    lights.push_back(scene.GetRandomLight(rnd));
+
+    // Choose auxiculary light sources
+    /*
+    const int AUX_LIGHTS = 4;
+    for(unsigned int i = 0; i < AUX_LIGHTS; i++)
+        lights.push_back(scene.GetRandomLight(rnd));
+    */
 
     // Generate backward path (from light)
+    Light& main_light = lights[0];
+    glm::vec3 main_light_dir;
+    if(main_light.type == Light::FULL_SPHERE){
+        glm::vec3 q = rnd.GetSphere(main_light.size);
+        // TODO: Can this be done without modifying light position?
+        main_light.pos += q;
+        if(glm::length(q) < 0.01f) q = rnd.GetSphere(1.0f);
+        main_light_dir = rnd.GetHSCosDir(glm::normalize(q));
+    }else{
+        main_light_dir = rnd.GetHSCosDir(main_light.normal);
+    }
     IFDEBUG std::cout << "== LIGHT PATH" << std::endl;
-    Ray light_ray(lightpos + scene.epsilon * l.normal * 100.0f, lightdir);
+    Ray light_ray(main_light.pos + scene.epsilon * main_light.normal * 100.0f, main_light_dir);
     std::vector<PathPoint> light_path = GeneratePath(light_ray, raycount, reverse, -1.0f, debug);
     IFDEBUG std::cout << "Light path size " << light_path.size() << std::endl;
 
@@ -480,9 +490,13 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
             //glm::vec3 Vi = glm::normalize(lightpos - p.pos);
             //float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
             //IFDEBUG std::cout << "G = " << G << std::endl;
-            IFDEBUG std::cout << "lightpos = " << lightpos << std::endl;
+            IFDEBUG std::cout << "main_light.pos = " << main_light.pos << std::endl;
             IFDEBUG std::cout << "p.pos = " << p.pos << std::endl;
-            light_carried = Radiance(l.color) * l.intensity * l.GetDirectionalFactor(lightdir);// * G;
+
+            light_carried =
+                Radiance(main_light.color) *
+                main_light.intensity *
+                main_light.GetDirectionalFactor(main_light_dir); // * G;
         }
 
         light_carried = ApplyThinglass(light_carried, p.thinglass_isect, p.Vr);
@@ -552,35 +566,38 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
             // ==========
             // Direct lighting
 
+            for(unsigned int lightno = 0; lightno < lights.size(); lightno++){
+                const Light& light = lights[lightno];
+                IFDEBUG std::cout << "Incorporating direct lighting component for light "
+                                  << lightno << ", light.pos: " << light.pos << std::endl;
 
-            IFDEBUG std::cout << "Incorporating direct lighting component, lightpos: " << lightpos << std::endl;
+                std::vector<std::pair<const Triangle*, float>> thinglass_isect;
+                // Visibility factor
+                if((scene.thinglass.size() == 0 && scene.Visibility(light.pos, p.pos)) ||
+                   (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(light.pos, p.pos, thinglass_isect))){
 
-            std::vector<std::pair<const Triangle*, float>> thinglass_isect;
-            // Visibility factor
-            if((scene.thinglass.size() == 0 && scene.Visibility(lightpos, p.pos)) ||
-               (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(lightpos, p.pos, thinglass_isect))){
+                    IFDEBUG std::cout << "====> Light is visible" << std::endl;
 
-                IFDEBUG std::cout << "====> Light is visible" << std::endl;
+                    // Incoming direction
+                    glm::vec3 Vi = glm::normalize(light.pos - p.pos);
 
-                // Incoming direction
-                glm::vec3 Vi = glm::normalize(lightpos - p.pos);
+                    Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, Vi, p.Vr, debug);
 
-                Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, Vi, p.Vr, debug);
+                    IFDEBUG std::cout << "f = " << f << std::endl;
 
-                IFDEBUG std::cout << "f = " << f << std::endl;
+                    float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(light.pos, p.pos);
+                    IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
+                    Radiance inc_l = Radiance(light.color) * light.intensity * light.GetDirectionalFactor(-Vi);
+                    inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
 
-                float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
-                IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                Radiance inc_l = Radiance(l.color) * l.intensity * l.GetDirectionalFactor(-Vi);
-                inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
+                    IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
 
-                IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
-
-                Radiance out = inc_l * f * G;
-                IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
-                total += out;
-            }else{
-                IFDEBUG std::cout << "Light not visible" << std::endl;
+                    Radiance out = inc_l * f * G;
+                    IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
+                    total += out;
+                }else{
+                    IFDEBUG std::cout << "Light not visible" << std::endl;
+                }
             }
 
             // Reverse light

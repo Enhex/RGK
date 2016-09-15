@@ -783,7 +783,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
         // Sigh. Return just anything for compatibility.
         return Light(Light::Type::FULL_SPHERE);
     }
-    float q = rnd.GetFloat(0.0f, total_power);
+    float q = rnd.GetFloat1D() * total_power;
     if(q < total_point_power){
         // Choose pointlight
         for(unsigned int i = 0; i < pointlights.size(); i++){
@@ -800,7 +800,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
         return Light(Light::Type::FULL_SPHERE);
     }else{
         // Choose areal light
-        q = rnd.GetFloat(0.0f, total_areal_power);
+        q = rnd.GetFloat1D() *total_areal_power;
 
         for(unsigned int i = 0; i < areal_lights.size(); i++){
             q -= areal_lights[i].first;
@@ -817,7 +817,7 @@ Light Scene::GetRandomLight(Random& rnd) const{
 }
 
 Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
-    float p = rnd.GetFloat(0.0f, total_area);
+    float p = rnd.GetFloat1D() * total_area;
     for(unsigned int j = 0; j < triangles_with_areas.size(); j++){
         p -= triangles_with_areas[j].first;
         if(p <= 0.0f){
