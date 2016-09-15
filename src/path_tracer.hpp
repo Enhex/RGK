@@ -4,6 +4,7 @@
 #include <set>
 #include "tracer.hpp"
 #include "random.hpp"
+#include "sampler.hpp"
 
 class PathTracer : public Tracer{
 public:
@@ -18,7 +19,7 @@ public:
                float bumpmap_scale,
                bool  force_fresnell,
                unsigned int reverse,
-               Random rnd);
+               Sampler& sampler);
 
 protected:
     PixelRenderResult RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
@@ -70,7 +71,7 @@ private:
     unsigned int depth;
     bool force_fresnell;
     unsigned int reverse;
-    mutable Random rnd;
+    Sampler& sampler;
 };
 
 #endif // __PATH_TRACER_HPP__

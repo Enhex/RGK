@@ -76,7 +76,7 @@ public:
     inline glm::vec3 generic_normal() const {return p.xyz();}
     void CalculatePlane() __attribute__((hot));
     float GetArea() const;
-    glm::vec3 GetRandomPoint(Random& rnd) const;
+    glm::vec3 GetRandomPoint(glm::vec2 sample) const;
 
     Triangle(const Scene* parent, unsigned int va, unsigned int vb, unsigned int vc, Material* mat) :
         parent_scene(parent), va(va), vb(vb), vc(vc), mat(mat) {}

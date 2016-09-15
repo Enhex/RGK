@@ -2,7 +2,7 @@
 
 #include "utils.hpp"
 #include "glm.hpp"
-#include <glm/gtx/polar_coordinates.hpp>
+#include "random_utils.hpp"
 
 Camera::Camera(glm::vec3 pos, glm::vec3 la, glm::vec3 up, float yview, float xview, int xres, int yres, float focus_plane, float ls){
     origin = pos;
@@ -29,69 +29,21 @@ glm::vec3 Camera::GetViewScreenPoint(float x, float y) const {
     return viewscreen + xo + yo;
 }
 
-Ray Camera::GetSubpixelRay(int x, int y, int xres, int yres, int subx, int suby, int subres) const {
-    glm::vec2 off( subx/(float)subres, suby/(float)subres );
+Ray Camera::GetPixelRay(int x, int y, int xres, int yres, glm::vec2 subcoords) const {
+    glm::vec2 off = subcoords;
     glm::vec3 p = GetViewScreenPoint( (x + off.x) / (float)(xres),
                                       (y + off.y) / (float)(yres) );
     glm::vec3 o = origin;
     return Ray(o, p - o);
 }
-
-
-Ray Camera::GetRandomRay(int x, int y, int xres, int yres, Random& rnd) const{
-    glm::vec2 off(rnd.Get01(), rnd.Get01());
+Ray Camera::GetPixelRayLens(int x, int y, int xres, int yres, glm::vec2 subcoords, glm::vec2 lenssample) const{
+    glm::vec2 off = subcoords;
     glm::vec3 p = GetViewScreenPoint( (x + off.x) / (float)(xres),
                                       (y + off.y) / (float)(yres) );
-    glm::vec3 o = origin;
-    return Ray(o, p - o);
-}
-
-Ray Camera::GetCenterRay(int x, int y, int xres, int yres) const{
-    glm::vec2 off(0.5f, 0.5f);
-    glm::vec3 p = GetViewScreenPoint( (x + off.x) / (float)(xres),
-                                      (y + off.y) / (float)(yres) );
-    glm::vec3 o = origin;
-    return Ray(o, p - o);
-}
-
-Ray Camera::GetRandomRayLens(int x, int y, int xres, int yres, Random& rnd) const{
-    glm::vec2 off(rnd.Get01(), rnd.Get01());
-    glm::vec3 p = GetViewScreenPoint( (x + off.x) / (float)(xres),
-                                      (y + off.y) / (float)(yres) );
-    glm::vec2 lenso = rnd.GetDisc(lens_size);
+    glm::vec2 lenso = RandomUtils::Sample2DToDiscUniform(lenssample) * lens_size;
     glm::vec3 o = origin + lenso.x * cameraleft + lenso.y * cameraup;
     return Ray(o, p - o);
 }
-
-Ray Camera::GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const {
-    glm::vec2 off( subx/(float)subres, suby/(float)subres );
-    glm::vec3 p = GetViewScreenPoint( (x /*+ off.x*/) / (float)(xres),
-                                      (y /*+ off.y*/) / (float)(yres) );
-    glm::vec2 lenso = rnd.GetDisc(lens_size);
-    glm::vec3 o = origin + lenso.x * cameraleft + lenso.y * cameraup;
-    return Ray(o, p - o);
-}
-
-Ray Camera::GetSubpixelRayRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const {
-    glm::vec2 off( subx/(float)subres, suby/(float)subres );
-    glm::vec2 suboff(rnd.Get01(), rnd.Get01());
-    suboff /= (float)subres;
-    glm::vec3 p = GetViewScreenPoint( (x + off.x + suboff.x) / (float)(xres),
-                                      (y + off.y + suboff.y) / (float)(yres) );
-    glm::vec3 o = origin;
-    return Ray(o, p - o);
-}
-Ray Camera::GetSubpixelRayLensRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const {
-    glm::vec2 off( subx/(float)subres, suby/(float)subres );
-    glm::vec2 suboff(rnd.Get01(), rnd.Get01());
-    suboff /= (float)subres;
-    glm::vec3 p = GetViewScreenPoint( (x + off.x + suboff.x) / (float)(xres),
-                                      (y + off.y + suboff.y) / (float)(yres) );
-    glm::vec2 lenso = rnd.GetDisc(lens_size);
-    glm::vec3 o = origin + lenso.x * cameraleft + lenso.y * cameraup;
-    return Ray(o, p - o);
-}
-
 
 bool Camera::GetCoordsFromDirection(glm::vec3 dir, int& /*out*/ x, int& /*out*/ y, bool debug) const{
     (void)debug;

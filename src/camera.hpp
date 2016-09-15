@@ -3,7 +3,6 @@
 
 #include "glm.hpp"
 #include "ray.hpp"
-#include "random.hpp"
 
 class Camera{
 public:
@@ -14,15 +13,11 @@ public:
        subres - grid resolution for dividning the (x,y) pixel into subpixels
        subx, suby - the coordinates of subpixel within (x,y) pixel for requesting ray
      */
-    Ray GetSubpixelRay(int x, int y, int xres, int yres, int subx, int suby, int subres) const;
-    Ray GetSubpixelRayLens(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
 
-    Ray GetSubpixelRayRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
-    Ray GetSubpixelRayLensRandom(int x, int y, int xres, int yres, int subx, int suby, int subres, Random& rnd) const;
+    Ray GetRay(glm::vec2 coords) const;
 
-    Ray GetRandomRay(int x, int y, int xres, int yres, Random& rnd) const;
-    Ray GetRandomRayLens(int x, int y, int xres, int yres, Random& rnd) const;
-    Ray GetCenterRay(int x, int y, int xres, int yres) const;
+    Ray GetPixelRay(int x, int y, int xres, int yres, glm::vec2 subcoords) const;
+    Ray GetPixelRayLens(int x, int y, int xres, int yres, glm::vec2 subcoords, glm::vec2 lenssample) const;
 
     bool IsSimple() const {return lens_size == 0.0f;}
 

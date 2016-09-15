@@ -46,8 +46,8 @@ float Triangle::GetArea() const{
 
 // According to paper at http://www.cs.princeton.edu/~funk/tog02.pdf
 // page 814, this should give uniform resolution
-glm::vec3 Triangle::GetRandomPoint(Random& rnd) const{
-    glm::vec2 r = rnd.GetFloat2D();
+glm::vec3 Triangle::GetRandomPoint(glm::vec2 sample) const{
+    glm::vec2 r = sample;
     float sr1 = glm::sqrt(r.x);
     glm::vec3 a = parent_scene->vertices[va];
     glm::vec3 b = parent_scene->vertices[vb];

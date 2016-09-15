@@ -3,6 +3,7 @@
 #include "camera.hpp"
 #include "scene.hpp"
 #include "global_config.hpp"
+#include "random_utils.hpp"
 
 #include <tuple>
 
@@ -23,14 +24,14 @@ PathTracer::PathTracer(const Scene& scene,
                        float bumpmap_scale,
                        bool force_fresnell,
                        unsigned int reverse,
-                       Random rnd)
+                       Sampler& sampler)
 : Tracer(scene, camera, xres, yres, multisample, bumpmap_scale),
   clamp(clamp),
   russian(russian),
   depth(depth),
   force_fresnell(force_fresnell),
   reverse(reverse),
-  rnd(rnd)
+  sampler(sampler)
 {
 }
 
@@ -39,18 +40,15 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
 
     IFDEBUG std::cout << std::endl;
 
-    // N - rooks
-    std::vector<unsigned int> V(multisample);
-    for(unsigned int i = 0; i < V.size(); i++) V[i] = i;
-    std::random_shuffle(V.begin(), V.end());
+    for(unsigned int i = 0; i < multisample; i++){
 
-    for(unsigned int i = 0; i < V.size(); i++){
-        Ray r;
-        if(camera.IsSimple()){
-            r = camera.GetSubpixelRayRandom(x, y, xres, yres, i, V[i], multisample, rnd);
-        }else{
-            r = camera.GetSubpixelRayLensRandom(x, y, xres, yres, i, V[i], multisample, rnd);
-        }
+        sampler.Advance();
+
+        glm::vec2 coords = sampler.Get2D();
+        Ray r = camera.IsSimple() ?
+            camera.GetPixelRay(x, y, xres, yres, coords) :
+            camera.GetPixelRayLens(x, y, xres, yres, coords, sampler.Get2D());
+
         PixelRenderResult q = TracePath(r, raycount, debug);
         total.main_pixel += q.main_pixel;
 
@@ -59,6 +57,8 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
         }
 
         IFDEBUG std::cout << "Side effects: " << q.side_effects.size() << std::endl;
+
+        IFDEBUG std::cout << "Sampler samples used for this ray: " << sampler.GetUsage() << std::endl;
     }
 
     IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel/multisample << std::endl;
@@ -144,7 +144,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
         if(n2 >= 20) break; // hard limit
         if(russian__ >= 0.0f){
             // Russian roulette path termination
-            if(n > 1 && !skip_russian && rnd.Get01() > russian__) break;
+            if(n > 1 && !skip_russian && sampler.Get1D() > russian__) break;
             skip_russian = false;
         }else{
             // Fixed depth path termination
@@ -275,6 +275,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             assert(!std::isnan(p.lightN.x));
 
             // Randomly determine point type
+            float ptype_sample = sampler.Get1D();
             if(mat.translucency > 0.001f){
                 // This is a translucent material.
                 if(fromInside){
@@ -282,9 +283,11 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     p.type = PathPoint::LEFT;
                 }else{
                     float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
-                    if(rnd.Get01() < q) p.type = PathPoint::REFLECTED;
+                    if(RandomUtils::DecideAndRescale(ptype_sample, q))
+                        p.type = PathPoint::REFLECTED;
                     else{
-                        if(rnd.Get01() < mat.translucency) p.type = PathPoint::ENTERED;
+                        if(RandomUtils::DecideAndRescale(ptype_sample, mat.translucency))
+                            p.type = PathPoint::ENTERED;
                         else p.type = PathPoint::SCATTERED;
                     }
                 }
@@ -295,8 +298,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                         (p.specular.r + p.specular.g + p.specular.b)/
                         (p.diffuse .r + p.diffuse .g + p.diffuse .b +
                          p.specular.r + p.specular.g + p.specular.b);
-                    if(rnd.Get01() < strength &&
-                       rnd.Get01() < Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index))
+                    if(RandomUtils::DecideAndRescale(ptype_sample, strength) &&
+                       RandomUtils::DecideAndRescale(ptype_sample, Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index)))
                         p.type = PathPoint::REFLECTED;
                     else
                         p.type = PathPoint::SCATTERED;
@@ -320,6 +323,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
             glm::vec3 dir;
             int counter = 0;
+            (void)counter;
+            glm::vec2 sample;
             switch(p.type){
             case PathPoint::REFLECTED:
                 IFDEBUG std::cout << "REFLECTED." << std::endl;
@@ -333,6 +338,19 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 IFDEBUG std::cout << "SCATTERED." << std::endl;
                 // Revert to face normal in case this ray would enter from inside
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
+
+                sample = sampler.Get2D();
+                std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), sample, debug);
+                if(!(glm::dot(dir, p.faceN) > 0.0f)){
+                    std::cout << "dir: " << dir << std::endl;
+                    std::cout << "lightN: " << p.lightN << std::endl;
+                    std::cout << "faceN: " << p.faceN << std::endl;
+                    std::cout << "mat name: " << mat.name << std::endl;
+
+                    std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), sample, true);
+                }
+                qassert_true(glm::dot(dir, p.faceN) > 0.0f);
+                /* THE FOLLOWING wastes a large number of random samples!
                 do{
                     std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
                     counter++;
@@ -348,6 +366,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                         std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
                     }while(glm::dot(dir, p.faceN) <= 0.0f);
                 }
+                */
                 break;
             case PathPoint::ENTERED:
                 IFDEBUG std::cout << "ENTERED medium." << std::endl;
@@ -451,7 +470,11 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
     std::vector<Light> lights;
 
     // Choose a main light source.
-    lights.push_back(scene.GetRandomLight(rnd));
+    glm::vec2 areal_sample = sampler.Get2D();
+    glm::vec2 lightdir_sample = sampler.Get2D();
+    lights.push_back(scene.GetRandomLight(sampler.Get2D(), sampler.Get1D(), areal_sample));
+
+    IFDEBUG std::cout << "-------- Areal sample:" << areal_sample << std::endl;
 
     // Choose auxiculary light sources
     /*
@@ -464,13 +487,12 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
     Light& main_light = lights[0];
     glm::vec3 main_light_dir;
     if(main_light.type == Light::FULL_SPHERE){
-        glm::vec3 q = rnd.GetSphere(main_light.size);
+        glm::vec3 dir = RandomUtils::Sample2DToSphereUniform(areal_sample);
         // TODO: Can this be done without modifying light position?
-        main_light.pos += q;
-        if(glm::length(q) < 0.01f) q = rnd.GetSphere(1.0f);
-        main_light_dir = rnd.GetHSCosDir(glm::normalize(q));
+        main_light.pos += main_light.size * dir;
+        main_light_dir = RandomUtils::Sample2DToHemisphereCosineDirected(lightdir_sample, glm::normalize(dir));
     }else{
-        main_light_dir = rnd.GetHSCosDir(main_light.normal);
+        main_light_dir = RandomUtils::Sample2DToHemisphereCosineDirected(lightdir_sample, main_light.normal);
     }
     IFDEBUG std::cout << "== LIGHT PATH" << std::endl;
     Ray light_ray(main_light.pos + scene.epsilon * main_light.normal * 100.0f, main_light_dir);

@@ -14,6 +14,13 @@ inline std::ostream& operator<<(std::ostream& stream, const glm::vec3& v){
     stream << "[" << v.x << ", " << v.y << ", " << v.z << "]";
     return stream;
 }
+
+inline std::ostream& operator<<(std::ostream& stream, const glm::mat3& v){
+    stream << "[" << v[0][0] << ", " << v[0][1] << ", " << v[0][2] << "]" << std::endl;
+    stream << "[" << v[1][0] << ", " << v[1][1] << ", " << v[1][2] << "]" << std::endl;
+    stream << "[" << v[2][0] << ", " << v[2][1] << ", " << v[2][2] << "]" << std::endl;
+    return stream;
+}
 inline std::ostream& operator<<(std::ostream& stream, const glm::vec2& v){
     stream << "[" << v.x << ", " << v.y << "]";
     return stream;

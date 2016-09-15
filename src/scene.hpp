@@ -97,14 +97,14 @@ public:
         Color emission;
         float power = 0.0f;
 
-        Light GetRandomLight(Random&, const Scene& parent) const;
+        Light GetRandomLight(const Scene& parent, float light_sample, glm::vec2 triangle_sample) const;
     };
     float total_areal_power;
     float total_point_power;
     std::vector<std::pair<float,ArealLight>> areal_lights;
 
 
-    Light GetRandomLight(Random& rnd) const;
+    Light GetRandomLight(glm::vec2 choice_sample, float light_sample, glm::vec2 triangle_sample) const;
 
 
     // Indexed by triangles.

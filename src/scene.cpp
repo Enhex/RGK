@@ -777,13 +777,13 @@ bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, std::vector<std::p
 void Scene::AddPointLight(Light l){
     pointlights.push_back(l);
 }
-Light Scene::GetRandomLight(Random& rnd) const{
+Light Scene::GetRandomLight(glm::vec2 choice_sample, float light_sample, glm::vec2 triangle_sample) const{
     float total_power = total_point_power + total_areal_power;
     if(total_power <= 0.0f){
         // Sigh. Return just anything for compatibility.
         return Light(Light::Type::FULL_SPHERE);
     }
-    float q = rnd.GetFloat1D() * total_power;
+    float q = choice_sample.x * total_power;
     if(q < total_point_power){
         // Choose pointlight
         for(unsigned int i = 0; i < pointlights.size(); i++){
@@ -800,14 +800,14 @@ Light Scene::GetRandomLight(Random& rnd) const{
         return Light(Light::Type::FULL_SPHERE);
     }else{
         // Choose areal light
-        q = rnd.GetFloat1D() *total_areal_power;
+        q = choice_sample.y * total_areal_power;
 
         for(unsigned int i = 0; i < areal_lights.size(); i++){
             q -= areal_lights[i].first;
             if(q <= 0.0f){
                 const ArealLight& al = areal_lights[i].second;
                 // Choose a random triangle.
-                return al.GetRandomLight(rnd,*this);
+                return al.GetRandomLight(*this, light_sample, triangle_sample);
             }
         }
         out::cout(4) << "Internal error: GetRandomLight out of bounds for areal lights." << std::endl;
@@ -816,13 +816,13 @@ Light Scene::GetRandomLight(Random& rnd) const{
     }
 }
 
-Light Scene::ArealLight::GetRandomLight(Random& rnd, const Scene& parent) const{
-    float p = rnd.GetFloat1D() * total_area;
+Light Scene::ArealLight::GetRandomLight(const Scene& parent, float light_sample, glm::vec2 triangle_sample) const{
+    float p = light_sample * total_area;
     for(unsigned int j = 0; j < triangles_with_areas.size(); j++){
         p -= triangles_with_areas[j].first;
         if(p <= 0.0f){
             const Triangle& t = parent.triangles[triangles_with_areas[j].second];
-            glm::vec3 p = t.GetRandomPoint(rnd);
+            glm::vec3 p = t.GetRandomPoint(triangle_sample);
             Light res(Light::Type::HEMISPHERE);
             res.pos = p;
             res.color = emission;
