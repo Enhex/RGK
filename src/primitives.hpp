@@ -8,7 +8,6 @@
 #include "radiance.hpp"
 #include "ray.hpp"
 #include "brdf.hpp"
-#include "random.hpp"
 #include <memory>
 #include <vector>
 

@@ -15,6 +15,7 @@
 #include "jsonutils.hpp"
 
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/vector_angle.hpp>
 
 #define NEXT_LINE()                                                                  \
     do{ std::getline(file, line);                                                    \
@@ -575,9 +576,7 @@ void ConfigJSON::InstallMaterials(Scene& s) const{
         if(texfile != "") mat.bump_texture = s.GetTexture(configdir + "/" + texfile);
 
         std::string brdf = JsonUtils::getOptionalString(m,"brdf","ltc_ggx");
-        if(brdf == "diffuseuniform"){
-            mat.brdf = std::make_unique<BRDFDiffuseUniform>();
-        }else if(brdf == "diffusecosine" || brdf == "diffuse"){
+        if(brdf == "diffusecosine" || brdf == "diffuse"){
             mat.brdf = std::make_unique<BRDFDiffuseCosine>();
         }else if(brdf == "cooktorr"){
             mat.brdf = std::make_unique<BRDFCookTorr>(mat.exponent, mat.refraction_index);

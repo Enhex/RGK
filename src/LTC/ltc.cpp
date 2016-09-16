@@ -4,6 +4,7 @@
 
 #include <glm/gtc/quaternion.hpp>
 #include <glm/gtx/string_cast.hpp>
+#include <glm/gtx/vector_angle.hpp>
 
 // This function is not exactly pure, but we are guaranteed that the
 // contents of whatever ltcdef points to are not changing.
@@ -102,8 +103,15 @@ glm::vec3 LTC::GetRandom(LTCdef ltc, glm::vec3 N, glm::vec3 Vi, float roughness,
     IFDEBUG std::cout << "theta = " << theta << ", alpha = " << roughness << std::endl;
     IFDEBUG std::cout << "M = " << glm::to_string(M) << std::endl;
 
+    qassert_false(std::isnan(rand_hscos.x));
     IFDEBUG std::cout << "rand_hscos = " << rand_hscos << std::endl;
     glm::vec3 s = M*rand_hscos;
+    // This completly skews the distribution, but since we cannot
+    // reject-sample the area that lays beyond the normal hemisphere,
+    // some workaround is necesary
+    if(s.z < 0.0f) s.z = 0.0001f;
+
+    qassert_directed(s, glm::vec3(0.0, 0.0, 1.0));
 
     IFDEBUG std::cout << "s1 = " << glm::normalize(s) << std::endl;
     s = rotate * s;

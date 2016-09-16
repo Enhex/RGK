@@ -135,9 +135,7 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     }
 
     // Supposedly we may support different brdfs for each material.
-    if(brdf == "diffuseuniform"){
-        m.brdf = std::make_unique<BRDFDiffuseUniform>();
-    }else if(brdf == "diffusecosine" || brdf == "diffuse"){
+    if(brdf == "diffusecosine" || brdf == "diffuse"){
         m.brdf = std::make_unique<BRDFDiffuseCosine>();
     }else if(brdf == "cooktorr"){
         m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);

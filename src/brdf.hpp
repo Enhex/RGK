@@ -3,7 +3,6 @@
 
 #include "glm.hpp"
 #include "radiance.hpp"
-#include "random.hpp"
 #include "global_config.hpp"
 #include <iostream>
 #include <tuple>
@@ -32,13 +31,6 @@ public:
         SAMPLING_BRDF
     };
     virtual std::tuple<glm::vec3, Radiance, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, glm::vec2 sample, bool debug = false) const;
-};
-
-class BRDFDiffuseUniform : public BRDF{
-public:
-    virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
-    virtual float PdfDiff() const override;
-    virtual std::tuple<glm::vec3, Radiance, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Radiance diffuse, Radiance specular, glm::vec2 sample, bool debug = false) const override;
 };
 
 class BRDFDiffuseCosine : public BRDF{

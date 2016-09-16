@@ -344,6 +344,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
 
                 sample = sampler.Get2D();
+                qassert_false(std::isnan(sample.x));
                 std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), sample, debug);
                 if(!(glm::dot(dir, p.faceN) > 0.0f)){
                     std::cout << "dir: " << dir << std::endl;

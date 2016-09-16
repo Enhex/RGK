@@ -20,7 +20,7 @@ add_definitions(
   -Wextra
   -Werror
   # Debug config:
-  # -g -Og
+  # -g
   # Test config:
   -O3
   # Release config:

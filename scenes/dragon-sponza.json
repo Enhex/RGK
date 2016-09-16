@@ -21,7 +21,7 @@
         "color255": [185, 220, 240],
         "intensity": 0.9
     },
-    "bumpscale": 10,
+    "bumpscale": 0,
     "clamp": 5.0,
     "russian": 0.7,
     "brdf": "ltc_ggx"

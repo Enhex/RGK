@@ -3,7 +3,6 @@
 
 #include <set>
 #include "tracer.hpp"
-#include "random.hpp"
 #include "sampler.hpp"
 
 class PathTracer : public Tracer{

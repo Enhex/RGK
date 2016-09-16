@@ -65,6 +65,8 @@ public:
     // For example usage, see BRDFLTCBeckmann::GetRay which gets only
     // two samples, but needs three.
     static bool DecideAndRescale(float& sample, float probability){
+        if(probability == 0.0f) return false;
+        if(probability == 1.0f) return false;
         if(sample < probability){
             sample /= probability;
             return true;
@@ -118,7 +120,7 @@ private:
         float cosTheta = dest.y;
         glm::vec3 rotationAxis;
 
-        if (cosTheta < -1 + 0.001f){
+        if (cosTheta < -1 + 0.00001f){
             // special case when vectors in opposite directions:
             // there is no "ideal" rotation axis
             // So guess one; any will do as long as it's perpendicular to start

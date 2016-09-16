@@ -37,9 +37,9 @@ private:
     std::mt19937_64 gen;
 };
 
-class LatinHypercubeSampler : public Sampler{
+class LowDiscrepancyOfflineSampler : public Sampler{
 public:
-    LatinHypercubeSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
+    LowDiscrepancyOfflineSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
         : Sampler(seed),
           samples1D(dim, std::vector<float>(set_size)),
           samples2D(dim, std::vector<glm::vec2>(set_size)),
@@ -50,9 +50,49 @@ public:
         current_sample2D = 0;
         // Advance MUST be called before accessing samples
         current_set = -1;
-        PrepareSamples();
+        // Cannot call PrepareSample from constructor as it is a virtual function!
     }
-    virtual void PrepareSamples(){
+    virtual void PrepareSamples() = 0;
+    virtual void Advance() override{
+        if(current_set == (unsigned int)-1) PrepareSamples();
+        current_sample1D = 0;
+        current_sample2D = 0;
+        current_set++;
+        qassert_true(current_set < set_size);
+    }
+    virtual float Get1D() override{
+        return (current_sample1D < dim_count) ?
+            samples1D[current_sample1D++][current_set] :
+            std::uniform_real_distribution<float>(0.0f, 1.0f)(gen);
+    }
+    virtual glm::vec2 Get2D() override{
+        return (current_sample2D < dim_count) ?
+            samples2D[current_sample2D++][current_set] :
+            glm::vec2(std::uniform_real_distribution<float>(0.0f, 1.0f)(gen),
+                      std::uniform_real_distribution<float>(0.0f, 1.0f)(gen));
+    }
+    virtual std::pair<unsigned int, unsigned int> GetUsage() const override{
+        return {current_sample1D,current_sample2D};
+    }
+protected:
+    std::vector<std::vector<float>> samples1D;
+    std::vector<std::vector<glm::vec2>> samples2D;
+    const unsigned int dim_count;
+    const unsigned int set_size;
+    unsigned int current_sample1D;
+    unsigned int current_sample2D;
+    unsigned int current_set;
+    std::mt19937_64 gen;
+};
+
+class LatinHypercubeSampler : public LowDiscrepancyOfflineSampler{
+public:
+
+    LatinHypercubeSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
+        : LowDiscrepancyOfflineSampler(seed, dim, set_size){
+
+    }
+    virtual void PrepareSamples() override{
         for(unsigned int dim = 0; dim < dim_count; dim++){
             samples1D[dim] = std::vector<float>(set_size);
             samples2D[dim] = std::vector<glm::vec2>(set_size);
@@ -90,35 +130,6 @@ public:
 
         }
     }
-    virtual void Advance() override{
-        current_sample1D = 0;
-        current_sample2D = 0;
-        current_set++;
-        qassert_true(current_set < set_size);
-    }
-    virtual float Get1D() override{
-        return (current_sample1D < dim_count) ?
-            samples1D[current_sample1D++][current_set] :
-            std::uniform_real_distribution<float>(0.0f, 1.0f)(gen);
-    }
-    virtual glm::vec2 Get2D() override{
-        return (current_sample2D < dim_count) ?
-            samples2D[current_sample2D++][current_set] :
-            glm::vec2(std::uniform_real_distribution<float>(0.0f, 1.0f)(gen),
-                      std::uniform_real_distribution<float>(0.0f, 1.0f)(gen));
-    }
-    virtual std::pair<unsigned int, unsigned int> GetUsage() const override{
-        return {current_sample1D,current_sample2D};
-    }
-protected:
-    std::vector<std::vector<float>> samples1D;
-    std::vector<std::vector<glm::vec2>> samples2D;
-    const unsigned int dim_count;
-    const unsigned int set_size;
-    unsigned int current_sample1D;
-    unsigned int current_sample2D;
-    unsigned int current_set;
-    std::mt19937_64 gen;
 };
 
 #endif // __SAMPLER_HPP__
