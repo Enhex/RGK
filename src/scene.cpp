@@ -777,7 +777,7 @@ bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, std::vector<std::p
 void Scene::AddPointLight(Light l){
     pointlights.push_back(l);
 }
-Light Scene::GetRandomLight(glm::vec2 choice_sample, float light_sample, glm::vec2 triangle_sample) const{
+Light Scene::GetRandomLight(glm::vec2 choice_sample, float light_sample, glm::vec2 triangle_sample, bool debug) const{
     float total_power = total_point_power + total_areal_power;
     if(total_power <= 0.0f){
         // Sigh. Return just anything for compatibility.
@@ -807,7 +807,7 @@ Light Scene::GetRandomLight(glm::vec2 choice_sample, float light_sample, glm::ve
             if(q <= 0.0f){
                 const ArealLight& al = areal_lights[i].second;
                 // Choose a random triangle.
-                return al.GetRandomLight(*this, light_sample, triangle_sample);
+                return al.GetRandomLight(*this, light_sample, triangle_sample, debug);
             }
         }
         out::cout(4) << "Internal error: GetRandomLight out of bounds for areal lights." << std::endl;
@@ -816,12 +816,13 @@ Light Scene::GetRandomLight(glm::vec2 choice_sample, float light_sample, glm::ve
     }
 }
 
-Light Scene::ArealLight::GetRandomLight(const Scene& parent, float light_sample, glm::vec2 triangle_sample) const{
+Light Scene::ArealLight::GetRandomLight(const Scene& parent, float light_sample, glm::vec2 triangle_sample, bool debug) const{
     float p = light_sample * total_area;
     for(unsigned int j = 0; j < triangles_with_areas.size(); j++){
         p -= triangles_with_areas[j].first;
         if(p <= 0.0f){
             const Triangle& t = parent.triangles[triangles_with_areas[j].second];
+            IFDEBUG std::cout << "[SAMPLER] Choosing areal light triangle " << triangles_with_areas[j].second << std::endl;
             glm::vec3 p = t.GetRandomPoint(triangle_sample);
             Light res(Light::Type::HEMISPHERE);
             res.pos = p;

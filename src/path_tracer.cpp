@@ -24,14 +24,14 @@ PathTracer::PathTracer(const Scene& scene,
                        float bumpmap_scale,
                        bool force_fresnell,
                        unsigned int reverse,
-                       Sampler& sampler)
+                       unsigned int samplerSeed)
 : Tracer(scene, camera, xres, yres, multisample, bumpmap_scale),
   clamp(clamp),
   russian(russian),
   depth(depth),
   force_fresnell(force_fresnell),
   reverse(reverse),
-  sampler(sampler)
+  samplerSeed(samplerSeed)
 {
 }
 
@@ -40,16 +40,20 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
 
     IFDEBUG std::cout << std::endl;
 
+    samplerSeed += 0x42424242;
+    LatinHypercubeSampler sampler(samplerSeed, 64, multisample);
+
     for(unsigned int i = 0; i < multisample; i++){
 
         sampler.Advance();
+        IFDEBUG std::cout << "[SAMPLER] Advaincing sampler" << std::endl;
 
         glm::vec2 coords = sampler.Get2D();
         Ray r = camera.IsSimple() ?
             camera.GetPixelRay(x, y, xres, yres, coords) :
             camera.GetPixelRayLens(x, y, xres, yres, coords, sampler.Get2D());
 
-        PixelRenderResult q = TracePath(r, raycount, debug);
+        PixelRenderResult q = TracePath(r, raycount, sampler, debug);
         total.main_pixel += q.main_pixel;
 
         for(const auto& p : q.side_effects){
@@ -58,7 +62,7 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
 
         IFDEBUG std::cout << "Side effects: " << q.side_effects.size() << std::endl;
 
-        IFDEBUG std::cout << "Sampler samples used for this ray: " << sampler.GetUsage() << std::endl;
+        IFDEBUG std::cout << "[SAMPLER] Samples used for this ray: " << sampler.GetUsage().first + sampler.GetUsage().second << std::endl;
     }
 
     IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel/multisample << std::endl;
@@ -123,7 +127,7 @@ glm::vec3 Refract(glm::vec3 in, glm::vec3 N, float IOR, bool debug = false){
     return glm::rotate(-N, Eta2, tangent);
 }
 
-std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int& raycount, unsigned int depth__, float russian__, bool debug) const {
+std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int& raycount, unsigned int depth__, float russian__, Sampler& sampler, bool debug) const {
 
     std::vector<PathPoint> path;
 
@@ -457,24 +461,26 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     return path;
 }
 
-PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bool debug){
+PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sampler& sampler, bool debug){
     PixelRenderResult result;
 
     glm::vec3 camerapos = r.origin;
 
-    // ===== 1st Phase =======
-    // Generate a forward path.
-    IFDEBUG std::cout << "== FORWARD PATH" << std::endl;
-    std::vector<PathPoint> path = GeneratePath(r, raycount, depth, russian, debug);
-
-    std::vector<Light> lights;
 
     // Choose a main light source.
     glm::vec2 areal_sample = sampler.Get2D();
-    glm::vec2 lightdir_sample = sampler.Get2D();
-    lights.push_back(scene.GetRandomLight(sampler.Get2D(), sampler.Get1D(), areal_sample));
 
-    IFDEBUG std::cout << "-------- Areal sample:" << areal_sample << std::endl;
+    IFDEBUG std::cout << "[SAMPLER] Areal sample:" << areal_sample << " from 2D sample #" << sampler.GetUsage().second-1 << std::endl;
+
+    glm::vec2 lightdir_sample = sampler.Get2D();
+
+    std::vector<Light> lights;
+    lights.push_back(scene.GetRandomLight(sampler.Get2D(), sampler.Get1D(), areal_sample, debug));
+
+    // ===== 1st Phase =======
+    // Generate a forward path.
+    IFDEBUG std::cout << "== FORWARD PATH" << std::endl;
+    std::vector<PathPoint> path = GeneratePath(r, raycount, depth, russian, sampler, debug);
 
     // Choose auxiculary light sources
     /*
@@ -496,7 +502,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
     }
     IFDEBUG std::cout << "== LIGHT PATH" << std::endl;
     Ray light_ray(main_light.pos + scene.epsilon * main_light.normal * 100.0f, main_light_dir);
-    std::vector<PathPoint> light_path = GeneratePath(light_ray, raycount, reverse, -1.0f, debug);
+    std::vector<PathPoint> light_path = GeneratePath(light_ray, raycount, reverse, -1.0f, sampler, debug);
     IFDEBUG std::cout << "Light path size " << light_path.size() << std::endl;
 
     // ============== 2nd phase ==============
@@ -636,7 +642,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
                 }// not visible from each other.
             }
 
-            IFDEBUG std::cerr << "total with light path: " << total << std::endl;
+            IFDEBUG std::cout << "total with light path: " << total << std::endl;
 
             // =================
             // Indirect lighting
@@ -657,20 +663,20 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
             total += from_next * p.diffuse;
         }
 
-        IFDEBUG std::cerr << "total after direct and indirect: " << total << std::endl;
+        IFDEBUG std::cout << "total after direct and indirect: " << total << std::endl;
 
         if(mat.emissive && !p.backside){
             total += Radiance(mat.emission);
         }
 
-        //IFDEBUG std::cerr << "total with emission: " << total << std::endl;
+        //IFDEBUG std::cout << "total with emission: " << total << std::endl;
 
         // Finally, apply thinglass filters that were encountered
         // when we were looking for intersection and stumbled upon this particular PP.
 
         total = ApplyThinglass(total, p.thinglass_isect, p.Vr);
 
-        //IFDEBUG std::cerr << "total with thinglass filters: " << total << std::endl;
+        //IFDEBUG std::cout << "total with thinglass filters: " << total << std::endl;
 
         // Clamp.
         if(total.r > clamp) total.r = clamp;
@@ -682,12 +688,12 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, bo
         if(glm::isnan(total.g) || total.g < 0.0f) total.g = 0.0f;
         if(glm::isnan(total.b) || total.b < 0.0f) total.b = 0.0f;
 
-        IFDEBUG std::cerr << "total clamped: " << total << std::endl;
+        IFDEBUG std::cout << "total clamped: " << total << std::endl;
 
         from_next = total;
 
     } // for each point on path
-    IFDEBUG std::cerr << "PATH TOTAL" << from_next << std::endl << std::endl;
+    IFDEBUG std::cout << "PATH TOTAL" << from_next << std::endl << std::endl;
     result.main_pixel = from_next;
     return result;
 }

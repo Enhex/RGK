@@ -44,6 +44,7 @@ float Triangle::GetArea() const{
     return 0.5f * glm::length(glm::cross(q,r));
 }
 
+/*
 // According to paper at http://www.cs.princeton.edu/~funk/tog02.pdf
 // page 814, this should give uniform resolution
 glm::vec3 Triangle::GetRandomPoint(glm::vec2 sample) const{
@@ -53,6 +54,22 @@ glm::vec3 Triangle::GetRandomPoint(glm::vec2 sample) const{
     glm::vec3 b = parent_scene->vertices[vb];
     glm::vec3 c = parent_scene->vertices[vc];
     return (1.0f-sr1)*a + sr1*(1.0f-r.y)*b + sr1*r.y*c;
+}
+*/
+
+// Explaned at http://mathworld.wolfram.com/TrianglePointPicking.html
+glm::vec3 Triangle::GetRandomPoint(glm::vec2 sample) const{
+    glm::vec2 r = sample;
+    glm::vec3 a = parent_scene->vertices[va];
+    glm::vec3 c = parent_scene->vertices[vb];
+    glm::vec3 b = parent_scene->vertices[vc];
+    glm::vec3 Va = a-c;
+    glm::vec3 Vb = b-c;
+    if(r.x + r.y > 1.0f){
+        r.x = 1.0f - r.x;
+        r.y = 1.0f - r.y;
+    }
+    return c + r.x*Va + r.y*Vb;
 }
 
 bool Triangle::TestIntersection(const Ray& __restrict__ r, /*out*/ float& t, float& a, float& b, bool debug) const{
@@ -155,6 +172,12 @@ primitive_data Primitives::planeY = {
     std::make_tuple(glm::vec3{-1.0, 0.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
     std::make_tuple(glm::vec3{-1.0, 0.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
     std::make_tuple(glm::vec3{ 1.0, 0.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+};
+
+primitive_data Primitives::trigY = {
+    std::make_tuple(glm::vec3{ 1.0, 0.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{ 1.0, 0.0, -1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{1.0, 0.0}, glm::vec3{0.0, 0.0, 1.0}),
+    std::make_tuple(glm::vec3{-1.0, 0.0,  1.0}, glm::vec3{0.0, 1.0, 0.0}, glm::vec2{0.0, 1.0}, glm::vec3{0.0, 0.0, 1.0}),
 };
 
 primitive_data Primitives::cube = {

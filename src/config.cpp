@@ -488,6 +488,8 @@ void ConfigJSON::InstallScene(Scene& s) const{
                 primitive_data* data = nullptr;
                 if(type == "plane"){
                     data = &Primitives::planeY;
+                }else if(type == "tri"){
+                    data = &Primitives::trigY;
                 }else if(type == "cube"){
                     data = &Primitives::cube;
                     transform = glm::scale(glm::vec3(0.5)) * transform;

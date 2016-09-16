@@ -118,6 +118,7 @@ typedef std::vector<std::tuple<glm::vec3, glm::vec3, glm::vec2, glm::vec3>> prim
 class Primitives{
 public:
     static primitive_data planeY;
+    static primitive_data trigY;
     static primitive_data cube;
 };
 

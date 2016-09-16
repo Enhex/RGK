@@ -19,13 +19,13 @@ public:
                float bumpmap_scale,
                bool  force_fresnell,
                unsigned int reverse,
-               Sampler& sampler);
+               unsigned int samplerSeed);
 
 protected:
     PixelRenderResult RenderPixel(int x, int y, unsigned int & raycount, bool debug = false) override;
 
 private:
-    PixelRenderResult TracePath(const Ray& r, unsigned int& raycount, bool debug = false);
+    PixelRenderResult TracePath(const Ray& r, unsigned int& raycount, Sampler& sampler, bool debug = false);
 
     struct PathPoint{
         enum Type{
@@ -61,7 +61,7 @@ private:
         bool backside = false;
     };
 
-    std::vector<PathPoint> GeneratePath(Ray direction, unsigned int& raycount, unsigned int depth__, float russian__, bool debug = false) const;
+    std::vector<PathPoint> GeneratePath(Ray direction, unsigned int& raycount, unsigned int depth__, float russian__, Sampler& sampler, bool debug = false) const;
 
     Radiance ApplyThinglass(Radiance input, const ThinglassIsections& isections, glm::vec3 ray_direction) const;
 
@@ -71,7 +71,7 @@ private:
     unsigned int depth;
     bool force_fresnell;
     unsigned int reverse;
-    Sampler& sampler;
+    mutable unsigned int samplerSeed;
 };
 
 #endif // __PATH_TRACER_HPP__

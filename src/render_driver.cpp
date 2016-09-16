@@ -162,7 +162,6 @@ void RenderDriver::RenderRound(const Scene& scene,
         tpool.push( [seedstart, camera, &scene, &cfg, task, c, &total_ob_mx, &total_ob](int){
 
                 // THIS is the thread task
-                LatinHypercubeSampler sampler(seedstart + c, 128, cfg->multisample);
                 PathTracer rt(scene, camera,
                               task.xres, task.yres,
                               cfg->multisample,
@@ -172,7 +171,7 @@ void RenderDriver::RenderRound(const Scene& scene,
                               cfg->bumpmap_scale,
                               cfg->force_fresnell,
                               cfg->reverse,
-                              sampler);
+                              seedstart + c);
                 out::cout(6) << "Starting a new task with params: " << std::endl;
                 out::cout(6) << "camerapos = " << camera.origin << ", multisample = " << cfg->multisample << ", reclvl = " << cfg->recursion_level << ", russian = " << cfg->russian << ", reverse = " << cfg->reverse << std::endl;
 
