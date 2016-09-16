@@ -109,7 +109,7 @@ glm::vec3 LTC::GetRandom(LTCdef ltc, glm::vec3 N, glm::vec3 Vi, float roughness,
     // This completly skews the distribution, but since we cannot
     // reject-sample the area that lays beyond the normal hemisphere,
     // some workaround is necesary
-    if(s.z < 0.0f) s.z = 0.0001f;
+    if(s.z < 0.0001f) s.z = 0.0001f;
 
     qassert_directed(s, glm::vec3(0.0, 0.0, 1.0));
 

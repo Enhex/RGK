@@ -348,14 +348,10 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 qassert_false(std::isnan(sample.x));
                 std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), sample, debug);
                 if(!(glm::dot(dir, p.faceN) > 0.0f)){
-                    std::cout << "dir: " << dir << std::endl;
-                    std::cout << "lightN: " << p.lightN << std::endl;
-                    std::cout << "faceN: " << p.faceN << std::endl;
-                    std::cout << "mat name: " << mat.name << std::endl;
-
-                    std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), sample, true);
+                    // Huh. The next bump is right here on this very same face.
+                    // TODO: Do not add epsilon when creating next ray!
                 }
-                qassert_true(glm::dot(dir, p.faceN) > 0.0f);
+                //qassert_true(glm::dot(dir, p.faceN) > 0.0f);
                 /* THE FOLLOWING wastes a large number of random samples!
                 do{
                     std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
