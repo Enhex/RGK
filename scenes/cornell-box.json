@@ -5,7 +5,7 @@
     "multisample": 400,
     "rounds": 1,
     //"russian": 0.74,
-    "recursion-max": 3,
+    "recursion-max": 1,
     "clamp": 1500.0,
     "camera": {
         "position": [0, 1, 6.8],

@@ -2,6 +2,7 @@
 #define __SAMPLER_HPP__
 
 #include "glm.hpp"
+#include "out.hpp"
 #include <random>
 #include <algorithm>
 #include <iostream>
@@ -37,9 +38,9 @@ private:
     std::mt19937_64 gen;
 };
 
-class LowDiscrepancyOfflineSampler : public Sampler{
+class OfflineSampler : public Sampler{
 public:
-    LowDiscrepancyOfflineSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
+    OfflineSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
         : Sampler(seed),
           samples1D(dim, std::vector<float>(set_size)),
           samples2D(dim, std::vector<glm::vec2>(set_size)),
@@ -85,12 +86,10 @@ protected:
     std::mt19937_64 gen;
 };
 
-class LatinHypercubeSampler : public LowDiscrepancyOfflineSampler{
+class LatinHypercubeSampler : public OfflineSampler{
 public:
-
     LatinHypercubeSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
-        : LowDiscrepancyOfflineSampler(seed, dim, set_size){
-
+        : OfflineSampler(seed, dim, set_size){
     }
     virtual void PrepareSamples() override{
         for(unsigned int dim = 0; dim < dim_count; dim++){
@@ -118,18 +117,70 @@ public:
                 samples2D[dim][sample] = glm::vec2(x,y);
             }
             std::shuffle(samples2D[dim].begin(), samples2D[dim].end(), gen);
-
-            // Alternatively, for comparison, independent sampling
-            /*
-              for(unsigned int sample = 0; sample < set_size; sample++){
-              samples1D[dim][sample] = std::uniform_real_distribution<float>(0.0f, 1.0f)(gen);
-              samples2D[dim][sample] = glm::vec2(std::uniform_real_distribution<float>(0.0f, 1.0f)(gen),
-              std::uniform_real_distribution<float>(0.0f, 1.0f)(gen));
-              }
-            */
-
         }
     }
+};
+
+class IndependentOfflineSampler : public OfflineSampler{
+public:
+    IndependentOfflineSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
+        : OfflineSampler(seed, dim, set_size){
+    }
+
+    virtual void PrepareSamples() override{
+        for(unsigned int dim = 0; dim < dim_count; dim++){
+            for(unsigned int sample = 0; sample < set_size; sample++){
+                samples1D[dim][sample] = std::uniform_real_distribution<float>(0.0f, 1.0f)(gen);
+                samples2D[dim][sample] = glm::vec2(std::uniform_real_distribution<float>(0.0f, 1.0f)(gen),
+                                                   std::uniform_real_distribution<float>(0.0f, 1.0f)(gen));
+            }
+        }
+    }
+};
+
+static unsigned int round_up_to_square(unsigned int x){
+    float s = std::sqrt(x);
+    float i;
+    float frac = std::modf(s, &i);
+    if(frac < 0.0001f) return i*i;
+    else return (i+1)*(i+1);
+}
+
+class StratifiedSampler : public OfflineSampler{
+public:
+    StratifiedSampler(unsigned int seed, unsigned int dim, unsigned int ssize)
+        : OfflineSampler(seed, dim, round_up_to_square(ssize)){
+        if(ssize != set_size){
+            out::cout(6) << "Stratified sampler rounded set_size up from " << ssize << " to " << set_size << std::endl;
+        }
+    }
+    virtual void PrepareSamples() override {
+        for(unsigned int dim = 0; dim < dim_count; dim++){
+            for(unsigned int sample = 0; sample < set_size; sample++){
+                float begin = sample/(float)set_size;
+                float len = 1.0f/(float)set_size;
+                samples1D[dim][sample] = begin + std::uniform_real_distribution<float>(0.0f, len)(gen);
+            }
+            std::shuffle(samples1D[dim].begin(), samples1D[dim].end(), gen);
+
+            unsigned int sq = std::sqrt(set_size) + 0.5f;
+
+            for(unsigned int sy = 0; sy < sq; sy++){
+                for(unsigned int sx = 0; sx < sq; sx++){
+
+                    float len = 1.0f/(float)sq;
+                    float beginx = sx/(float)sq;
+                    float beginy = sy/(float)sq;
+                    float x = beginx + std::uniform_real_distribution<float>(0.0f, len)(gen);
+                    float y = beginy + std::uniform_real_distribution<float>(0.0f, len)(gen);
+
+                    samples2D[dim][sy*sq + sx] = glm::vec2(x,y);
+                }
+            }
+            std::shuffle(samples2D[dim].begin(), samples2D[dim].end(), gen);
+        }
+    }
+
 };
 
 #endif // __SAMPLER_HPP__

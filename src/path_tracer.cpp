@@ -41,7 +41,8 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
     IFDEBUG std::cout << std::endl;
 
     samplerSeed += 0x42424242;
-    LatinHypercubeSampler sampler(samplerSeed, 64, multisample);
+    //LatinHypercubeSampler sampler(samplerSeed, 64, multisample);
+    StratifiedSampler sampler(samplerSeed, 64, multisample);
 
     for(unsigned int i = 0; i < multisample; i++){
 
