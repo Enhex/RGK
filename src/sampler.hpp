@@ -34,7 +34,7 @@ public:
         return {0,0};
     }
 private:
-    std::minstd_rand0 gen;
+    std::mt19937 gen;
 };
 
 class OfflineSampler : public Sampler{
@@ -82,7 +82,7 @@ protected:
     unsigned int current_sample1D;
     unsigned int current_sample2D;
     unsigned int current_set;
-    std::minstd_rand0 gen;
+    std::mt19937 gen;
 };
 
 class LatinHypercubeSampler : public OfflineSampler{
@@ -150,7 +150,7 @@ public:
     StratifiedSampler(unsigned int seed, unsigned int dim, unsigned int ssize)
         : OfflineSampler(seed, dim, round_up_to_square(ssize)){
         if(ssize != set_size){
-            out::cout(6) << "Stratified sampler rounded set_size up from " << ssize << " to " << set_size << std::endl;
+            //out::cout(6) << "Stratified sampler rounded set_size up from " << ssize << " to " << set_size << std::endl;
         }
     }
     virtual void PrepareSamples() override {

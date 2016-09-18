@@ -4,9 +4,9 @@
     "output-height": 1024,
     "multisample": 400,
     "rounds": 1,
-    //"russian": 0.74,
-    "recursion-max": 2,
-    "clamp": 1500.0,
+    "russian": 0.74,
+    "recursion-max": 50,
+    "clamp": 20.0,
     "camera": {
         "position": [0, 1, 6.8],
         "lookat": [0, 1, 0],

@@ -139,22 +139,13 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     IFDEBUG std::cout << "Ray origin: " << r.origin << std::endl;
     IFDEBUG std::cout << "Ray direction: " << r.direction << std::endl;
 
-    Ray current_ray = r;
-    unsigned int n = 0, n2 = 0;
-    // Used for tracking index of refraction
-    // float current_ior = 1.0f;
-    const Triangle* last_triangle = nullptr;
-    while(true){
-        n++; n2++;
-        if(n2 >= 20) break; // hard limit
-        if(russian__ >= 0.0f){
-            // Russian roulette path termination
-            if(n > 1 && sampler.Get1D() > russian__) break;
-        }else{
-            // Fixed depth path termination
-            if(n > depth__) break;
-        }
+    Radiance cumulative_transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
 
+    Ray current_ray = r;
+    unsigned int n = 0;
+    const Triangle* last_triangle = nullptr;
+    while(n < depth__){
+        n++;
         IFDEBUG std::cout << "Generating path, n = " << n << std::endl;
 
         raycount++;
@@ -166,6 +157,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             i = scene.FindIntersectKdOtherThanWithThinglass(current_ray, last_triangle);
         }
         PathPoint p;
+        p.contribution = cumulative_transfer_coefficients;
         p.thinglass_isect = i.thinglass;
         if(!i.triangle){
             // A sky ray!
@@ -385,7 +377,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             p.Vi = dir;
 
             // Store russian coefficient
-            if(russian__ > 0.0f) p.russian_coefficient = 1.0f/russian__;
+            if(russian__ > 0.0f && n > 1) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
 
             // Calculate transfer coefficients (BRFD, cosine, etc.)
@@ -422,20 +414,30 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     IFDEBUG std::cout << "Div by P" << std::endl;
                     p.transfer_coefficients *= glm::pi<float>()/0.5;
                 }
+            }else if(p.type == PathPoint::ENTERED){
+                p.transfer_coefficients *= Radiance(mat.diffuse);
             }
 
-            p.cumulative_transfer_coefficients *= p.russian_coefficient;
-            p.cumulative_transfer_coefficients *= p.transfer_coefficients;
-            IFDEBUG std::cout << "Path cumulative transfer coeff: " << p.cumulative_transfer_coefficients << std::endl;
+            cumulative_transfer_coefficients *= p.russian_coefficient;
+            cumulative_transfer_coefficients *= p.transfer_coefficients;
+            IFDEBUG std::cout << "Path cumulative transfer coeff: " << cumulative_transfer_coefficients << std::endl;
 
             // Commit the path point to the path
             path.push_back(p);
 
-            if(p.cumulative_transfer_coefficients.max() < 0.001f){
+            if(cumulative_transfer_coefficients.max() < 0.001f){
                 // Terminate when cumulative_coeff gets too low
                 IFDEBUG std::cout << "Terminating, cumulative transfer too small." << std::endl;
-                return path;
+                break;
             }
+
+            // Path length limit
+            if(russian__ >= 0.0f){
+                // Russian roulette path termination
+                if(sampler.Get1D() > russian__) break;
+            }
+            // Fixed depth path termination
+            if(n > depth__) break;
 
             // Prepate next ray
             current_ray = Ray(p.pos +
@@ -500,47 +502,33 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
 
     // ============== 2nd phase ==============
     // Calculate light transmitted over light path.
-    Radiance light_carried;
+
+    //glm::vec3 Vi = glm::normalize(lightpos - p.pos);
+    //float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
+    //IFDEBUG std::cout << "G = " << G << std::endl;
+    IFDEBUG std::cout << "main_light.pos = " << main_light.pos << std::endl;
+    Radiance light_at_path_start =
+        Radiance(main_light.color) *
+        main_light.intensity *
+        main_light.GetDirectionalFactor(main_light_dir); // * G;;
 
     IFDEBUG std::cout << " === Carrying light along light path" << std::endl;
 
     for(unsigned int n = 0; n < light_path.size(); n++){
         PathPoint& p = light_path[n];
 
-        if(n == 0){
-            //glm::vec3 Vi = glm::normalize(lightpos - p.pos);
-            //float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(lightpos, p.pos);
-            //IFDEBUG std::cout << "G = " << G << std::endl;
-            IFDEBUG std::cout << "main_light.pos = " << main_light.pos << std::endl;
-            IFDEBUG std::cout << "p.pos = " << p.pos << std::endl;
+        Radiance light_here = p.contribution * light_at_path_start;
 
-            light_carried =
-                Radiance(main_light.color) *
-                main_light.intensity *
-                main_light.GetDirectionalFactor(main_light_dir); // * G;
-        }
+        p.light_from_source = light_here;
 
-        light_carried = ApplyThinglass(light_carried, p.thinglass_isect, p.Vr);
-
-        p.light_from_source = light_carried;
-
-        if(p.type == PathPoint::SCATTERED){
-            light_carried *= p.transfer_coefficients * p.russian_coefficient;
-        }else if(p.type == PathPoint::REFLECTED || p.type == PathPoint::LEFT){
-            // NOP
-        }else if(p.type == PathPoint::ENTERED){
-            IFDEBUG std::cout << "Multiplying carried light by " << p.diffuse << std::endl;
-            light_carried = light_carried * p.diffuse;
-        }
-
-        IFDEBUG std::cout << "After light point " << n << ", carried light:" << light_carried << std::endl;
+        IFDEBUG std::cout << "At point " << n << ", light from path start reachin this point: " << light_here << std::endl;
 
         if(p.type == PathPoint::SCATTERED){
             // Connect the point with camera and add as a side effect
             if(!p.infinity && scene.Visibility(p.pos, camerapos)){
                 IFDEBUG std::cout << "Point " << p.pos << " is visible from camera." << std::endl;
                 glm::vec3 direction = glm::normalize(p.pos - camerapos);
-                Radiance q = light_carried * p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, -direction, debug);
+                Radiance q = light_here * p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, -direction, debug);
                 float G = glm::max(0.0f, glm::dot(p.lightN, -direction)) / glm::distance2(camerapos, p.pos);
                 IFDEBUG std::cout << "G = " << G << std::endl;
                 if(G >= 0.00001f && !std::isnan(q.r)){
@@ -557,23 +545,21 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
         }
     }
 
-    //return result;
-
     // ============== 3rd phase ==============
     // Calculate light transmitted over view path.
 
-    Radiance transferred;
+    Radiance path_total = Radiance(0.0f, 0.0f, 0.0f);
 
-    for(int n = path.size()-1; n >= 0; n--){
+    for(unsigned int n = 0; n < path.size(); n++){
         IFDEBUG std::cout << "--- Processing PP " << n << std::endl;
 
-        bool last = ((unsigned int)n == path.size()-1);
         const PathPoint& p = path[n];
         if(p.infinity){
             qassert_false(std::isnan(p.Vr.x));
             Radiance sky_radiance = scene.GetSkyboxRay(p.Vr, debug);
             IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
-            transferred = ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);
+            IFDEBUG std::cout << "contribution: " << p.contribution << std::endl;
+            path_total += p.contribution * ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);
             continue;
         }
 
@@ -581,45 +567,48 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
 
         IFDEBUG std::cout << "Hit material: " << mat.name << std::endl;
 
-        Radiance total(0.0,0.0,0.0);
+        Radiance total_here(0.0,0.0,0.0);
 
         if(p.type == PathPoint::SCATTERED){
             // ==========
             // Direct lighting
 
-            for(unsigned int lightno = 0; lightno < lights.size(); lightno++){
-                const Light& light = lights[lightno];
-                IFDEBUG std::cout << "Incorporating direct lighting component for light "
-                                  << lightno << ", light.pos: " << light.pos << std::endl;
+            //for(unsigned int lightno = 0; lightno < lights.size(); lightno++){
+            //const Light& light = lights[lightno];
 
-                std::vector<std::pair<const Triangle*, float>> thinglass_isect;
-                // Visibility factor
-                if((scene.thinglass.size() == 0 && scene.Visibility(light.pos, p.pos)) ||
-                   (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(light.pos, p.pos, thinglass_isect))){
+            const Light& light = main_light;
 
-                    IFDEBUG std::cout << "====> Light is visible" << std::endl;
+            //IFDEBUG std::cout << "Incorporating direct lighting component for light "
+            //                  << lightno << ", light.pos: " << light.pos << std::endl;
 
-                    // Incoming direction
-                    glm::vec3 Vi = glm::normalize(light.pos - p.pos);
+            std::vector<std::pair<const Triangle*, float>> thinglass_isect;
+            // Visibility factor
+            if((scene.thinglass.size() == 0 && scene.Visibility(light.pos, p.pos)) ||
+               (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(light.pos, p.pos, thinglass_isect))){
 
-                    Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, Vi, p.Vr, debug);
+                IFDEBUG std::cout << "====> Light is visible" << std::endl;
 
-                    IFDEBUG std::cout << "f = " << f << std::endl;
+                // Incoming direction
+                glm::vec3 Vi = glm::normalize(light.pos - p.pos);
 
-                    float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(light.pos, p.pos);
-                    IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                    Radiance inc_l = Radiance(light.color) * light.intensity * light.GetDirectionalFactor(-Vi);
-                    inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
+                Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, Vi, p.Vr, debug);
 
-                    IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
+                IFDEBUG std::cout << "f = " << f << std::endl;
 
-                    Radiance out = inc_l * f * G;
-                    IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
-                    total += out;
-                }else{
-                    IFDEBUG std::cout << "Light not visible" << std::endl;
-                }
+                float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(light.pos, p.pos);
+                IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
+                Radiance inc_l = Radiance(light.color) * light.intensity * light.GetDirectionalFactor(-Vi);
+                inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
+
+                IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
+
+                Radiance out = inc_l * f * G;
+                IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
+                total_here += out;
+            }else{
+                IFDEBUG std::cout << "Light not visible" << std::endl;
             }
+            //}
 
             // Reverse light
             for(unsigned int q = 0; q < light_path.size(); q++){
@@ -631,64 +620,46 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
                     Radiance f_light = l.mat->brdf->Apply(l.diffuse, l.specular, l.lightN, light_to_p, l.Vr, debug);
                     Radiance f_point = p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, p_to_light, debug);
                     float G = glm::max(0.0f, glm::dot(p.lightN, p_to_light)) / glm::distance2(l.pos, p.pos);
-                    total += l.light_from_source * f_light * f_point * G;
+                    total_here += l.light_from_source * f_light * f_point * G;
                 }// not visible from each other.
             }
 
-            IFDEBUG std::cout << "total with light path: " << total << std::endl;
+            IFDEBUG std::cout << "total with light path: " << total_here << std::endl;
 
-            // =================
-            // Indirect lighting
-            if(!last){
-                // look at next pp's to_prev and incorporate it here
-                Radiance inc = transferred;
-                IFDEBUG std::cout << "Incorporating indirect lighting - incoming radiance: " << inc << std::endl;
-                inc = inc * p.russian_coefficient * p.transfer_coefficients;
-                IFDEBUG std::cout << "Incoming * brdf * cos(...) / sampleP = " << inc << std::endl;
-                total += inc;
-            }
         }else if(p.type == PathPoint::REFLECTED || p.type == PathPoint::LEFT){
-            assert(path.size() >= (unsigned int)n+1);
-            total += transferred;
+            // These cases should be covered by the BRDF, not by logic
+            // here.  A reflected ray is no different to a scattered
+            // ray, it's just that some BRDFs may have a higher (or
+            // even delta) weights for reflected direction.
         }else if(p.type == PathPoint::ENTERED){
-            assert(path.size() >= (unsigned int)n+1);
-            // Note: Cannot use Kt factor from mtl file as assimp does not support it.
-            total += transferred * p.diffuse;
-        }
 
-        IFDEBUG std::cout << "total after direct and indirect: " << total << std::endl;
+        }
 
         if(mat.emissive && !p.backside){
-            total += Radiance(mat.emission);
+            total_here += Radiance(mat.emission); /* * glm::dot(p.lightN, p.Vr); */
         }
 
-        //IFDEBUG std::cout << "total with emission: " << total << std::endl;
 
-        // Finally, apply thinglass filters that were encountered
-        // when we were looking for intersection and stumbled upon this particular PP.
+        IFDEBUG std::cout << "total here: " << total_here << std::endl;
+        IFDEBUG std::cout << "contribution: " << p.contribution << std::endl;
 
-        total = ApplyThinglass(total, p.thinglass_isect, p.Vr);
+        total_here.clamp(clamp);
+        IFDEBUG std::cout << "total here clamped: " << total_here << std::endl;
 
-        //IFDEBUG std::cout << "total with thinglass filters: " << total << std::endl;
-
-        // Clamp.
-        if(total.r > clamp) total.r = clamp;
-        if(total.g > clamp) total.g = clamp;
-        if(total.b > clamp) total.b = clamp;
-
-        IFDEBUG std::cout << "total clamped: " << total << std::endl;
-
-        transferred = total;
+        path_total += total_here * p.contribution;
 
     } // for each point on path
 
 
-    // Safeguard against any accidental nans or negative values.
-    if(glm::isnan(transferred.r) || transferred.r < 0.0f) transferred.r = 0.0f;
-    if(glm::isnan(transferred.g) || transferred.g < 0.0f) transferred.g = 0.0f;
-    if(glm::isnan(transferred.b) || transferred.b < 0.0f) transferred.b = 0.0f;
+    // Clamp.
+    path_total.clamp(clamp);
 
-    IFDEBUG std::cout << "PATH TOTAL" << transferred << std::endl << std::endl;
-    result.main_pixel = transferred;
+    // Safeguard against any spontenous nans or negative values.
+    if(glm::isnan(path_total.r) || path_total.r < 0.0f) path_total.r = 0.0f;
+    if(glm::isnan(path_total.g) || path_total.g < 0.0f) path_total.g = 0.0f;
+    if(glm::isnan(path_total.b) || path_total.b < 0.0f) path_total.b = 0.0f;
+
+    IFDEBUG std::cout << "PATH TOTAL" << path_total << std::endl << std::endl;
+    result.main_pixel = path_total;
     return result;
 }

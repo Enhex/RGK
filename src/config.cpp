@@ -292,7 +292,7 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
         cfg.render_rounds = 1;
     }
 
-    cfg.recursion_level = JsonUtils::getOptionalInt(root, "recursion-max", 1);
+    cfg.recursion_level = JsonUtils::getOptionalInt(root, "recursion-max", 40);
     cfg.multisample =     JsonUtils::getOptionalInt(root, "multisample", 1);
     cfg.clamp =           JsonUtils::getOptionalFloat(root, "clamp", 10000000.0f);
     cfg.bumpmap_scale =   JsonUtils::getOptionalFloat(root, "bumpscale", 1.0f);

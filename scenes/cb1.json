@@ -9,8 +9,8 @@
         "lookat": [0.0, 0.8, 0.0],
         "focal": 1.0
     },
-    "multisample": 10,
-    "rounds": 120,
+    "multisample": 240,
+    "rounds": 5,
     "sky": {
         "color255": [200, 0, 0],
         "intensity": 1.0

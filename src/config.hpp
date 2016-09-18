@@ -28,7 +28,7 @@ public:
 
     std::string comment;
     std::string output_file;
-    unsigned int recursion_level;
+    unsigned int recursion_level = 40;
     unsigned int xres, yres;
     unsigned int multisample = 1;
     float bumpmap_scale = 10.0f;
