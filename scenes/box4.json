@@ -9,8 +9,8 @@
         "lookat": [0.0, 0.0, 0.0],
         "focal": 1.2
     },
-    "multisample": 40,
-    "rounds": 40,
+    "multisample": 400,
+    "rounds": 4,
     "clamp": 2.0,
     "russian": 0.7,
     "brdf": "ltc_beckmann"

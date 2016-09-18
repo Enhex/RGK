@@ -3,7 +3,7 @@
     "output-file": "box2.exr",
     "output-width": 1200,
     "output-height": 900,
-    "recursion-max": 2,
+    "recursion-max": 4,
     "camera" : {
         "position": [0.0, 0.0, 4.9],
         "lookat": [0.0, 0.0, 0.0],
@@ -14,10 +14,10 @@
         "intensity": 10.0,
         "size": 0.5
     }],
-    "multisample": 10,
-    "rounds": 120,
+    "multisample": 240,
+    "rounds": 5,
     "clamp": 2.0,
     "russian": 0.6,
-    "reverse": 2,
+    "reverse": 4,
     "brdf": "ltc_ggx"
 }
