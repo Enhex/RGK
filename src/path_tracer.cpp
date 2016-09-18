@@ -143,8 +143,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
     Ray current_ray = r;
     unsigned int n = 0, n2 = 0;
-    // Temporarily setting this to true ensures that russian roulette will not terminate (once).
-    bool skip_russian = false;
     // Used for tracking index of refraction
     // float current_ior = 1.0f;
     const Triangle* last_triangle = nullptr;
@@ -153,8 +151,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
         if(n2 >= 20) break; // hard limit
         if(russian__ >= 0.0f){
             // Russian roulette path termination
-            if(n > 1 && !skip_russian && sampler.Get1D() > russian__) break;
-            skip_russian = false;
+            if(n > 1 && sampler.Get1D() > russian__) break;
         }else{
             // Fixed depth path termination
             if(n > depth__) break;
@@ -317,15 +314,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 }
             }
 
-            // Skip roulette if the ray has priviledge
-            if(p.type == PathPoint::REFLECTED ||
-               p.type == PathPoint::ENTERED ||
-               p.type == PathPoint::LEFT){
-                // Do not count this point into depth. Never russian-terminate path at this point.
-                IFDEBUG std::cout << "Not counting this point" << std::endl;
-                n--; skip_russian = true;
-            }
-
             BRDF::BRDFSamplingType sampling_type = BRDF::SAMPLING_COSINE;
             p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
             // Compute next ray direction
@@ -399,7 +387,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             p.Vi = dir;
 
             // Store russian coefficient
-            if(russian__ > 0.0f && !skip_russian) p.russian_coefficient = 1.0f/russian__;
+            if(russian__ > 0.0f) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
 
             // Calculate transfer coefficients (BRFD, cosine, etc.)
