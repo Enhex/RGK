@@ -54,6 +54,10 @@ private:
         float russian_coefficient;
         // These take into account sampling, BRDF, color. Symmetric in both directions.
         Radiance transfer_coefficients;
+        // Same coefficients as above, but cumulated thorough the
+        // path. This indicates how much does the light from this
+        // point contribute to the beginning of the path.
+        Radiance cumulative_transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
         //
         Radiance light_from_source;
         // True if the ray hit the face from outside (CCW)

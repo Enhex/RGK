@@ -139,8 +139,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     IFDEBUG std::cout << "Ray origin: " << r.origin << std::endl;
     IFDEBUG std::cout << "Ray direction: " << r.direction << std::endl;
 
-    Radiance cumulative_transfer_coeff = Radiance(1.0f, 1.0f, 1.0f);
-
     Ray current_ray = r;
     unsigned int n = 0, n2 = 0;
     // Used for tracking index of refraction
@@ -426,13 +424,18 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 }
             }
 
-            // TODO: Terminate when cumulative_coeff gets too low
-            cumulative_transfer_coeff *= p.russian_coefficient;
-            cumulative_transfer_coeff *= p.transfer_coefficients;
-            IFDEBUG std::cout << "Path cumulative transfer coeff: " << cumulative_transfer_coeff << std::endl;
+            p.cumulative_transfer_coefficients *= p.russian_coefficient;
+            p.cumulative_transfer_coefficients *= p.transfer_coefficients;
+            IFDEBUG std::cout << "Path cumulative transfer coeff: " << p.cumulative_transfer_coefficients << std::endl;
 
             // Commit the path point to the path
             path.push_back(p);
+
+            if(p.cumulative_transfer_coefficients.max() < 0.001f){
+                // Terminate when cumulative_coeff gets too low
+                IFDEBUG std::cout << "Terminating, cumulative transfer too small." << std::endl;
+                return path;
+            }
 
             // Prepate next ray
             current_ray = Ray(p.pos +
@@ -559,7 +562,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
     // ============== 3rd phase ==============
     // Calculate light transmitted over view path.
 
-    Radiance from_next;
+    Radiance transferred;
 
     for(int n = path.size()-1; n >= 0; n--){
         IFDEBUG std::cout << "--- Processing PP " << n << std::endl;
@@ -570,7 +573,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
             qassert_false(std::isnan(p.Vr.x));
             Radiance sky_radiance = scene.GetSkyboxRay(p.Vr, debug);
             IFDEBUG std::cout << "This a sky ray, total: " << sky_radiance << std::endl;
-            from_next = ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);
+            transferred = ApplyThinglass(sky_radiance, p.thinglass_isect, -p.Vr);
             continue;
         }
 
@@ -638,7 +641,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
             // Indirect lighting
             if(!last){
                 // look at next pp's to_prev and incorporate it here
-                Radiance inc = from_next;
+                Radiance inc = transferred;
                 IFDEBUG std::cout << "Incorporating indirect lighting - incoming radiance: " << inc << std::endl;
                 inc = inc * p.russian_coefficient * p.transfer_coefficients;
                 IFDEBUG std::cout << "Incoming * brdf * cos(...) / sampleP = " << inc << std::endl;
@@ -646,11 +649,11 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
             }
         }else if(p.type == PathPoint::REFLECTED || p.type == PathPoint::LEFT){
             assert(path.size() >= (unsigned int)n+1);
-            total += from_next;
+            total += transferred;
         }else if(p.type == PathPoint::ENTERED){
             assert(path.size() >= (unsigned int)n+1);
             // Note: Cannot use Kt factor from mtl file as assimp does not support it.
-            total += from_next * p.diffuse;
+            total += transferred * p.diffuse;
         }
 
         IFDEBUG std::cout << "total after direct and indirect: " << total << std::endl;
@@ -673,17 +676,19 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
         if(total.g > clamp) total.g = clamp;
         if(total.b > clamp) total.b = clamp;
 
-        // Safeguard against any accidental nans or negative values.
-        if(glm::isnan(total.r) || total.r < 0.0f) total.r = 0.0f;
-        if(glm::isnan(total.g) || total.g < 0.0f) total.g = 0.0f;
-        if(glm::isnan(total.b) || total.b < 0.0f) total.b = 0.0f;
-
         IFDEBUG std::cout << "total clamped: " << total << std::endl;
 
-        from_next = total;
+        transferred = total;
 
     } // for each point on path
-    IFDEBUG std::cout << "PATH TOTAL" << from_next << std::endl << std::endl;
-    result.main_pixel = from_next;
+
+
+    // Safeguard against any accidental nans or negative values.
+    if(glm::isnan(transferred.r) || transferred.r < 0.0f) transferred.r = 0.0f;
+    if(glm::isnan(transferred.g) || transferred.g < 0.0f) transferred.g = 0.0f;
+    if(glm::isnan(transferred.b) || transferred.b < 0.0f) transferred.b = 0.0f;
+
+    IFDEBUG std::cout << "PATH TOTAL" << transferred << std::endl << std::endl;
+    result.main_pixel = transferred;
     return result;
 }

@@ -41,6 +41,7 @@ struct Radiance{
     Radiance  operator/=(float q)           {*this = *this / q; return *this;}
     Radiance  operator*=(float q)           {*this = *this * q; return *this;}
     Radiance  operator*=(const Radiance& o) {*this = *this * o; return *this;}
+    float max() const {return glm::max(glm::max(r,g),b);}
 };
 
 
