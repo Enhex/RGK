@@ -34,7 +34,7 @@ public:
         return {0,0};
     }
 private:
-    std::mt19937_64 gen;
+    std::minstd_rand0 gen;
 };
 
 class OfflineSampler : public Sampler{
@@ -82,7 +82,7 @@ protected:
     unsigned int current_sample1D;
     unsigned int current_sample2D;
     unsigned int current_set;
-    std::mt19937_64 gen;
+    std::minstd_rand0 gen;
 };
 
 class LatinHypercubeSampler : public OfflineSampler{
