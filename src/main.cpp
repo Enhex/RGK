@@ -11,6 +11,7 @@
 #include "utils.hpp"
 #include "camera.hpp"
 #include "out.hpp"
+#include "sampler.hpp"
 #include "render_driver.hpp"
 
 std::string usage_text = R"--(
