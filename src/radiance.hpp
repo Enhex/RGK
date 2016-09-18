@@ -2,12 +2,10 @@
 #define __RADIANCE_HPP__
 
 #include "glm.hpp"
-#include <assimp/scene.h> // for aiColor3D
 
 struct Color{
     Color() : r(0.0), g(0.0), b(0.0) {}
     Color(float r, float g, float b) : r(r), g(g), b(b) {}
-    Color(const aiColor3D& c) : r(c.r), g(c.g), b(c.b) {}
     Color(const glm::vec3& c) : r(c.r), g(c.g), b(c.b) {}
     float r,g,b; // 0 - 1
     Color  operator* (float q)            const {return Color(q*r, q*g, q*b);}

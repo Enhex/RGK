@@ -1,12 +1,7 @@
 #ifndef __RAY_HPP__
 #define __RAY_HPP__
 
-#include <assimp/scene.h>
-
 #include "glm.hpp"
-
-#include <iostream>
-
 
 class Ray{
 public:

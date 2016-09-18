@@ -4,8 +4,12 @@
 #include "scene.hpp"
 #include "global_config.hpp"
 #include "random_utils.hpp"
+#include "sampler.hpp"
+#include "brdf.hpp"
+#include "utils.hpp"
 
 #include <tuple>
+#include <iostream>
 
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>

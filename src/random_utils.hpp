@@ -1,11 +1,8 @@
 #ifndef __RANDOM_UTILS_HPP__
 #define __RANDOM_UTILS_HPP__
 
-#include "global_config.hpp"
 #include "glm.hpp"
-#include "utils.hpp"
 #include <glm/gtx/vector_angle.hpp>
-#include <iostream>
 
 class RandomUtils{
 public:

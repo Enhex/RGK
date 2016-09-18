@@ -7,9 +7,10 @@
 
 #include "radiance.hpp"
 #include "ray.hpp"
-#include "brdf.hpp"
 #include <memory>
 #include <vector>
+
+class BRDF;
 
 // I have to be c++11 compatible! :(
 namespace std{
@@ -43,7 +44,7 @@ struct Light{
 
 struct Material{
     Material(){
-        brdf = std::make_shared<BRDFDiffuseCosine>();
+        brdf = nullptr;
     }
     Material(const Material&) = default;
     std::string name;

@@ -12,6 +12,7 @@
 #include "utils.hpp"
 #include "scene.hpp"
 #include "out.hpp"
+#include "brdf.hpp"
 #include "jsonutils.hpp"
 
 #include <glm/gtx/string_cast.hpp>

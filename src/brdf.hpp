@@ -3,7 +3,6 @@
 
 #include "glm.hpp"
 #include "radiance.hpp"
-#include "global_config.hpp"
 #include <iostream>
 #include <tuple>
 

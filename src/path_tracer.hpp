@@ -1,9 +1,9 @@
 #ifndef __PATH_TRACER_HPP__
 #define __PATH_TRACER_HPP__
 
-#include <set>
 #include "tracer.hpp"
-#include "sampler.hpp"
+#include "primitives.hpp"
+class Sampler;
 
 class PathTracer : public Tracer{
 public:

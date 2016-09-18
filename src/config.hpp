@@ -4,13 +4,14 @@
 #include <string>
 #include <vector>
 #include <exception>
+#include <memory>
 
 #include "glm.hpp"
-#include "brdf.hpp"
 #include "primitives.hpp"
 #include "camera.hpp"
-
 #include "../external/json/json.h"
+
+class Scene;
 
 struct ConfigFileException : public std::runtime_error{
     ConfigFileException(const std::string& what ) : std::runtime_error(what) {}

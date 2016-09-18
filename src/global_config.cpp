@@ -7,7 +7,7 @@ bool debug_trace = false;
 unsigned int debug_x, debug_y;
 #endif
 
-#include "signal.h"
+#include <signal.h>
 #include <iostream>
 
 void assert_fail(std::string text,std::string file,int line,std::string function){

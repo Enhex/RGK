@@ -5,7 +5,6 @@
 #include "out.hpp"
 #include <random>
 #include <algorithm>
-#include <iostream>
 
 class Sampler{
 public:

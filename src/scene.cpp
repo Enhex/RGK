@@ -1,5 +1,7 @@
 #include "scene.hpp"
 
+#include <assimp/scene.h>
+
 #include <iostream>
 #include <limits>
 #include <cmath>
@@ -10,6 +12,7 @@
 #include "utils.hpp"
 #include "out.hpp"
 #include "global_config.hpp"
+#include "brdf.hpp"
 
 // #define NO_COMPRESS
 
@@ -74,13 +77,13 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     m.name = name.C_Str();
     aiColor3D c;
     mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
-    m.diffuse = c;
+    m.diffuse = Color(c.r, c.g, c.b);
     mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
-    m.specular = c;
+    m.specular = Color(c.r, c.g, c.b);
     mat->Get(AI_MATKEY_COLOR_AMBIENT,c);
-    m.ambient = c;
+    m.ambient = Color(c.r, c.g, c.b);
     mat->Get(AI_MATKEY_COLOR_EMISSIVE,c);
-    m.emission = c;
+    m.emission = Color(c.r, c.g, c.b);
     float f;
     mat->Get(AI_MATKEY_SHININESS, f);
     m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?

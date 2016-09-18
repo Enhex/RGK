@@ -1,22 +1,21 @@
 #ifndef __SCENE_HPP__
 #define __SCENE_HPP__
 
-#include <assimp/scene.h>
-
 #include <vector>
 #include <set>
 #include <unordered_map>
 
 #include "glm.hpp"
-
-#include "ray.hpp"
 #include "primitives.hpp"
-#include "utils.hpp"
 #include "texture.hpp"
-#include "config.hpp"
 
 struct UncompressedKdNode;
 struct CompressedKdNode;
+
+class aiScene;
+class aiNode;
+class aiMesh;
+class aiMaterial;
 
 class Scene{
 public:

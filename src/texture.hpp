@@ -5,8 +5,7 @@
 #include <vector>
 #include <mutex>
 
-#include "primitives.hpp"
-#include "ray.hpp"
+#include "radiance.hpp"
 
 class Texture{
 public:
@@ -43,7 +42,6 @@ public:
     EXRTexture(const EXRTexture& other) :
         xsize(other.xsize), ysize(other.ysize),
         data(other.data),  count(other.count) {
-        std::cout << "Copying exrtexture" << std::endl;
     }
     EXRTexture(EXRTexture&& other){
         std::swap(xsize,other.xsize);

@@ -6,7 +6,7 @@
 #include <tuple>
 
 #include "glm.hpp"
-#include "primitives.hpp"
+#include "radiance.hpp"
 class Scene;
 class Camera;
 class EXRTexture;
