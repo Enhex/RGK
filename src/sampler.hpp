@@ -125,8 +125,6 @@ private:
     float inv_base;
 };
 
-
-template<int base1d, int base2dA, int base2dB>
 class HaltonSampler : public OfflineSampler{
 public:
     HaltonSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
@@ -136,12 +134,12 @@ public:
     virtual void PrepareSamples() override{
         for(unsigned int dim = 0; dim < dim_count; dim++){
             for(unsigned int sample = 0; sample < set_size; sample++){
-                samples1D[dim][sample] = hs.sample(base1d,sample+1);
+                samples1D[dim][sample] = hs.sample(dim,sample);
             }
             std::shuffle(samples1D[dim].begin(), samples1D[dim].end(), gen);
 
             for(unsigned int sample = 0; sample < set_size; sample++){
-                samples2D[dim][sample] = {hs.sample(base2dA,sample+1), hs.sample(base2dB,sample+1)};
+                samples2D[dim][sample] = {hs.sample(dim,sample*2), hs.sample(dim,sample*2+1)};
             }
             std::shuffle(samples2D[dim].begin(), samples2D[dim].end(), gen);
         }
