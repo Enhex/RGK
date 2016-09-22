@@ -4,7 +4,7 @@ A photorealistic physically-based renderer.
 
 ![Example render](http://i.imgur.com/HGONqUs.jpg)
 
-More examples are showcased [here]().
+More examples are showcased [here](http://cielak.org/phile/software/rgkrt).
 
 External libraries used:
  - assimp
