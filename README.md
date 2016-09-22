@@ -1,8 +1,10 @@
 # RGKrt
 
-A physically-based path tracer.
+A photorealistic physically-based renderer.
 
 ![Example render](http://i.imgur.com/HGONqUs.jpg)
+
+More examples are showcased [here]().
 
 External libraries used:
  - assimp
@@ -12,6 +14,7 @@ External libraries used:
  - openEXR
  - ctpl (included with sources)
  - jsoncpp (included with sources)
+ - stbi (HDR input only) (included with sources)
 
 ## Building
 
@@ -33,22 +36,37 @@ There are various example scenes provided in the obj directory. To
 render one of them, pass the `.rtc` config file as the command-line
 argument, e.g.:
 
-    ./RGKrt ../obj/box6.rtc
+    ./RGKrt ../obj/sponza4c.rtc
 
 ## Command-line options
 
  - `RGKrt` expects a config file as a command-line argument. The
    config file specifies all render data, including model file, camera
    config, and render strategy. The format of the config file is
-   described in a following section.
- - `-p` renders a preview. It has 3 times smaller dimentions and uses
-   2 times less rays per pixel, which results in 18 times faster
+   described in the following section.
+ - `-p` renders a preview. It has 4 times smaller dimentions and uses
+   2 times less samples per pixel, which results in 48 times faster
    render. The preview is saved to a separate output file
    (`*.preview.exr`).
+ - `-t MINUTES`, `--timed MINUTES` enabled timed render mode. The
+   rendering will take at least the specified number of minutes, and
+   then will stop as soon as current render round finishes.
+ - `-D DIR` overrides the output file directory.
  - `-v` and `-q` respectively increase and decrease verbosity
    levels. The default level is 2. At level 0, the program will have
    no output unless a critical error happens. Increased verbosity
    levels output various statistcs and diagnostic information.
+ - `-r` renders a collection of 250 (currently unconfigurable) images
+   where each has camera placed differently, resulting images form an
+   animation of camera getting rotated around the lookat point. This
+   feature will be furtner expanded into proper animation
+   support. This option is particularly useful when coupled with
+   `--no-override` when rendering on multiple machines that share
+   filesystem, renderer instances will exclusively pick frames to
+   share workload.
+ - `-s FLOAT` sets a predetermined exposure scaling factor. This is
+   useful when comparing brightness of multiple renders, or when
+   rendering an animation.
  - Unless debug information was disabled compile-time, `-d X Y`
    displays detailed information about how the `X Y` pixel was
    rendered, which is useful for debugging.
