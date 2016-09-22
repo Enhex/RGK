@@ -226,7 +226,7 @@ There are two ways to provide a scene for rendering:
    - `translate`, *Array of 3 floats*, default: [0,0,0] - Defines a
      translation transformation to be applied for this entire scene
      element. Translation is the last transformation applied.
-   - `texture-scake`, *Array of 3 floats*, defailt: [1,1,1] - This
+   - `texture-scale`, *Array of 3 floats*, defailt: [1,1,1] - This
      option is only available when this element is a
      `primitive`. Specifies a scaling transformation to be applied to
      UV texture coordinates.
