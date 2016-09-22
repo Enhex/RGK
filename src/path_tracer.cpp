@@ -46,8 +46,8 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
 
     samplerSeed += 0x42424242;
     //LatinHypercubeSampler sampler(samplerSeed, 64, multisample);
-    //StratifiedSampler sampler(samplerSeed, 64, multisample);
-    VanDerCoruptSampler sampler(samplerSeed, 64, multisample);
+    StratifiedSampler sampler(samplerSeed, 64, multisample);
+    //VanDerCoruptSampler sampler(samplerSeed, 64, multisample);
     //HaltonSampler sampler(samplerSeed, 64, multisample);
 
     for(unsigned int i = 0; i < multisample; i++){

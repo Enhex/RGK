@@ -36,7 +36,7 @@ There are various example scenes provided in the obj directory. To
 render one of them, pass the `.rtc` config file as the command-line
 argument, e.g.:
 
-    ./RGKrt ../obj/sponza4c.rtc
+    ./RGKrt ../scenes/cornell-box.rtc
 
 ## Command-line options
 
@@ -73,180 +73,323 @@ argument, e.g.:
 
 ## Config file format
 
-**Note: At the moment the file format is undercoming major redesign,
-the information in this section is mostly invalid.**
+The config file is a [JSON](http://http://json.org/) formatted plain
+text file. Traditionally the files are named `*.json`, though any name
+will do. Some values in the file are required, and some are optional
+and use a predefined default value. If a required value is missing,
+the program will fail to start, and will notify you about the missing
+value. If you use a value that is not specified in the file format,
+the program will run, but will warn you about the unused configuration
+value (as it is likely a typo or reduncancy).
 
-The config file is a simple text file. Traditionally the files are
-named `*.rtc`, though any name will do. The first 9 lines of the file
-specify obligatory options, and must follow the format described
-below, any file shorter than 9 lines is invalid. The following lines
-specify optional options, and may appear in any order, or not appear
-at all.
+Contrary to what JSON format specification says, comments (lines
+starting with `//` or blocks within `/*` and `*/`) are properly
+recognized and ignored, so you can use them to verbosely describe and
+document your input file.
 
- - `Line 1:` The first line of the file is always ignored, and may
-   contain arbitrary text. It may serve as a comment or file
-   description.
- - `Line 3: (string)` The path and file name (relative to working
-   directory in which `RGKrt` is run) to where the output shall be
-   written. Since the output is using OpenEXR format, it is reasonable
-   to name the output file with `.exr` extension.
- - `Line 4: (int)` Specifies maximum recursion depth. Unless russian
-   roulette is enabled with a later option, this value limits the
-   length of ray paths used for rendering. Refractions and total
-   reflections are not counted towards this limit. If russian roulette
-   is enabled, this option is ignored.
- - `Line 2: (string)` This line must contain a path (relative to this
-   `.rtc` file) to the 3d model file (although various file formats
-   should work, only `.obj` models are oficially supported). This
-   model is what will be rendered. The model shall use right-hand
-   coordinate system.
- - `Line 5 (int int)` Sets the output image resolution (x,y). This
-   also configures camera width-height ratio (pixel size ratio is
-   fixed to 1:1).
- - `Line 6: (float float float)` Camera position coordinates (x,y,z).
- - `Line 7: (float float float)` Camera look-at coordinates
-   (x,y,z). The camera will be oriented so that it looks towards this
-   point. If this point is the same as camera position coordinates,
-   the behavior is undefined.
- - `Line 8: (float float float)` Camera up-vector coordinates
-   (x,y,z). This vector specifies the direction which has to be
-   rendered as pointing up in the rendered image space. It
-   effectivelly determines the camera roll. This vector does not have
-   to be perpendicular to camera direction, but it may not be
-   parallel. Usually using `0.0 1.0 0.0` is a good idea.
- - `Line 9: (float)` The vertical camera field of view, defined as the
-   ratio of image height to focal distance. Using `1.0` results in
-   vertical FOV of 60 degrees, `2.0` means 90 degrees. The horizontal
-   FOV is calculated from output image dimentions ratio.
+The root of the config file is an Object, with following keys:
 
-The lines that folow are optional. Unless stated otherwise, if an option
-appears more than once, the later occurence overrites the setting of
-the earlier. Empty lines and lines starting with `#` character are
-ignored and may be used as comments. Each option follows the format
-`name value(s)`. The list below describes all possible options by
-their names. If a line in the `.rtc` config file refereces an
-undefined option, it is ignored.
+#### Output settings
 
- - `multisample (int)` Specifies the number of paths to be traced per
-   each pixel, in a single rendering round. **Default value is 1**
-   (which makes little sense), so you probably want to increse this
-   value by a significant amount. Increasing this value is the best
-   way to decrease output noise, but the render time is proportional
-   to the multisample level.
- - `rounds (int)` Configures the number of render rounds, default
-   is 1. A single render round consists of sampling `multisample`
-   paths per each pixel, the resulting output is the average of all
-   rounds. Therefore the total number of paths per pixel is equal to
-   `rounds * multisample`, and thus increasing rounds number has the
-   same result as multisample level. However, the important difference
-   is that the output file is saved after each round. Therefore if you
-   wish to peek at the output file while it is being rendered, you
-   will want to render it in more than 1 round. Similarly, if you use
-   a large number of rounds and the render process is (intentionally
-   or accidentally) interrupted, the partial progress is present in
-   the output file.
- - `sky (int:R int:G int:B float:intensity)` Sets the sky color
-   (`RGB`) and radiant `intensity` (in W/sr). Any ray that does not
-   hit any object in the scene will be considered to reach the sky,
-   and will have this color. By default the sky has no color
-   (intensity 0), and therefore appears black. This setting is useful
-   for open scenes, and may work as a very simple atmoshpere
-   simulaton.
- - `L (float:x float:y float:z int:R int:G int:B float:intenity [float:size])`
-   Adds an additional point light to the scene. Useful for rendering
-   scenes and models that do not have lighting information. The light
-   will be placed at `xyz` and will have `RGB` color, it will use
-   radiant `intensity` (in W/sr). The `size` argument is optional, if
-   present, it will set this light source's radius. Unlike other
-   options, repeating this confuguration value inserts more lights.
- - `russian (float)` Enables russian roulette and sets its probability
-   parameter. By default, russian roulette is disabled, and global
-   recursion depth limit is used instead (line 4). Enabling it and
-   setting the probability to *a* causes all paths to terminate at
-   each of their point with probability *(1-a)*. Paths never terminate
-   at a total reflection or refraction point. Therefore, for example,
-   using `russian 0.75`, the mean length of paths will be 4, for
-   `russian 0.9` the mean increases to 10. This parameter makes no
-   sense outside 0-1 range, and thus other values are clamped.
- - `clamp (float)` Enables clamping and sets the maximum radiance
-   transferred along paths. At each point if the radiance exceeds this
-   configured value, it will be reduced appropriatelly. This is useful
-   for removing butterflies from rendered output, which may happen
-   when a very unprobable light path transfers unreasonably large
-   radiance. By default clamping is disabled. Reasonable values for
-   this option depend on the light levels in the current scene.
- - `brdf (string)` Sets the globally used BRDF model. Available
-   options are:
+ - `output-file`, *string*, REQUIRED - The name (or path) of the ouput
+   file where the result will be stored. Since the output files use
+   OpenEXR format, it is recommended to use `*.exr` files as output.
+ - `output-height`, *int*, REQUIRED - The desired vertical output
+   resolution.
+ - `output-width`, *int*, REQUIRED - The desired horizontal output
+     resolution.
+ - `output-scale`, *float, or string: "auto"*, optional, default:
+   "auto" - This sets the exposure scaling factor for the entire
+   output. When set to auto, the output is uniformly scaled so that
+   the brightest pixel of the image is set to 1.0. This option allows
+   one to set a custom scaling factor.
+
+#### Rendering parameters
+
+ - `multisample`, *int*, optional, default: 1 - Number of paths per
+   pixel to sample. Naturally, the rendering time scales
+   proportionally to this number, but low values will result in a
+   noisy image. The correct value for this key depends in the light
+   distribution of a particular scene.
+ - `recursion-max`, *int*, optional, default: 40 - Limits the maximum
+   path length to the specified value. When set to 1, the program will
+   behave as a ray tracer.
+ - `russian`, *float*, optional, default: 0.75 - The russian roulette
+   path continuation probability. At each path point, the path is
+   terminated with this probability, and the light transmitted by the
+   path is divided by this probability. This helps to shorten the
+   paths (improving render times), without introducing bias to the
+   integration. When set to 1, all paths will be always
+   `recursion-max` steps long. When set to a negative value, russian
+   roulette is disabled.
+ - `rounds`, *int*, optional, default: 1 - A single run of the
+   renderer will repeat the rendering process (sampling `multisample`
+   paths per pixel) this many times, and average the result. After
+   each round, the current progress is saved to the output file. This
+   is useful when you wish to preview the output while it is being
+   rendered, or if you expect to interrupt the renderer before it
+   finishes.
+ - `render-time`, *int*, optional - If this option is set, the
+   renderer will keep repeating the process infinitely, and after the
+   specified time (in minutes) had elapsed, it will stop after the next
+   rendering round will finish. This option is an alterntive to
+   `rounds` and they must not appear together.
+ - `reverse`, *int*, optional, default: 0 - When 0, the renderer will
+   work as a path tracer. When greater, it will behave as a
+   bi-directional path tracer, this value sets the fixed light path
+   length.
+ - `clamp`, *float*, optional, default: +inf - At each path point, the
+   transferred radiance is clamped to this value. This is only useful
+   for removing 'butterfly' artefacts, which may appear if some paths
+   may reach a very bright light source with very small probability.
+
+#### Camera settings
+
+ - `camera`, *Object*, REQUIRED - Camera configuration is specified in
+   a subobject. The contents of the object shall be as listed:
+  - `position`, *Array of 3 floats*, REQUIRED - The XYZ coordinates of
+    camera position.
+  - `lookat`, *Array of 3 floats*, REQUIRED - The XYZ coordinates of
+    camera 'look at' point. The camera will be oriented so that this
+    point is mapped to the center of output image.
+  - `upvector`, *Array of 3 floats*, optional, default: [0, 1, 0] -
+    This vector will be used as the 'up' direction of the camera, so
+    that the top of output image will be oriented towards this vector.
+  - `fov`, *float*, either this or `focal` is REQUIRED - The
+    horizontal field of view for the camera, expressed as an angle in
+    degrees. Values over 180 are not supported. Generaly, reasonable
+    values are between 30 and 110.
+  - `focal`, *float*, eother this or `fov` is REQUIRED - The
+    *vertical* camera field of view, defined as the ratio of image
+    height to focal distance.
+  - `lens-size`, *float*, default: 0 - Camera lens size, in scene
+    units. If 0, the camera will behave as a pinhole, positive values
+    enable a depth-of-field effect. The greated the lens size, the
+    shallower focus, but also more samples required to render a
+    noise-free image.
+  - `focus plane`, *float*, REQUIRED if `lens-size` non-zero - The
+    distance from camera (in scene units) at which object should be
+    fully focused, if camera is not a pinhole.
+
+#### Scene description
+
+There are two ways to provide a scene for rendering:
+
+ - `model-file`, *string*, either this or `scene` is REQUIRED - The
+   path to a single scene file in `.obj` + `.mtl` format.
+ - `scene`, *Array of Objects*, either this or `model-file` is
+   REQUIRED - A list of scene elements. Each element of the scene is
+   defined by an object, which shall follow this template:
+   - `file`, *string*, either this or `primitive` is REQUIRED - The
+     path to the `.obj` file containing the mesh for this scene
+     element.
+   - `primitive`, *string*, either this or `file` is REQUIRED - Name
+     of a built-in primitive mesh to use for this scene
+     element. Available primitives are: `tri`, a right-angled
+     triangle, `plane`, a flat quad, and `cube`, a cube out of 12
+     triangles.
+   - `import-materials`, *bool*, optional, default: false - This
+     option is available only when using `file`. When enabled,
+     materials are imported from the `.mtl` file referenced by
+     the loaded `.obj`.
+   - `override-materials`, *bool*, optional, default: false - This
+     option is only available when `import-materials` is set to
+     true. When enabled, materials imported from the `.mtl` file will
+     override these manually specified in the config file, should they
+     share the name.
+   - `brdf`, *string*, optional, default: "ltc_ggx" - This option is
+     only available when `import-materials` is set to true. It selects
+     the BRDF to use for materials imported with the `.obj` scene
+     file. The list of available brdfs is provided in a further
+     section.
+   - `axis`, *string, either X, Y or Z*, optional, default: "Y" - Only
+     relavant for `plane` primitive. Sets the axis along which this
+     plane is oriented, the nnormal vector of the quad will be
+     alligned to the selected axis.
+   - `material`, *string*, REQUIRED only if using `primitive` - Sets
+     the material (by its name) for this scene element. If this
+     element is a `primitive`, this option is required. If it is
+     loaded from a `file`, selecting this option selects the material
+     to use for all meshes from the file. Otherwise the meshes loaded
+     from file will use material names as specified by the `.obj` file
+     (`usemtl` directive), regardless of whether actual material
+     properties are imported from `.mtl` or not.
+   - `scale`, *Array of 3 floats*, default: [1,1,1] - Defines a
+     scaling transformation to be applied for this entire scene
+     element. Scaling is the first transformation performed.
+   - `rotate`, *Array of 3 floats*, default: [0,0,0] - Defines a
+     rotating transformation to be applied for this entire scene
+     element. Rotation is applied after scaling, and before
+     translation.  Rotation angles correspond to rotations along X, Y
+     and Z axes, in this order, and must be specified in degrees. The
+     rotation is first performed around Z axis, then Y, and then X.
+   - `translate`, *Array of 3 floats*, default: [0,0,0] - Defines a
+     translation transformation to be applied for this entire scene
+     element. Translation is the last transformation applied.
+   - `texture-scake`, *Array of 3 floats*, defailt: [1,1,1] - This
+     option is only available when this element is a
+     `primitive`. Specifies a scaling transformation to be applied to
+     UV texture coordinates.
+
+#### Global material config
+
+ - `bumpscale`, *float*, optional, default: 1 - Global scaling factor
+   for all bumpmaps.
+ - `force-fresnell`, *bool*, optional, default: false - Enabling this
+   option applies Fresnell reflection to all materials in the scene.
+ - `thinglass`, *an Array of strings*, optional - Lists the material
+   names that should be ignored when searching for intersection. This
+   is a heuristic hack to improve convergence when rendering scenes
+   lit by rays comming through windows with glass.
+ - `brdf`, *string*, optional, default: "diffuse" - The file-global
+   default reflection fuction that should be used when no other is
+   specified (e.g. when importing materials from an .obj scene file).
+   Available values are listed in the **BRDF** section below.
+
+#### Material definitions
+
+ - `materials`, *Array of Objects*, optional - specifies the list of
+   materials used for this scene. This list may be empty, e.g. when
+   importing materials from a scene file. The contents of each Object
+   represent a single material, and must follow this description:
+  - `name`, *string*, REQUIRED - Sets a name for this material, which
+    can be later used to reference it (e.g. by a scene mesh).
+  - `brdf`, *string*, optional, default: "ltc_ggx" - The BRDF to use
+    for this material. The list of available BRDFs is in a further
+    section. Most BRDFs use only some of material properties.
+  - `diffuse`, *Array of 3 floats*, optional, default: [0,0,0] - Sets
+    the RGB diffuse component for this material. The values may range
+    from 0 to 1, use `diffuse255` to use 0-255 ranges.
+  - `specular`, *Array of 3 floats*, optional, default: [0,0,0] - Sets
+    the RGB specular component for this material. The values may range
+    from 0 to 1, use `specular255` to use 0-255 ranges.
+  - `emission`, *Array of 3 floats*, optional, default: [0,0,0] - Sets
+    the RGB light emission for this material. The values are of
+    arbitary range, as they represent radiance. However, you can use
+    `emission255` to have these values scaled down by the factor of
+    255.
+  - `diffuse-texture`, *string*, optional - Path to the texture file
+    (PNG, JPG, or HDR format) that will be used for the diffuse
+    component of this material.
+  - `specular-texture`, *string*, optional - Path to the texture file
+    (PNG, JPG, or HDR format) that will be used for the diffuse
+    component of this material.
+  - `bump-map`, *string*, optional - Path to the texture file (PNG,
+    JPG, or HDR format) that will be used as a bump-map for this
+    material.
+  - `ior`, *float*, optional, default: 1 - The index of refraction for
+    this material.
+  - `translucency`, *float*, optional: 0 - Fraction of light that is
+    reflected or absorbed by this material. The rest passes
+    through. Thus materials with translucency 1 are fully transparent,
+    and materials with translucency 1 are fully opaque.
+  - `exponent`, *float*, optional, default: 50 - The exponent
+    coefficient for phong shading model. It is also used for
+    cook-torrance specular reflection, and LTC roughness
+    parameter. Generally, small values are good at imitating rough
+    materials, and large values imitate smooth shiny surfaces. When
+    mapped to roughness, exponent 0 translates to rougness 1, and as
+    exponent goes to infinity roughness reaches zero.
+
+#### Available BRDFs
+
+  - `diffuse` Only cosine-weighted diffuse component
+  - `cooktorr` Cook-Torrance reflection model
   - `phong` Phong shading according to my lecture notes
   - `phong2` Phong shading according to Total Lighting Compedium
   - `phongenergy` Energy-conserving Phong model
-  - `diffuse` Only cosine-weighted diffuse component
-  - `cooktorr` Cook-Torrance reflection model (default)
-  - `ltc_beckmann` LTC-approximated beckmann BRDF
-  - `ltc_ggx` LTC-approximated beckmann GGX
- - `bumpscale (float)` Configures the scale for bump maps. Normally
-   OBJ files contain no information about bump map depth, and thus it
-   is subject to configuration. There is no defined correspondence
-   between this value and normal vector skew, but using `0` disables
-   bump maps, and using negative values inverts bump
-   direction. Default value is `10`.
- - `lenssize (float)` Sets the camera lens radius. By default the
-   camera uses infinitelly small aperture. This can be changed by
-   setting `lenssize` to a non-zero value. In such case `focus` must
-   be set as well. This creates depth-of-field effect, blurring
-   objects that are very close to the camera or very far. The actual
-   lens size depends on the scale of the scene and desired
-   depth-of-field. Changing this value does not affect the amount of
-   light that reaches the camera, i.e. does not make the rendered
-   image brighter.
- - `focus (float)` The distance to the focus plane. This option has no
-   default value, and must be specified if `lenssize` is non-zero
-   (otherwise it has no effect). This value specifies the distance at
-   which objects are in focus.
- - `thinglass (string)` Enables thinglass heuristics. The specified
-   string is a phrase that will be looked for in material
-   names. Unlike other options, when this one appears multiple times,
-   all phrases will be stored. For each material, if its name contains
-   at least one of these `thinglass` phrases, the material will be
-   considered to be a thin glass. Such glass is not subject to
-   collision nor refraction, all rays pass through if as if it was
-   empty space. However, all such rays that pass through thin glass
-   are color filtered with the diffuse (because OBJ files have no
-   cnsistent way of expressing transmission filter) color of the thin
-   glass material. This creates stained glass effects with virtually
-   no effect on render performance. See box3.rtc for example scene.
- - `force_fresnell (int)` 1 to enable, 0 to disable, disabled by
-   default.  Forces calculation of fresnell reflections on all
-   materials, regardless of their specular component.
- - `reverse (int)` Specifies the maximum length of reverse path (light
-   path) for bi-directional tracing. Reflections and refractions are
-   not counted towards this limit. Default is 0 (disabled).
+  - `ltc_beckmann` LTC-approximated Beckmann BRDF
+  - `ltc_ggx` LTC-approximated GGX BRDF
 
-Example config file:
+#### Light desciption
 
-    # An example file.
-    box3/box3.obj
-    box3.exr
-    4
-    1200 900
-    7.0 -1.0 4.0
-    0.0 0.0 0.0
-    0.0 1.0 0.0
-    1.2
-    L 0.0 0.0 -2.0 255 255 255 5.0 0.4
-    L 0.0 0.0 -3.5 255 200 190 4.0 0.2
+To add lights to your scene, you can use a non-zero emission material
+on a mesh, which creates an areal light. You can also specify
+additional pointlights:
 
-    multisample 40
-    rounds 20
-    # Total paths per pixel: 800
-    sky 195 230 245 1.0
-    clamp 5.0
-    russian 0.8
-    thinglass glass
-    lens_size 0.0095
-    focus_plane 3.0
-    brdf cooktorr
+ - `lights`, *Array of Objects*, optional - A list of additional
+   lights. Each objects represents a single light source, and must
+   follow this specification:
+   - `position`, *Array of 3 floats*, REQUIRED - The XYZ coordinates
+     of this pointlight.
+   - `color`, *Array of 3 floats*, optional, default: [1,1,1] - RGB
+     color of this light source. You can use `color255` to have the
+     values scaled down by the factor of 255.
+   - `intensity`, *float*, REQUIRED - Irradiance of this light
+     source. This is effectively a scaling factor for `color`.
+   - `size`, *float*, optional, default: 0.0f - The radius of this
+     spherical light source (in scene units). If 0, this becomes a
+     point light. This setting is useful for creating soft shadows, at
+     the cost of some extra output variance.
 
+Another way of adding light to the scene is to have the sky emit some
+light:
+
+#### Sky configuration
+
+ - `sky`, *Object* - Skybox configuration. If this key is not present,
+   the sky will be black and will emit no light. Sky is configured as
+   a subobject:
+  - `color`, *Array of 3 floats*, either this or `envmap` is
+    REQUIRED. - Specifies RGB sky color. The same color will be used
+    for all directions, not just upper hemishpere. To have these
+    values scaled down by 222, use `color255`.
+  - `envmap`, *string*, either this or `color` is REQUIRED - Path to
+    the texture file with evironmental map to use for sky. The top
+    edge of the texture will be mapped to the Y=1 direction (world
+    top). The bottom edge of the texture will be mapped to Y=-1
+    direction (world bottom). The middle row of the image will be
+    wrapped around the horizon. It is recommended to use HDR textures
+    for envmaps, as they work best as an environmental light source.
+  - `intensity`, *float*, optional, default: 1 - Lighting intensity
+    for the skybox.
+  - `rotate`, *float*, optional, default: 0 - This option is only
+    available when using `envmap`. The entire sky will be rotated by
+    the specified angle (in degrees) around Y axis, which simplifies
+    getting the skybox oriented in the right direction.
+
+### Config file example
+
+The following example is here just to provide the general idea of how
+the config file may look like. For more interesting examples, see `./scenes/`.
+
+	{
+	    "materials": [{
+	        "name": "sp_00_pod",
+	        "specular255": [209, 197, 181],
+	        "exponent": 400.0,
+	        "diffuse-texture": "sponza-fixed/KAMEN.JPG",
+	        "bump-map": "sponza-fixed/KAMEN-bump.jpg"
+	    }],
+	    "scene": [{
+	        "file": "sponza-fixed/sponza.obj",
+	        "import-materials": true
+	    }],
+	    "output-file": "sponza4c.exr",
+	    "output-width": 1280,
+	    "output-height": 900,
+	    "camera": {
+	        "position": [-11.3, 7.2, -1.9],
+	        "lookat": [3.0, 7.5, 6.2],
+	        "fov": 85
+	    },
+	    "lights": [{ // Direct sun lighting
+	        "position": [-5.0, 35.0, -15.0],
+	        "color": [1.0, 0.85, 0.6],
+	        "intensity": 2000.0,
+	        "size": 0.7
+	    }],
+	    "multisample": 90,
+	    "rounds": 40,
+	    "sky": {
+	        "envmap": "envmap/cloudy1.hdr",
+	        "intensity": 0.9
+	    },
+	    "bumpscale": 10,
+	    "clamp": 5.0,
+	    "russian": 0.6,
+	    "brdf": "ltc_ggx"
+	}
 
 ## License
 

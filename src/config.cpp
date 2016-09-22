@@ -296,7 +296,7 @@ std::shared_ptr<ConfigJSON> ConfigJSON::CreateFromFile(std::string path){
     cfg.multisample =     JsonUtils::getOptionalInt(root, "multisample", 1);
     cfg.clamp =           JsonUtils::getOptionalFloat(root, "clamp", 10000000.0f);
     cfg.bumpmap_scale =   JsonUtils::getOptionalFloat(root, "bumpscale", 1.0f);
-    cfg.russian =         JsonUtils::getOptionalFloat(root, "russian", -1.0f);
+    cfg.russian =         JsonUtils::getOptionalFloat(root, "russian", 0.74f);
     cfg.reverse =         JsonUtils::getOptionalInt(root, "reverse", 0);
     cfg.force_fresnell =  JsonUtils::getOptionalBool(root, "force-fresnell", false);
 
@@ -379,7 +379,7 @@ void ConfigJSON::InstallLights(Scene &scene) const{
         JsonUtils::setNodeSemanticName(light, "light " + std::to_string(i) + " configuration");
         Light l(Light::Type::FULL_SPHERE);
         l.pos = JsonUtils::getRequiredVec3(light, "position");
-        l.color = JsonUtils::getOptionalVec3_255(light, "color", glm::vec3(255.0f, 255.0f, 255.0f));
+        l.color = JsonUtils::getOptionalVec3_255(light, "color", glm::vec3(1.0f, 1.0f, 1.0f));
         l.intensity = JsonUtils::getRequiredFloat(light, "intensity");
         l.size = JsonUtils::getOptionalFloat(light, "size", 0.0f);
         scene.AddPointLight(l);
