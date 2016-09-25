@@ -97,7 +97,7 @@ std::shared_ptr<ConfigRTC> ConfigRTC::CreateFromFile(std::string path){
             if(vs.size() == 9) s = std::stof(vs[8]);
             Light l(Light::Type::FULL_SPHERE);
             l.pos = glm::vec3(l1,l2,l3);
-            l.color = Color(c1,c2,c3);
+            l.color = Radiance(c1,c2,c3);
             l.size = s;
             l.intensity = i;
             cfg.lights.push_back(l);
@@ -379,7 +379,7 @@ void ConfigJSON::InstallLights(Scene &scene) const{
         JsonUtils::setNodeSemanticName(light, "light " + std::to_string(i) + " configuration");
         Light l(Light::Type::FULL_SPHERE);
         l.pos = JsonUtils::getRequiredVec3(light, "position");
-        l.color = JsonUtils::getOptionalVec3_255(light, "color", glm::vec3(1.0f, 1.0f, 1.0f));
+        l.color = Radiance(JsonUtils::getOptionalVec3_255(light, "color", glm::vec3(1.0f, 1.0f, 1.0f)));
         l.intensity = JsonUtils::getRequiredFloat(light, "intensity");
         l.size = JsonUtils::getOptionalFloat(light, "size", 0.0f);
         scene.AddPointLight(l);
@@ -554,27 +554,28 @@ void ConfigJSON::InstallMaterials(Scene& s) const{
         Material mat;
         mat.name = JsonUtils::getRequiredString(m, "name");
 
-        // TODO: Check type
+        std::string texfile;
+        texfile = JsonUtils::getOptionalString(m,"diffuse-texture","");
+        if(texfile != "")
+            mat.diffuse = s.GetTexture(configdir + "/" + texfile);
+        else if(m.isMember("diffuse") || m.isMember("diffuse255"))
+            mat.diffuse = s.CreateSolidTexture(JsonUtils::getOptionalVec3_255(m, "diffuse" , glm::vec3(0.0)));
 
-        mat.specular = JsonUtils::getOptionalVec3_255(m, "specular", glm::vec3(0.0));
-        mat.diffuse  = JsonUtils::getOptionalVec3_255(m, "diffuse" , glm::vec3(0.0));
-        mat.ambient  = JsonUtils::getOptionalVec3_255(m, "ambient" , glm::vec3(0.0));
-        mat.emission = JsonUtils::getOptionalVec3_255(m, "emission", glm::vec3(0.0));
-        mat.emissive = (mat.emission.r > 0.0f || mat.emission.g > 0.0f || mat.emission.b > 0.0f);
+
+        texfile = JsonUtils::getOptionalString(m,"specular-texture","");
+        if(texfile != "")
+            mat.specular = s.GetTexture(configdir + "/" + texfile);
+        else if(m.isMember("specular") || m.isMember("specular255"))
+            mat.specular = s.CreateSolidTexture(JsonUtils::getOptionalVec3_255(m, "specular" , glm::vec3(0.0)));
+
+        mat.emission = Radiance(JsonUtils::getOptionalVec3_255(m, "emission", glm::vec3(0.0)));
 
         mat.exponent = JsonUtils::getOptionalFloat(m, "exponent", 50.0f);
         mat.refraction_index = JsonUtils::getOptionalFloat(m, "ior", 1.0f);
         mat.translucency = JsonUtils::getOptionalFloat(m, "translucency", 0.0f);
 
-        std::string texfile;
-        texfile = JsonUtils::getOptionalString(m,"diffuse-texture","");
-        if(texfile != "") mat.diffuse_texture = s.GetTexture(configdir + "/" + texfile);
-        texfile = JsonUtils::getOptionalString(m,"specular-texture","");
-        if(texfile != "") mat.specular_texture = s.GetTexture(configdir + "/" + texfile);
-        texfile = JsonUtils::getOptionalString(m,"ambient-texture","");
-        if(texfile != "") mat.ambient_texture = s.GetTexture(configdir + "/" + texfile);
         texfile = JsonUtils::getOptionalString(m,"bump-map","");
-        if(texfile != "") mat.bump_texture = s.GetTexture(configdir + "/" + texfile);
+        if(texfile != "") mat.bumpmap = s.GetTexture(configdir + "/" + texfile);
 
         std::string brdf = JsonUtils::getOptionalString(m,"brdf","ltc_ggx");
         if(brdf == "diffusecosine" || brdf == "diffuse"){

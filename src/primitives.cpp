@@ -4,6 +4,14 @@
 
 #include <iomanip>
 
+Material::Material(){
+    brdf = nullptr;
+    diffuse  = std::make_shared<EmptyTexture>();
+    specular = std::make_shared<EmptyTexture>();
+    emission = Radiance(0,0,0);
+    bumpmap  = std::make_shared<EmptyTexture>();
+}
+
 const Material& Triangle::GetMaterial() const {
     qassert_true(mat != nullptr);
     return *mat; }

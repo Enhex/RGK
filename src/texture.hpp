@@ -13,6 +13,13 @@ public:
     virtual Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const = 0;
     virtual float GetSlopeRight(glm::vec2 pos) const = 0;
     virtual float GetSlopeBottom(glm::vec2 pos) const = 0;
+    inline Color operator[](const glm::vec2& pos) const {
+        return GetPixelInterpolated(pos);
+    }
+    inline Color Get(const glm::vec2& pos) const {
+        return GetPixelInterpolated(pos);
+    }
+    virtual bool Empty() const = 0;
 };
 
 class WritableTexture{
@@ -41,6 +48,8 @@ public:
     static Texture* CreateNewFromHDR(std::string path);
 
     void FillStripes(unsigned int size, Color a, Color b);
+
+    virtual bool Empty() const override {return false;}
 private:
     // Fixed size is kept manually.
     std::vector<Color> data;
@@ -56,10 +65,16 @@ public:
     virtual Color GetPixelInterpolated(glm::vec2, bool) const override {return color;}
     virtual float GetSlopeRight(glm::vec2) const override {return 0;}
     virtual float GetSlopeBottom(glm::vec2) const override {return 0;}
+    virtual bool Empty() const override {return false;}
 private:
     Color color;
 };
 
+class EmptyTexture : public SolidTexture{
+public:
+    EmptyTexture() : SolidTexture(Color(0,0,0)) {}
+    virtual bool Empty() const override {return true;}
+};
 
 
 class EXRTexture{

@@ -46,8 +46,11 @@ private:
         glm::vec3 Vi;
         // Material properties at hitpoint
         const Material* mat;
+        glm::vec2 texUV;
         Color diffuse;
         Color specular;
+        Radiance emission;
+        Color bumpmap;
         // Thinglass encountered on the way of the ray that generated this point
         ThinglassIsections thinglass_isect;
         // Currection for rusian roulette

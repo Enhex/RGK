@@ -82,19 +82,21 @@ Radiance PathTracer::ApplyThinglass(Radiance input, const ThinglassIsections& is
     Radiance result = input;
     float ct = -1.0f;
     for(int n = isections.size()-1; n >= 0; n--){
-        const Triangle* trig = isections[n].first;
+        const Triangle* trig = std::get<0>(isections[n]);
         // Ignore repeated triangles within epsillon radius from
         // previous thinglass - they are probably clones of the same
         // triangle in kd-tree.
-        float newt = isections[n].second;
+        float newt = std::get<1>(isections[n]);
         if(newt <= ct + scene.epsilon) continue;
         ct = newt;
         // This is just to check triangle orientation, so that we only
         // apply color filter when the ray is entering glass.
         glm::vec3 N = trig->generic_normal();
         if(glm::dot(N,ray_direction) >= 0){
+            //glm::vec2 UV = std::get<2>(isections[n]);
             // TODO: Use translucency filter instead of diffuse!
-            result = result * trig->GetMaterial().diffuse;
+            // TODO: Respect texture UV coordinates
+            result = result * trig->GetMaterial().diffuse->Get(glm::vec2(0.0, 0.0));
         }
     }
     return result;
@@ -221,29 +223,24 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             assert(!std::isnan(p.faceN.x));
 
-            glm::vec2 texUV;
             // Interpolate textures
-            if((bool)mat.ambient_texture.lock() ||
-               (bool)mat.diffuse_texture.lock() ||
-               (bool)mat.specular_texture.lock() ||
-               (bool)mat.bump_texture.lock()){
-                glm::vec2 a = i.triangle->GetTexCoordsA();
-                glm::vec2 b = i.triangle->GetTexCoordsB();
-                glm::vec2 c = i.triangle->GetTexCoordsC();
-                texUV = i.Interpolate(a,b,c);
-                IFDEBUG std::cout << "texUV = " << texUV << std::endl;
-            }
+            glm::vec2 a = i.triangle->GetTexCoordsA();
+            glm::vec2 b = i.triangle->GetTexCoordsB();
+            glm::vec2 c = i.triangle->GetTexCoordsC();
+            p.texUV = i.Interpolate(a,b,c);
+            IFDEBUG std::cout << "texUV = " << p.texUV << std::endl;
+
             // Get colors from texture
             // TODO: Single-color values should also be processed as textures
-            auto diff = mat.diffuse_texture.lock();
-            auto spec = mat.specular_texture.lock();
-            p.diffuse  = diff ? diff->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
-            p.specular = spec ? spec->GetPixelInterpolated(texUV,debug) : mat.specular;
+            p.diffuse = mat.diffuse->Get(p.texUV);
+            p.specular = mat.specular->Get(p.texUV);
+            p.emission = mat.emission;
+            p.bumpmap = mat.bumpmap->Get(p.texUV);
+
             // Tilt normal using bump texture
-            auto bump_texture = mat.bump_texture.lock();
-            if(mat.bump_texture.lock()){
-                float right = bump_texture->GetSlopeRight(texUV);
-                float bottom = bump_texture->GetSlopeBottom(texUV);
+            if(!mat.bumpmap->Empty()){
+                float right = mat.bumpmap->GetSlopeRight(p.texUV);
+                float bottom = mat.bumpmap->GetSlopeBottom(p.texUV);
                 glm::vec3 tangent = i.Interpolate(i.triangle->GetTangentA(),
                                                   i.triangle->GetTangentB(),
                                                   i.triangle->GetTangentC());
@@ -392,7 +389,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             // TODO: This should be done by a transparency BxDF
             if(p.type == PathPoint::ENTERED){
-                p.transfer_coefficients *= Radiance(mat.diffuse);
+                p.transfer_coefficients *= Radiance(p.diffuse);
             }
 
             cumulative_transfer_coefficients *= p.russian_coefficient;
@@ -558,7 +555,7 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
             //IFDEBUG std::cout << "Incorporating direct lighting component for light "
             //                  << lightno << ", light.pos: " << light.pos << std::endl;
 
-            std::vector<std::pair<const Triangle*, float>> thinglass_isect;
+            ThinglassIsections thinglass_isect;
             // Visibility factor
             if((scene.thinglass.size() == 0 && scene.Visibility(light.pos, p.pos)) ||
                (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(light.pos, p.pos, thinglass_isect))){
@@ -612,8 +609,8 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
 
         }
 
-        if(mat.emissive && !p.backside){
-            total_here += Radiance(mat.emission); /* * glm::dot(p.lightN, p.Vr); */
+        if(!p.backside){
+            total_here += p.emission; /* * glm::dot(p.lightN, p.Vr); */
         }
 
 

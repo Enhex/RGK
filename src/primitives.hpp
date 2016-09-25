@@ -31,7 +31,7 @@ struct Light{
     Light(Type t) : type(t) {}
     Type type;
     glm::vec3 pos;
-    Color color;
+    Radiance color;
     float intensity;
     // TODO: union?
     float size; // Only for full_sphere lights
@@ -43,26 +43,18 @@ struct Light{
 };
 
 struct Material{
-    Material(){
-        brdf = nullptr;
-    }
+    Material();
     Material(const Material&) = default;
     std::string name;
-
-    Color diffuse;
-    Color specular;
-    Color ambient;
-    Color emission;
-    bool emissive = false;
 
     float exponent;
     float refraction_index;
     float translucency = 0.0f;
 
-    std::weak_ptr<ReadableTexture> diffuse_texture;
-    std::weak_ptr<ReadableTexture> specular_texture;
-    std::weak_ptr<ReadableTexture> ambient_texture;
-    std::weak_ptr<ReadableTexture> bump_texture;
+    std::shared_ptr<ReadableTexture> diffuse;
+    std::shared_ptr<ReadableTexture> specular;
+    Radiance emission;
+    std::shared_ptr<ReadableTexture> bumpmap;
 
     std::shared_ptr<BRDF> brdf;
 };
@@ -99,7 +91,7 @@ public:
     bool TestIntersection(const Ray& r, /*out*/ float& t, float& a, float& b, bool debug = false) const __attribute__((hot));
 };
 
-typedef std::vector<std::pair<const Triangle*,float>> ThinglassIsections;
+typedef std::vector<std::tuple<const Triangle*,float>> ThinglassIsections;
 struct Intersection{
     const Triangle* triangle = nullptr;
     float t;

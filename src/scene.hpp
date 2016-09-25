@@ -65,7 +65,7 @@ public:
     // Incorporates no cache of any kind.
     bool Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const __attribute__((hot));
     bool VisibilityWithThinglass(glm::vec3 a, glm::vec3 b,
-                                 /*out*/ std::vector<std::pair<const Triangle*, float>>&)
+                                 /*out*/ ThinglassIsections&)
         __restrict__ const __attribute__((hot));
 
     // Loads a texture from file, or returns a (scene-locally) cached version
@@ -94,7 +94,7 @@ public:
         std::vector<std::pair<float,unsigned int>> triangles_with_areas;
         mutable float total_area = 0.0f;
 
-        Color emission;
+        Radiance emission;
         float power = 0.0f;
 
         Light GetRandomLight(const Scene& parent, float light_sample, glm::vec2 triangle_sample, bool debug) const;

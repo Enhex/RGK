@@ -76,13 +76,11 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     m.name = name.C_Str();
     aiColor3D c;
     mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
-    m.diffuse = Color(c.r, c.g, c.b);
+    m.diffuse = CreateSolidTexture(Color(c.r, c.g, c.b));
     mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
-    m.specular = Color(c.r, c.g, c.b);
-    mat->Get(AI_MATKEY_COLOR_AMBIENT,c);
-    m.ambient = Color(c.r, c.g, c.b);
+    m.specular = CreateSolidTexture(Color(c.r, c.g, c.b));
     mat->Get(AI_MATKEY_COLOR_EMISSIVE,c);
-    m.emission = Color(c.r, c.g, c.b);
+    m.emission = Radiance(c.r, c.g, c.b);
     float f;
     mat->Get(AI_MATKEY_SHININESS, f);
     m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
@@ -92,15 +90,13 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     m.translucency = 1.0f - f;
 
     aiString as; std::string s;
-    std::shared_ptr<ReadableTexture> tex;
     int n;
     n = mat->GetTextureCount(aiTextureType_DIFFUSE);
     if(n > 0){
         mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has diffuse texture " << s << std::endl;
-            tex = GetTexture(texture_directory + s);
-            m.diffuse_texture = tex;
+            m.diffuse = GetTexture(texture_directory + s);
         }
     }
     n = mat->GetTextureCount(aiTextureType_SPECULAR);
@@ -108,17 +104,7 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
         mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has specular texture " << s << std::endl;
-            tex = GetTexture(texture_directory + s);
-            m.specular_texture = tex;
-        }
-    }
-    n = mat->GetTextureCount(aiTextureType_AMBIENT);
-    if(n > 0){
-        mat->GetTexture(aiTextureType_AMBIENT, 0, &as); s = as.C_Str();
-        if(s != ""){
-            out::cout(5) << "Material has ambient texture " << s << std::endl;
-            tex = GetTexture(texture_directory + s);
-            m.ambient_texture = tex;
+            m.specular = GetTexture(texture_directory + s);
         }
     }
     n = mat->GetTextureCount(aiTextureType_HEIGHT);
@@ -126,14 +112,8 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
         mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
         if(s != ""){
             out::cout(5) << "Material has bump texture " << s << std::endl;
-            tex = GetTexture(texture_directory + s);
-            m.bump_texture = tex;
+            m.bumpmap = GetTexture(texture_directory + s);
         }
-    }
-
-    if(m.emission.r > 0.0f || m.emission.g > 0.0f || m.emission.b > 0.0f){
-        out::cout(4) << "Material is emissive" << std::endl;
-        m.emissive = true;
     }
 
     // Supposedly we may support different brdfs for each material.
@@ -234,7 +214,7 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, glm::mat4 curre
         material = GetMaterialByName(force_mat);
     }
 
-    bool light_source = material->emissive;
+    bool light_source = material->emission.isNonZero();
     ArealLight al;
 
     for(unsigned int v = 0; v < mesh->mNumVertices; v++){
@@ -300,7 +280,7 @@ void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, s
     out::cout(4) << "-- Adding a primitive with " << primitive.size()/3 << " faces." << std::endl;
     unsigned int vertex_index_offset = vertices_buffer.size();
     Material* mat = GetMaterialByName(material);
-    bool light_source = mat->emissive;
+    bool light_source = mat->emission.isNonZero();
     ArealLight al;
 
     for(unsigned int i = 0; i < primitive.size(); i++){
@@ -363,6 +343,12 @@ std::shared_ptr<ReadableTexture> Scene::GetTexture(std::string path){
     }else{
         return it->second;
     }
+}
+
+std::shared_ptr<ReadableTexture> Scene::CreateSolidTexture(Color c){
+    auto s = std::make_shared<SolidTexture>(c);
+    aux_textures.push_back(s);
+    return s;
 }
 
 Material* Scene::GetMaterialByName(std::string name) const{
@@ -508,20 +494,6 @@ void Scene::Commit(){
     delete uncompressed_root;
     uncompressed_root = nullptr;
 #endif
-}
-
-void Scene::Dump() const{
-    for(unsigned int t = 0; t < n_triangles; t++){
-        const Triangle& tr = triangles[t];
-        const glm::vec3 va = vertices[tr.va];
-        const glm::vec3 vb = vertices[tr.vb];
-        const glm::vec3 vc = vertices[tr.vc];
-        const Color& color = tr.mat->diffuse;
-        out::cout(4) << va.x << " " << va.y << " " << va.z << " | ";
-        out::cout(4) << vb.x << " " << vb.y << " " << vb.z << " | ";
-        out::cout(4) << vc.x << " " << vc.y << " " << vc.z << " [" ;
-        out::cout(4) << color.r << " " << color.g << " " << color.b << "]\n" ;
-    }
 }
 
 void UncompressedKdNode::Subdivide(unsigned int max_depth){
@@ -767,7 +739,7 @@ bool Scene::Visibility(glm::vec3 a, glm::vec3 b) __restrict__ const {
     Ray r(a, b, epsilon * 20.0f);
     return !FindIntersectKd(r).triangle;
 }
-bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, std::vector<std::pair<const Triangle*, float>>& out) __restrict__ const {
+bool Scene::VisibilityWithThinglass(glm::vec3 a, glm::vec3 b, ThinglassIsections& out) __restrict__ const {
     Ray r(a, b, epsilon * 20.0f);
     auto i = FindIntersectKdOtherThanWithThinglass(r,nullptr);
     if(i.triangle != nullptr) return false;
