@@ -194,7 +194,7 @@ void ConfigRTC::InstallLights(Scene& scene) const{
 }
 
 static const aiScene* loadAssimpScene(Assimp::Importer& importer, std::string modelfile, bool smooth_normals = false){
-    out::cout(2) << "Loading scene from \"" << modelfile << "\"..."  << std::endl;
+    out::cout(2) << "Adding meshes from file \"" << modelfile << "\"..."  << std::flush;
     importer.SetPropertyInteger(AI_CONFIG_PP_SBP_REMOVE, aiPrimitiveType_POINT | aiPrimitiveType_LINE, nullptr);
     const aiScene* scene = importer.ReadFile(modelfile,
                                              aiProcess_Triangulate |
@@ -221,7 +221,7 @@ static const aiScene* loadAssimpScene(Assimp::Importer& importer, std::string mo
     // for vertices that are missing them.
     scene = importer.ApplyPostProcessing(aiProcess_CalcTangentSpace);
 
-    out::cout(2) << "Loaded scene with " << scene->mNumMeshes << " meshes and " <<
+    out::cout(2) << " found " << scene->mNumMeshes << " meshes and " <<
         scene->mNumMaterials << " materials." << std::endl;
 
     return scene;

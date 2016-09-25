@@ -330,7 +330,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
                 sample = sampler.Get2D();
                 qassert_false(std::isnan(sample.x));
-                std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), sample, debug);
+                std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, p.diffuse, p.specular, sample, debug);
                 if(!(glm::dot(dir, p.faceN) > 0.0f)){
                     // Huh. The next bump is right here on this very same face.
                     // TODO: Do not add epsilon when creating next ray!
@@ -402,21 +402,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     // skipped, instead just multiply by pi.
                     p.transfer_coefficients *= glm::pi<float>();
                 }
-                if(sampling_type != BRDF::SAMPLING_BRDF){
-                    // All sampling types use brdf, but for brdf sampling probability
-                    // density is equal to brdf, so they cancel out.
-                    IFDEBUG std::cout << "Mult by f" << std::endl;
-                    Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vi, p.Vr, debug);
-                    p.transfer_coefficients *= f;
-                }
-                if(sampling_type != BRDF::SAMPLING_UNIFORM){
-                    // NOP
-                }else{
-                    // Probability density for uniform sampling.
-                    IFDEBUG std::cout << "Div by P" << std::endl;
-                    p.transfer_coefficients *= glm::pi<float>()/0.5;
-                }
             }else if(p.type == PathPoint::ENTERED){
+                // TODO: This should be done by a transparency BxDF
                 p.transfer_coefficients *= Radiance(mat.diffuse);
             }
 
