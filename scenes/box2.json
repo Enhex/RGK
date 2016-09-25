@@ -19,5 +19,5 @@
     "clamp": 2.0,
     "russian": 0.6,
     "reverse": 4,
-    "brdf": "ltc_ggx"
+    "brdf": "cooktorr"
 }

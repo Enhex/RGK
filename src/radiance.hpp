@@ -30,17 +30,11 @@ struct Radiance{
         b = pow(c.b, gamma);
     }
     float r,g,b; // unbounded, positive
-    Radiance  operator* (float q)           const {return Radiance(q*r, q*g, q*b);}
-    Radiance  operator* (const Color& c)    const {return Radiance(r*c.r, g*c.g, b*c.b);}
-    Radiance  operator* (const Radiance& c) const {return Radiance(r*c.r, g*c.g, b*c.b);}
     Radiance  operator/ (float q)           const {return Radiance(r/q, g/q, b/q);}
     Radiance  operator+ (const Radiance& o) const {return Radiance(r+o.r,g+o.g,b+o.b);}
     Radiance  operator- (const Radiance& o) const {return Radiance(r-o.r,g-o.g,b-o.b);}
     Radiance& operator+=(const Radiance& o) {*this = *this + o; return *this;}
     Radiance& operator-=(const Radiance& o) {*this = *this - o; return *this;}
-    Radiance  operator/=(float q)           {*this = *this / q; return *this;}
-    Radiance  operator*=(float q)           {*this = *this * q; return *this;}
-    Radiance  operator*=(const Radiance& o) {*this = *this * o; return *this;}
     float max() const {return glm::max(glm::max(r,g),b);}
     bool isNonZero() const {return r > 0 || g > 0 || b > 0;}
     void clamp(float v){
@@ -49,6 +43,37 @@ struct Radiance{
         if(b > v) b = v;
     }
 };
+
+struct Spectrum{
+    Spectrum() : r(1.0), g(1.0), b(1.0) {}
+    explicit Spectrum(float f) : r(f), g(f), b(f) {}
+    Spectrum(float r, float g, float b) : r(r), g(g), b(b) {}
+    explicit Spectrum(const Color& c){
+        r = c.r; g = c.g, b = c.b;
+    }
+    Spectrum operator* (float q) const {return Spectrum(q*r, q*g, q*b);}
+    Spectrum operator* (const Spectrum& o) const {return Spectrum(o.r*r, o.g*g, o.b*b);}
+    Spectrum operator*=(float q) {*this = *this * q; return *this;}
+    Spectrum operator*=(const Spectrum& o) {*this = *this * o; return *this;}
+
+    Spectrum  operator+ (const Spectrum& o) const {return Spectrum(r+o.r,g+o.g,b+o.b);}
+    Spectrum  operator- (const Spectrum& o) const {return Spectrum(r-o.r,g-o.g,b-o.b);}
+
+    float max() const {return glm::max(glm::max(r,g),b);}
+
+    float r,g,b;
+};
+
+inline Radiance operator*(const Radiance& r, const Spectrum& s){
+    return Radiance(r.r * s.r, r.g * s.g, r.b * s.b);
+}
+inline Radiance operator*(const Spectrum& s, const Radiance& r){
+    return Radiance(r.r * s.r, r.g * s.g, r.b * s.b);
+}
+inline Radiance& operator *=(Radiance& r, const Spectrum& s){
+    r.r *= s.r; r.g *= s.g; r.b *= s.b;
+    return r;
+}
 
 
 

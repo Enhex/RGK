@@ -815,7 +815,7 @@ Light Scene::ArealLight::GetRandomLight(const Scene& parent, float light_sample,
 
 Radiance Scene::GetSkyboxRay(glm::vec3 direction, bool) const{
     if(skybox_mode == Scene::SkyboxMode::SimpleRadiance){
-        return Radiance(skybox_color) * skybox_intensity;
+        return Radiance(skybox_color) * Spectrum(skybox_intensity);
     }else{
         // TODO: Respect scene (or maybe skybox's) up direction
         float alpha = glm::asin(direction.y);
@@ -826,6 +826,6 @@ Radiance Scene::GetSkyboxRay(glm::vec3 direction, bool) const{
         float x = beta/(2.0f*glm::pi<float>()) + 0.5f;
         float y = alpha/glm::pi<float>() + 0.5f;
         Color c = skybox_texture->GetPixelInterpolated(glm::vec2(x,y));
-        return Radiance(c) * skybox_intensity;
+        return Radiance(c) * Spectrum(skybox_intensity);
     }
 }

@@ -47,8 +47,8 @@ private:
         // Material properties at hitpoint
         const Material* mat;
         glm::vec2 texUV;
-        Color diffuse;
-        Color specular;
+        Spectrum diffuse;
+        Spectrum specular;
         Radiance emission;
         Color bumpmap;
         // Thinglass encountered on the way of the ray that generated this point
@@ -56,11 +56,11 @@ private:
         // Currection for rusian roulette
         float russian_coefficient;
         // These take into account sampling, BRDF, color. Symmetric in both directions.
-        Radiance transfer_coefficients;
+        Spectrum transfer_coefficients;
         // Same coefficients as above, but cumulated thorough the
         // path. This indicates how much does the light from this
         // point contribute to the beginning of the path.
-        Radiance contribution = Radiance(1.0f, 1.0f, 1.0f);
+        Spectrum contribution = Spectrum(1.0f, 1.0f, 1.0f);
         //
         Radiance light_from_source;
         // True if the ray hit the face from outside (CCW)

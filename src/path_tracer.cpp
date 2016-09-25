@@ -96,7 +96,8 @@ Radiance PathTracer::ApplyThinglass(Radiance input, const ThinglassIsections& is
             //glm::vec2 UV = std::get<2>(isections[n]);
             // TODO: Use translucency filter instead of diffuse!
             // TODO: Respect texture UV coordinates
-            result = result * trig->GetMaterial().diffuse->Get(glm::vec2(0.0, 0.0));
+            Color c = trig->GetMaterial().diffuse->Get(glm::vec2(0.0, 0.0));
+            result = result * Spectrum(c);
         }
     }
     return result;
@@ -143,7 +144,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
     IFDEBUG std::cout << "Ray origin: " << r.origin << std::endl;
     IFDEBUG std::cout << "Ray direction: " << r.direction << std::endl;
 
-    Radiance cumulative_transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
+    Spectrum cumulative_transfer_coefficients = Spectrum(1.0f, 1.0f, 1.0f);
 
     Ray current_ray = r;
     unsigned int n = 0;
@@ -232,8 +233,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             // Get colors from texture
             // TODO: Single-color values should also be processed as textures
-            p.diffuse = mat.diffuse->Get(p.texUV);
-            p.specular = mat.specular->Get(p.texUV);
+            p.diffuse = Spectrum( mat.diffuse->Get(p.texUV) );
+            p.specular = Spectrum( mat.specular->Get(p.texUV) );
             p.emission = mat.emission;
             p.bumpmap = mat.bumpmap->Get(p.texUV);
 
@@ -312,7 +313,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 }
             }
 
-            p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
+            p.transfer_coefficients = Spectrum(1.0f, 1.0f, 1.0f);
             // Compute next ray direction
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
             glm::vec3 dir;
@@ -389,7 +390,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             // TODO: This should be done by a transparency BxDF
             if(p.type == PathPoint::ENTERED){
-                p.transfer_coefficients *= Radiance(p.diffuse);
+                p.transfer_coefficients *= Spectrum(p.diffuse);
             }
 
             cumulative_transfer_coefficients *= p.russian_coefficient;
@@ -405,11 +406,9 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 break;
             }
 
-            // Path length limit
-            if(russian__ >= 0.0f){
-                // Russian roulette path termination
-                if(sampler.Get1D() > russian__) break;
-            }
+            // Russian roulette path termination
+            if(russian__ >= 0.0f && sampler.Get1D() > russian__) break;
+
             // Fixed depth path termination
             if(n > depth__) break;
 
@@ -483,8 +482,9 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
     IFDEBUG std::cout << "main_light.pos = " << main_light.pos << std::endl;
     Radiance light_at_path_start =
         Radiance(main_light.color) *
-        main_light.intensity *
-        main_light.GetDirectionalFactor(main_light_dir); // * G;;
+        Spectrum (main_light.intensity *
+                  main_light.GetDirectionalFactor(main_light_dir)
+                  ); // * G;;
 
     IFDEBUG std::cout << " === Carrying light along light path" << std::endl;
 
@@ -502,11 +502,11 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
             if(!p.infinity && scene.Visibility(p.pos, camerapos)){
                 IFDEBUG std::cout << "Point " << p.pos << " is visible from camera." << std::endl;
                 glm::vec3 direction = glm::normalize(p.pos - camerapos);
-                Radiance q = light_here * p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, -direction, debug);
+                Radiance q = light_here * p.mat->brdf->Apply(Spectrum(p.diffuse), Spectrum(p.specular), p.lightN, p.Vr, -direction, debug);
                 float G = glm::max(0.0f, glm::dot(p.lightN, -direction)) / glm::distance2(camerapos, p.pos);
                 IFDEBUG std::cout << "G = " << G << std::endl;
                 if(G >= 0.00001f && !std::isnan(q.r)){
-                    q *= G;
+                    q *= Spectrum(G);
                     int x2, y2;
                     IFDEBUG std::cout << "Side effect from " << direction << std::endl;
                     bool in_view = camera.GetCoordsFromDirection( direction, x2, y2, debug);
@@ -565,18 +565,20 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
                 // Incoming direction
                 glm::vec3 Vi = glm::normalize(light.pos - p.pos);
 
-                Radiance f = mat.brdf->Apply(p.diffuse, p.specular, p.lightN, Vi, p.Vr, debug);
+                Spectrum f = mat.brdf->Apply(Spectrum(p.diffuse), Spectrum(p.specular), p.lightN, Vi, p.Vr, debug);
 
                 IFDEBUG std::cout << "f = " << f << std::endl;
 
                 float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(light.pos, p.pos);
                 IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                Radiance inc_l = Radiance(light.color) * light.intensity * light.GetDirectionalFactor(-Vi);
+                Radiance inc_l = Radiance(light.color) * Spectrum( light.intensity *
+                                                                   light.GetDirectionalFactor(-Vi)
+                                                                   );
                 inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
 
                 IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
 
-                Radiance out = inc_l * f * G;
+                Radiance out = inc_l * ( f * G );
                 IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
                 total_here += out;
             }else{
@@ -591,10 +593,10 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
                 if(!l.infinity && scene.Visibility(l.pos, p.pos)){
                     glm::vec3 light_to_p = glm::normalize(p.pos - l.pos);
                     glm::vec3 p_to_light = -light_to_p;
-                    Radiance f_light = l.mat->brdf->Apply(l.diffuse, l.specular, l.lightN, light_to_p, l.Vr, debug);
-                    Radiance f_point = p.mat->brdf->Apply(p.diffuse, p.specular, p.lightN, p.Vr, p_to_light, debug);
+                    Spectrum f_light = l.mat->brdf->Apply(Spectrum(l.diffuse), Spectrum(l.specular), l.lightN, light_to_p, l.Vr, debug);
+                    Spectrum f_point = p.mat->brdf->Apply(Spectrum(p.diffuse), Spectrum(p.specular), p.lightN, p.Vr, p_to_light, debug);
                     float G = glm::max(0.0f, glm::dot(p.lightN, p_to_light)) / glm::distance2(l.pos, p.pos);
-                    total_here += l.light_from_source * f_light * f_point * G;
+                    total_here += l.light_from_source * ( f_light * f_point * G );
                 }// not visible from each other.
             }
 
