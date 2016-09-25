@@ -9,24 +9,24 @@
 #include "LTC/ltc.hpp"
 #include "random_utils.hpp"
 
-std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDF::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool) const{
+std::tuple<glm::vec3, Radiance> BRDF::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool) const{
     glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineDirected(sample, normal);
     /*
     IFDEBUG std::cout << "sample = " << sample << std::endl;
     IFDEBUG std::cout << "normal = " << normal << std::endl;
     IFDEBUG std::cout << "v = " << v << std::endl;
     IFDEBUG std::cout << "hemis = " << RandomUtils::Sample2DToHemisphereCosine(sample) << std::endl;
-    */
+    *//*
     if(!(glm::dot(normal, v) >= -0.001f)){
         std::cout << "sample = " << sample << std::endl;
         std::cout << "normal = " << normal << std::endl;
         std::cout << "v = " << v << std::endl;
         std::cout << "hemis = " << RandomUtils::Sample2DToHemisphereCosine(sample) << std::endl;
-    }
+    }*/
     qassert_true(glm::dot(normal, v) >= -0.001f);
-    //return std::make_tuple(v,Radiance(1.0,1.0,1.0),SAMPLING_COSINE);
     Radiance r = Apply(diffuse, specular, normal, inc, v);
-    return std::make_tuple(v,r,SAMPLING_COSINE);
+    r *= glm::pi<float>();
+    return std::make_tuple(v,r);
 }
 
 float BRDFDiffuseCosine::PdfDiff() const{
@@ -117,7 +117,7 @@ float BRDFLTCBeckmann::PdfDiff() const{
 float BRDFLTCBeckmann::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
     return LTC::GetPDF(LTC::Beckmann, N, Vi, Vr, roughness, debug);
 }
-std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType>
+std::tuple<glm::vec3, Radiance>
 BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug) const{
     assert(glm::dot(normal, inc) > 0.0f);
     float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
@@ -132,7 +132,7 @@ BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color sp
         glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
         qassert_false(std::isnan(v.x));
         v = LTC::GetRandom(LTC::Beckmann, normal, inc, roughness, v, debug);
-        return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
+        return std::make_tuple(v,Radiance(specular));
     }
 }
 
@@ -147,7 +147,8 @@ float BRDFLTCGGX::PdfDiff() const{
 float BRDFLTCGGX::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
     return LTC::GetPDF(LTC::GGX, N, Vi, Vr, roughness, debug);
 }
-std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCGGX::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug) const{
+std::tuple<glm::vec3, Radiance>
+BRDFLTCGGX::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug) const{
     qassert_directed(normal, inc);
     float diffuse_power = diffuse.r + diffuse.g + diffuse.b; // Integral over diffuse spectrum...
     float specular_power = specular.r + specular.g + specular.b; // Integral over specular spectrum...
@@ -161,6 +162,6 @@ std::tuple<glm::vec3, Radiance, BRDF::BRDFSamplingType> BRDFLTCGGX::GetRay(glm::
         glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
         qassert_false(std::isnan(v.x));
         v = LTC::GetRandom(LTC::GGX, normal, inc, roughness, v, debug);
-        return std::make_tuple(v,Radiance(specular),SAMPLING_BRDF);
+        return std::make_tuple(v,Radiance(specular));
     }
 }

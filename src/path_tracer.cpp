@@ -306,7 +306,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 }
             }
 
-            BRDF::BRDFSamplingType sampling_type = BRDF::SAMPLING_COSINE;
             p.transfer_coefficients = Radiance(1.0f, 1.0f, 1.0f);
             // Compute next ray direction
             IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
@@ -329,16 +328,16 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
 
                 sample = sampler.Get2D();
-                qassert_false(std::isnan(sample.x));
-                std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, p.diffuse, p.specular, sample, debug);
+                std::tie(dir, p.transfer_coefficients) = mat.brdf->GetRay(p.lightN, p.Vr, p.diffuse, p.specular, sample, debug);
                 if(!(glm::dot(dir, p.faceN) > 0.0f)){
                     // Huh. The next bump is right here on this very same face.
                     // TODO: Do not add epsilon when creating next ray!
+                    // TODO: Maybe the path should terminate here?
                 }
                 //qassert_true(glm::dot(dir, p.faceN) > 0.0f);
                 /* THE FOLLOWING wastes a large number of random samples!
                 do{
-                    std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
+                    std::tie(dir, p.transfer_coefficients) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
                     counter++;
                 }while(glm::dot(dir, p.faceN) <= 0.0f && counter < 20);
                 if(counter == 20){
@@ -349,7 +348,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     // Unfortunatelly, I do not have the time right now to consider and compare these options.
                     // So, temporarily, I'll do 2).
                     do{ //                                          Notice faceN here ---\/---
-                        std::tie(dir, p.transfer_coefficients, sampling_type) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
+                        std::tie(dir, p.transfer_coefficients) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
                     }while(glm::dot(dir, p.faceN) <= 0.0f);
                 }
                 */
@@ -382,28 +381,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             if(russian__ > 0.0f && n > 1) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
 
-            // Calculate transfer coefficients (BRFD, cosine, etc.)
-            if(p.type == PathPoint::SCATTERED){
-                // Branch prediction should optimize-out these conditional jump during runtime.
-                if(sampling_type != BRDF::SAMPLING_COSINE){
-                    // All sampling types use cosine, but for cosine sampling probability
-                    // density is equal to cosine, so they cancel out.
-                    IFDEBUG std::cout << "Mult by cos" << std::endl;
-                    float cos = glm::dot(p.lightN, p.Vi);
-                    // TODO: Investigate this condition.
-                    // Equations (confirmed by total lighting compedium) clearly state that brdf sampling
-                    // still requires multiplying by cosine. However, enabling it results in an ugly dark border
-                    // around a reflective sphere. Should this condition be here? Maybe it should be applied
-                    // differently in various cases?
-                    if(sampling_type != BRDF::SAMPLING_BRDF)
-                        p.transfer_coefficients *= cos;
-                }else{
-                    // Cosine sampling p = cos/pi. Don't divide by cos, as it was
-                    // skipped, instead just multiply by pi.
-                    p.transfer_coefficients *= glm::pi<float>();
-                }
-            }else if(p.type == PathPoint::ENTERED){
-                // TODO: This should be done by a transparency BxDF
+            // TODO: This should be done by a transparency BxDF
+            if(p.type == PathPoint::ENTERED){
                 p.transfer_coefficients *= Radiance(mat.diffuse);
             }
 

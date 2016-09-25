@@ -3,7 +3,7 @@
     "output-file": "teapots.exr",
     "output-width": 1280,
     "output-height": 720,
-    "recursion-max": 3,
+    "recursion-max": 10,
     "camera": {
         "position": [1.0, 1.2, -2.4],
         "lookat": [0.0, 0.3, 0.0],
@@ -45,7 +45,7 @@
         "specular": [0.7, 0.7, 0.7],
         "diffuse": [0.2, 0.2, 0.2],
         "bump-map": "floor/intensity.jpg",
-        "exponent": 8000
+        "exponent": 800
     },{
         "name": "teapot1",
         "brdf": "ltc_ggx",

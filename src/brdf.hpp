@@ -23,12 +23,7 @@ public:
         IFDEBUG std::cout << "d = " << d << ", s = " << s << std::endl;
         return Radiance(kD)*d + Radiance(kS)*s;
     }
-    // Default is cosine sampling
-    enum BRDFSamplingType{
-        SAMPLING_COSINE,
-        SAMPLING_BRDF
-    };
-    virtual std::tuple<glm::vec3, Radiance, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug = false) const;
+    virtual std::tuple<glm::vec3, Radiance> GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug = false) const;
 };
 
 class BRDFDiffuseCosine : public BRDF{
@@ -61,7 +56,7 @@ public:
     BRDFLTCBeckmann(float phong_exponent);
     virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
     virtual float PdfDiff() const override;
-    virtual std::tuple<glm::vec3, Radiance, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Radiance> GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug = false) const override;
 private:
     float roughness;
 };
@@ -70,7 +65,7 @@ public:
     BRDFLTCGGX(float phong_exponent);
     virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const override;
     virtual float PdfDiff() const override;
-    virtual std::tuple<glm::vec3, Radiance, BRDFSamplingType> GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Radiance> GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool debug = false) const override;
 private:
     float roughness;
 };
