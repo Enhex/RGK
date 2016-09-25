@@ -11,18 +11,6 @@
 
 std::tuple<glm::vec3, Radiance> BRDF::GetRay(glm::vec3 normal, glm::vec3 inc, Color diffuse, Color specular, glm::vec2 sample, bool) const{
     glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineDirected(sample, normal);
-    /*
-    IFDEBUG std::cout << "sample = " << sample << std::endl;
-    IFDEBUG std::cout << "normal = " << normal << std::endl;
-    IFDEBUG std::cout << "v = " << v << std::endl;
-    IFDEBUG std::cout << "hemis = " << RandomUtils::Sample2DToHemisphereCosine(sample) << std::endl;
-    *//*
-    if(!(glm::dot(normal, v) >= -0.001f)){
-        std::cout << "sample = " << sample << std::endl;
-        std::cout << "normal = " << normal << std::endl;
-        std::cout << "v = " << v << std::endl;
-        std::cout << "hemis = " << RandomUtils::Sample2DToHemisphereCosine(sample) << std::endl;
-    }*/
     qassert_true(glm::dot(normal, v) >= -0.001f);
     Radiance r = Apply(diffuse, specular, normal, inc, v);
     r *= glm::pi<float>();

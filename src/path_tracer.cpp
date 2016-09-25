@@ -258,13 +258,15 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     if(glm::isnan(p.lightN.x)){
                         p.lightN = p.faceN;
                     }
-                    assert(glm::length(p.lightN) > 0);
+                    /*
+                    qassert_true(glm::length(p.lightN) > 0);
                     float dot2 = glm::dot(p.faceN,tangent2);
-                    assert(dot2 >= -0.001f);
+                    qassert_true(dot2 >= -0.001f);
                     float dot3 = glm::dot(p.faceN,bitangent);
-                    assert(dot3 >= -0.001f);
+                    qassert_true(dot3 >= -0.001f);
                     float dot = glm::dot(p.faceN,p.lightN);
-                    assert(dot > 0);
+                    qassert_true(dot > 0);
+                    */
                 }
             }else{
                 p.lightN = p.faceN;
