@@ -322,13 +322,13 @@ std::shared_ptr<ReadableTexture> Scene::GetTexture(std::string path){
     auto it = textures.find(path);
     if(it == textures.end()){
         auto p = Utils::GetFileExtension(path);
-        Texture* t = nullptr;
+        FileTexture* t = nullptr;
         if(p.second == "PNG" || p.second == "png"){
-            t = Texture::CreateNewFromPNG(path);
+            t = FileTexture::CreateNewFromPNG(path);
         }else if(p.second == "JPG" || p.second == "jpg" || p.second == "JPEG" || p.second == "jpeg"){
-            t = Texture::CreateNewFromJPEG(path);
+            t = FileTexture::CreateNewFromJPEG(path);
         }else if(p.second == "HDR" || p.second == "hdr"){
-            t = Texture::CreateNewFromHDR(path);
+            t = FileTexture::CreateNewFromHDR(path);
         }else{
             std::cerr << "ERROR: Texture format '" << p.second << "' is not supported!" << std::endl;
         }
@@ -336,7 +336,7 @@ std::shared_ptr<ReadableTexture> Scene::GetTexture(std::string path){
             std::cerr << "Failed to load texture '" << path << "' , ignoring it." << std::endl;
             return nullptr;
         }else{
-            std::shared_ptr<Texture> st(t);
+            std::shared_ptr<FileTexture> st(t);
             textures[path] = st;
             return st;
         }

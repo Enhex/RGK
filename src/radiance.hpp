@@ -13,6 +13,16 @@ struct Color{
     Color  operator* (const Color& other) const {return Color(other.r*r, other.g*g, other.b*b);}
     Color  operator+ (const Color& o)     const {return Color(r+o.r,g+o.g,b+o.b);}
     Color& operator+=(const Color& o) {*this = *this + o; return *this;}
+    Color gammaEncode(float gamma = 2.2f){
+        return Color(glm::pow(r, 1.0f/gamma),
+                     glm::pow(g, 1.0f/gamma),
+                     glm::pow(b, 1.0f/gamma));
+    }
+    Color gammaDecode(float gamma = 2.2f){
+        return Color(glm::pow(r, gamma),
+                     glm::pow(g, gamma),
+                     glm::pow(b, gamma));
+    }
 };
 
 inline Color operator*(float q, const Color& c){

@@ -16,23 +16,23 @@
 
 #include <OpenEXR/ImfRgbaFile.h>
 
-Texture::Texture(int xsize, int ysize):
+FileTexture::FileTexture(int xsize, int ysize):
     xsize(xsize), ysize(ysize)
 {
     data.resize(xsize*ysize);
 }
 
-void Texture::SetPixel(int x, int y, Color c)
+void FileTexture::SetPixel(int x, int y, Color c)
 {
     data[y*xsize + x] = c;
 }
 
-Color Texture::GetPixel(int x, int y) const
+Color FileTexture::GetPixel(int x, int y) const
 {
     return data[y*xsize + x];
 }
 
-Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
+Color FileTexture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     (void)debug;
 
     float x = glm::repeat(pos.x) * xsize - 0.5f;
@@ -76,7 +76,7 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     return css;
 }
 
-float Texture::GetSlopeRight(glm::vec2 pos) const{
+float FileTexture::GetSlopeRight(glm::vec2 pos) const{
     int x = glm::repeat(pos.x) * xsize - 0.5f;
     int y = glm::repeat(pos.y) * ysize - 0.5f;
     int x2 = (x != int(xsize) - 1)? x + 1 : x;
@@ -88,7 +88,7 @@ float Texture::GetSlopeRight(glm::vec2 pos) const{
     float b = (there.r + there.g + there.b)/3;
     return a-b;
 };
-float Texture::GetSlopeBottom(glm::vec2 pos) const{
+float FileTexture::GetSlopeBottom(glm::vec2 pos) const{
     int x = glm::repeat(pos.x) * xsize - 0.5f;
     int y = glm::repeat(pos.y) * ysize - 0.5f;
     int y2 = (y != int(ysize) - 1)? y + 1 : y;
@@ -106,7 +106,7 @@ inline float clamp( float f )
     return 0.5f * ( 1.0f + fabsf( f ) - fabsf( f - 1.0f ) );
 }
 
-bool Texture::Write(std::string path) const{
+bool FileTexture::Write(std::string path) const{
     std::string out_dir = Utils::GetDir(path);
     std::string out_file = Utils::GetFilename(path);
 
@@ -122,7 +122,7 @@ bool Texture::Write(std::string path) const{
     return true;
 }
 
-void Texture::WriteToPNG(std::string path) const{
+void FileTexture::WriteToPNG(std::string path) const{
 
     png::image<png::rgb_pixel> image(xsize, ysize);
 
@@ -138,7 +138,7 @@ void Texture::WriteToPNG(std::string path) const{
     image.write(path);
 }
 
-void Texture::WriteToBMP(std::string path) const{
+void FileTexture::WriteToBMP(std::string path) const{
     // This procedure was contributed by Adam Malinowski and donated
     // to the public domain.
 
@@ -186,7 +186,7 @@ void Texture::WriteToBMP(std::string path) const{
     ofbStream.close();
 }
 
-Texture* Texture::CreateNewFromPNG(std::string path){
+FileTexture* FileTexture::CreateNewFromPNG(std::string path){
     if(!Utils::GetFileExists(path)){
         std::cerr << "Failed to load texture '" << path << ", file does not exist." << std::endl;
         return nullptr;
@@ -196,18 +196,18 @@ Texture* Texture::CreateNewFromPNG(std::string path){
 
     out::cout(5) << "Opened image '" << path << "', " << w << "x" << h << std::endl;
 
-    Texture* t = new Texture(w,h);
+    FileTexture* t = new FileTexture(w,h);
     for(unsigned int y = 0; y < h; y++){
         for(unsigned int x = 0; x < w; x++){
             auto pixel = image.get_pixel(x, y);
-            Color c = Color(pixel.red/255.0f, pixel.green/255.0f, pixel.blue/255.0f);
+            Color c = Color(pixel.red/255.0f, pixel.green/255.0f, pixel.blue/255.0f).gammaDecode();
             t->SetPixel(x, y, c);
         }
     }
     return t;
 }
 
-Texture* Texture::CreateNewFromJPEG(std::string path){
+FileTexture* FileTexture::CreateNewFromJPEG(std::string path){
     if(!Utils::GetFileExists(path)){
         std::cerr << "Failed to load texture '" << path << ", file does not exist." << std::endl;
         return nullptr;
@@ -245,13 +245,13 @@ Texture* Texture::CreateNewFromJPEG(std::string path){
         jpeg_finish_decompress(&info);
         fclose(file);
 
-        Texture* t = new Texture(w,h);
+        FileTexture* t = new FileTexture(w,h);
         for(int y = 0; y < h; y++){
             for(int x = 0; x < w; x++){
                 int p = (y * w + x) * 3;
                 t->SetPixel(x, h-y-1, Color(buf[p+0]/255.0f,
                                             buf[p+1]/255.0f,
-                                            buf[p+2]/255.0f));
+                                            buf[p+2]/255.0f).gammaDecode());
             }
         }
 
@@ -270,13 +270,13 @@ Texture* Texture::CreateNewFromJPEG(std::string path){
         jpeg_finish_decompress(&info);
         fclose(file);
 
-        Texture* t = new Texture(w,h);
+        FileTexture* t = new FileTexture(w,h);
         for(int y = 0; y < h; y++){
             for(int x = 0; x < w; x++){
                 int p = (y * w + x);
                 t->SetPixel(x, h-y-1, Color(buf[p+0]/255.0f,
                                             buf[p+0]/255.0f,
-                                            buf[p+0]/255.0f));
+                                            buf[p+0]/255.0f).gammaDecode());
             }
         }
 
@@ -291,7 +291,7 @@ Texture* Texture::CreateNewFromJPEG(std::string path){
 }
 
 
-Texture* Texture::CreateNewFromHDR(std::string path){
+FileTexture* FileTexture::CreateNewFromHDR(std::string path){
     if(!Utils::GetFileExists(path)){
         std::cerr << "Failed to load texture '" << path << ", file does not exist." << std::endl;
         return nullptr;
@@ -306,7 +306,7 @@ Texture* Texture::CreateNewFromHDR(std::string path){
 
     out::cout(5) << "Opened image '" << path << "', " << w << "x" << h << std::endl;
 
-    Texture* t = new Texture(w,h);
+    FileTexture* t = new FileTexture(w,h);
     for(int y = 0; y < h; y++){
         for(int x = 0; x < w; x++){
             int p = y*w + x;
@@ -321,7 +321,7 @@ Texture* Texture::CreateNewFromHDR(std::string path){
 }
 
 
-void Texture::FillStripes(unsigned int size, Color a, Color b){
+void FileTexture::FillStripes(unsigned int size, Color a, Color b){
     for(unsigned int y = 0; y < ysize; y++){
         for(unsigned int x = 0; x < xsize; x++){
             unsigned int d = (x+y)%(size*2);

@@ -8,13 +8,6 @@
 
 class BRDF{
 public:
-    enum BRDFType{
-        Diffuse,
-        Phong,
-        Phong2,
-        PhongEnergyConserving,
-        CookTorr
-    };
     virtual float PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const = 0;
     virtual float PdfDiff() const = 0;
     Spectrum Apply(Spectrum kD, Spectrum kS, glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug = false) const{

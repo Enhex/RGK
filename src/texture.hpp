@@ -26,10 +26,10 @@ class WritableTexture{
     virtual void SetPixel(int x, int y, Color c) = 0;
 };
 
-class Texture : public ReadableTexture,
+class FileTexture : public ReadableTexture,
                 public WritableTexture{
 public:
-    Texture(int xsize, int ysize);
+    FileTexture(int xsize, int ysize);
 
     bool Write(std::string path) const;
     void WriteToPNG(std::string path) const;
@@ -43,9 +43,9 @@ public:
 
     virtual Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const override;
 
-    static Texture* CreateNewFromPNG(std::string path);
-    static Texture* CreateNewFromJPEG(std::string path);
-    static Texture* CreateNewFromHDR(std::string path);
+    static FileTexture* CreateNewFromPNG(std::string path);
+    static FileTexture* CreateNewFromJPEG(std::string path);
+    static FileTexture* CreateNewFromHDR(std::string path);
 
     void FillStripes(unsigned int size, Color a, Color b);
 
@@ -55,7 +55,7 @@ private:
     std::vector<Color> data;
     unsigned int xsize, ysize;
 
-    Texture();
+    FileTexture();
 };
 
 class SolidTexture : public ReadableTexture{
