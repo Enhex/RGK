@@ -41,7 +41,7 @@ public:
     // That is: if f is a random number generator and N is a positive integer, then f(N) will
     // return an integer less than N and greater than or equal to 0.
     template <typename Random_number_generator>
-    void init_random(Random_number_generator& rand);
+    void init_random(Random_number_generator rand);
 
     // Return the number of supported dimensions.
     static unsigned get_num_dimensions() { return 256u; }
@@ -604,7 +604,7 @@ inline void Halton_sampler::init_faure()
 }
 
 template <typename Random_number_generator>
-void Halton_sampler::init_random(Random_number_generator& rand)
+void Halton_sampler::init_random(Random_number_generator rand)
 {
     const unsigned max_base = 1619u;
     std::vector<std::vector<unsigned short> > perms(max_base + 1);
@@ -619,7 +619,7 @@ void Halton_sampler::init_random(Random_number_generator& rand)
         perms[base].resize(base);
         for (unsigned i = 0; i < base; ++i)
             perms[base][i] = i;
-        std::random_shuffle(perms[base].begin(), perms[base].end(), rand);
+        std::shuffle(perms[base].begin(), perms[base].end(), rand);
     }
     init_tables(perms);
 }

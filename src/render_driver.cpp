@@ -14,8 +14,6 @@
 #include "utils.hpp"
 #include "out.hpp"
 #include "texture.hpp"
-#include "sampler.hpp"
-
 std::chrono::high_resolution_clock::time_point RenderDriver::frame_render_start;
 std::atomic<bool> RenderDriver::stop_monitor(false);
 

@@ -27,7 +27,7 @@
     "materials": [{
         "name": "floor",
         "brdf": "diffuse",
-        //"specular": [0.4, 0.4, 0.4],
+        "specular": [0.4, 0.4, 0.4],
         "diffuse-texture": "floor/grid2.png",
         "bump-map": "floor/intensity.jpg"
     },{

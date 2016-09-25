@@ -11,13 +11,14 @@
     },
     "multisample": 200,
     "rounds": 5,
-    "clamp": 150.0,
-    "bumpscale": 2.0,
+    "clamp": 45.0,
+    "bumpscale": 1.0,
     "output-scale": 1.2,
     "scene": [{
         "primitive": "plane",
         "axis": "Y",
         "scale": [2.0, 1, 2.0],
+        "texture-scale": [2.0, 2.0, 2.0],
         "material": "floor"
     },{
         "file": "teapot/teapot.obj",
@@ -41,15 +42,15 @@
     "materials": [{
         "name": "floor",
         "brdf": "ltc_beckmann",
-        "specular": [0.5, 0.5, 0.5],
-        "diffuse": [0.5, 0.5, 0.5],
+        "specular": [0.7, 0.7, 0.7],
+        "diffuse": [0.2, 0.2, 0.2],
         "bump-map": "floor/intensity.jpg",
-        "exponent": 800
+        "exponent": 8000
     },{
         "name": "teapot1",
         "brdf": "ltc_ggx",
         "specular": [0.2, 0.2, 0.2],
-        "diffuse": [0.8, 0.8, 0.8],
+        "diffuse": [0.6, 0.6, 0.6],
         "exponent": 1500
     },{
         "name": "teapot2",

@@ -129,7 +129,12 @@ class HaltonSampler : public OfflineSampler{
 public:
     HaltonSampler(unsigned int seed, unsigned int dim, unsigned int set_size)
         : OfflineSampler(seed, dim, set_size){
-        hs.init_faure();
+        //hs.init_faure();
+        std::minstd_rand0 g(seed);
+        // Silly HS::Halton_sampler does not accept rvalue references
+
+        // TODO: This init works far too slow.
+        hs.init_random(g);
     }
     virtual void PrepareSamples() override{
         for(unsigned int dim = 0; dim < dim_count; dim++){
