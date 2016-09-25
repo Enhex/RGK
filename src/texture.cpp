@@ -27,6 +27,10 @@ void Texture::SetPixel(int x, int y, Color c)
     data[y*xsize + x] = c;
 }
 
+Color Texture::GetPixel(int x, int y) const
+{
+    return data[y*xsize + x];
+}
 
 Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     (void)debug;
@@ -72,7 +76,7 @@ Color Texture::GetPixelInterpolated(glm::vec2 pos, bool debug) const{
     return css;
 }
 
-float Texture::GetSlopeRight(glm::vec2 pos){
+float Texture::GetSlopeRight(glm::vec2 pos) const{
     int x = glm::repeat(pos.x) * xsize - 0.5f;
     int y = glm::repeat(pos.y) * ysize - 0.5f;
     int x2 = (x != int(xsize) - 1)? x + 1 : x;
@@ -84,7 +88,7 @@ float Texture::GetSlopeRight(glm::vec2 pos){
     float b = (there.r + there.g + there.b)/3;
     return a-b;
 };
-float Texture::GetSlopeBottom(glm::vec2 pos){
+float Texture::GetSlopeBottom(glm::vec2 pos) const{
     int x = glm::repeat(pos.x) * xsize - 0.5f;
     int y = glm::repeat(pos.y) * ysize - 0.5f;
     int y2 = (y != int(ysize) - 1)? y + 1 : y;

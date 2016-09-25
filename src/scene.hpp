@@ -69,7 +69,9 @@ public:
         __restrict__ const __attribute__((hot));
 
     // Loads a texture from file, or returns a (scene-locally) cached version
-    std::shared_ptr<Texture> GetTexture(std::string path);
+    std::shared_ptr<ReadableTexture> GetTexture(std::string path);
+    // Adds a new solid color texture owned by the scene, and returns a pointer to it
+    std::shared_ptr<ReadableTexture> CreateSolidTexture(Color c);
 
     // TODO: have triangle access these, and keep these fields private
     glm::vec3*     vertices  = nullptr;
@@ -156,8 +158,10 @@ private:
     // TODO: Material* default_material;
     Material* GetMaterialByName(std::string name) const;
 
-    // This map is the owner of all textures in this scene
-    std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
+    // This map is the owner of all file-based textures in this scene
+    std::unordered_map<std::string, std::shared_ptr<ReadableTexture>> textures;
+    // This vector owns all solid-color textures in this scene.
+    std::vector<std::shared_ptr<ReadableTexture>> aux_textures;
 
     enum SkyboxMode : int{
         SimpleRadiance,
@@ -165,7 +169,7 @@ private:
     };
     SkyboxMode skybox_mode;
     Color skybox_color;
-    std::shared_ptr<Texture> skybox_texture;
+    std::shared_ptr<ReadableTexture> skybox_texture;
     float skybox_intensity;
     float skybox_rotate;
 

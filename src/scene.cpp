@@ -43,6 +43,7 @@ void Scene::FreeMaterials(){
 
 void Scene::FreeTextures(){
     textures.clear();
+    aux_textures.clear();
     skybox_texture = nullptr;
 }
 
@@ -91,7 +92,7 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     m.translucency = 1.0f - f;
 
     aiString as; std::string s;
-    std::shared_ptr<Texture> tex;
+    std::shared_ptr<ReadableTexture> tex;
     int n;
     n = mat->GetTextureCount(aiTextureType_DIFFUSE);
     if(n > 0){
@@ -336,7 +337,7 @@ void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, s
     }
 }
 
-std::shared_ptr<Texture> Scene::GetTexture(std::string path){
+std::shared_ptr<ReadableTexture> Scene::GetTexture(std::string path){
     if(path == "") return nullptr;
     auto it = textures.find(path);
     if(it == textures.end()){

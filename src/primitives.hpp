@@ -21,7 +21,7 @@ namespace std{
 }
 
 class Scene;
-class Texture;
+class ReadableTexture;
 
 struct Light{
     enum Type{
@@ -59,10 +59,10 @@ struct Material{
     float refraction_index;
     float translucency = 0.0f;
 
-    std::weak_ptr<Texture> diffuse_texture;
-    std::weak_ptr<Texture> specular_texture;
-    std::weak_ptr<Texture> ambient_texture;
-    std::weak_ptr<Texture> bump_texture;
+    std::weak_ptr<ReadableTexture> diffuse_texture;
+    std::weak_ptr<ReadableTexture> specular_texture;
+    std::weak_ptr<ReadableTexture> ambient_texture;
+    std::weak_ptr<ReadableTexture> bump_texture;
 
     std::shared_ptr<BRDF> brdf;
 };

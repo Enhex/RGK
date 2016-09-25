@@ -7,21 +7,34 @@
 
 #include "radiance.hpp"
 
-class Texture{
+class ReadableTexture{
+public:
+    virtual Color GetPixel(int x, int y) const = 0;
+    virtual Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const = 0;
+    virtual float GetSlopeRight(glm::vec2 pos) const = 0;
+    virtual float GetSlopeBottom(glm::vec2 pos) const = 0;
+};
+
+class WritableTexture{
+    virtual void SetPixel(int x, int y, Color c) = 0;
+};
+
+class Texture : public ReadableTexture,
+                public WritableTexture{
 public:
     Texture(int xsize, int ysize);
 
     bool Write(std::string path) const;
     void WriteToPNG(std::string path) const;
     void WriteToBMP(std::string path) const;
-    void SetPixel(int x, int y, Color c);
-    void GetPixel(int x, int y);
+    virtual void SetPixel(int x, int y, Color c) override;
+    virtual Color GetPixel(int x, int y) const override;
 
     // Finite differentes for bump maps
-    float GetSlopeRight(glm::vec2 pos);
-    float GetSlopeBottom(glm::vec2 pos);
+    virtual float GetSlopeRight(glm::vec2 pos) const override;
+    virtual float GetSlopeBottom(glm::vec2 pos) const override;
 
-    Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const;
+    virtual Color GetPixelInterpolated(glm::vec2 pos, bool debug = false) const override;
 
     static Texture* CreateNewFromPNG(std::string path);
     static Texture* CreateNewFromJPEG(std::string path);
@@ -35,6 +48,19 @@ private:
 
     Texture();
 };
+
+class SolidTexture : public ReadableTexture{
+public:
+    SolidTexture(Color color) : color(color) {}
+    virtual Color GetPixel(int, int) const override {return color;}
+    virtual Color GetPixelInterpolated(glm::vec2, bool) const override {return color;}
+    virtual float GetSlopeRight(glm::vec2) const override {return 0;}
+    virtual float GetSlopeBottom(glm::vec2) const override {return 0;}
+private:
+    Color color;
+};
+
+
 
 class EXRTexture{
 public:
