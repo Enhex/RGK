@@ -59,10 +59,10 @@ struct Material{
     float refraction_index;
     float translucency = 0.0f;
 
-    Texture* diffuse_texture  = nullptr;
-    Texture* specular_texture = nullptr;
-    Texture* ambient_texture  = nullptr;
-    Texture* bump_texture  = nullptr;
+    std::weak_ptr<Texture> diffuse_texture;
+    std::weak_ptr<Texture> specular_texture;
+    std::weak_ptr<Texture> ambient_texture;
+    std::weak_ptr<Texture> bump_texture;
 
     std::shared_ptr<BRDF> brdf;
 };

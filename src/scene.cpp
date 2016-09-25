@@ -42,10 +42,8 @@ void Scene::FreeMaterials(){
 }
 
 void Scene::FreeTextures(){
-    for(const auto& p : textures){
-        delete p.second;
-    }
     textures.clear();
+    skybox_texture = nullptr;
 }
 
 void Scene::FreeCompressedTree(){
@@ -93,7 +91,7 @@ void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string 
     m.translucency = 1.0f - f;
 
     aiString as; std::string s;
-    Texture* tex;
+    std::shared_ptr<Texture> tex;
     int n;
     n = mat->GetTextureCount(aiTextureType_DIFFUSE);
     if(n > 0){
@@ -338,7 +336,7 @@ void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, s
     }
 }
 
-Texture* Scene::GetTexture(std::string path){
+std::shared_ptr<Texture> Scene::GetTexture(std::string path){
     if(path == "") return nullptr;
     auto it = textures.find(path);
     if(it == textures.end()){
@@ -355,10 +353,12 @@ Texture* Scene::GetTexture(std::string path){
         }
         if(!t){
             std::cerr << "Failed to load texture '" << path << "' , ignoring it." << std::endl;
+            return nullptr;
         }else{
-            textures[path] = t;
+            std::shared_ptr<Texture> st(t);
+            textures[path] = st;
+            return st;
         }
-        return t;
     }else{
         return it->second;
     }

@@ -69,7 +69,7 @@ public:
         __restrict__ const __attribute__((hot));
 
     // Loads a texture from file, or returns a (scene-locally) cached version
-    Texture* GetTexture(std::string path);
+    std::shared_ptr<Texture> GetTexture(std::string path);
 
     // TODO: have triangle access these, and keep these fields private
     glm::vec3*     vertices  = nullptr;
@@ -156,7 +156,8 @@ private:
     // TODO: Material* default_material;
     Material* GetMaterialByName(std::string name) const;
 
-    std::unordered_map<std::string, Texture*> textures;
+    // This map is the owner of all textures in this scene
+    std::unordered_map<std::string, std::shared_ptr<Texture>> textures;
 
     enum SkyboxMode : int{
         SimpleRadiance,
@@ -164,7 +165,7 @@ private:
     };
     SkyboxMode skybox_mode;
     Color skybox_color;
-    Texture* skybox_texture;
+    std::shared_ptr<Texture> skybox_texture;
     float skybox_intensity;
     float skybox_rotate;
 

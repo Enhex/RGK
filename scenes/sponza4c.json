@@ -24,8 +24,8 @@
         "intensity": 2000.0,
         "size": 0.7
     }],
-    "multisample": 90,
-    "rounds": 40,
+    "multisample": 900,
+    "rounds": 4,
     "sky": {
         "envmap": "envmap/cloudy1.hdr",
         "intensity": 0.9

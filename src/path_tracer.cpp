@@ -223,7 +223,10 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             glm::vec2 texUV;
             // Interpolate textures
-            if(mat.ambient_texture || mat.diffuse_texture || mat.specular_texture || mat.bump_texture){
+            if((bool)mat.ambient_texture.lock() ||
+               (bool)mat.diffuse_texture.lock() ||
+               (bool)mat.specular_texture.lock() ||
+               (bool)mat.bump_texture.lock()){
                 glm::vec2 a = i.triangle->GetTexCoordsA();
                 glm::vec2 b = i.triangle->GetTexCoordsB();
                 glm::vec2 c = i.triangle->GetTexCoordsC();
@@ -231,12 +234,16 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 IFDEBUG std::cout << "texUV = " << texUV << std::endl;
             }
             // Get colors from texture
-            p.diffuse  =  mat.diffuse_texture?mat.diffuse_texture->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
-            p.specular = mat.specular_texture?mat.specular_texture->GetPixelInterpolated(texUV,debug): mat.specular;
+            // TODO: Single-color values should also be processed as textures
+            auto diff = mat.diffuse_texture.lock();
+            auto spec = mat.specular_texture.lock();
+            p.diffuse  = diff ? diff->GetPixelInterpolated(texUV,debug) : mat.diffuse ;
+            p.specular = spec ? spec->GetPixelInterpolated(texUV,debug) : mat.specular;
             // Tilt normal using bump texture
-            if(mat.bump_texture){
-                float right = mat.bump_texture->GetSlopeRight(texUV);
-                float bottom = mat.bump_texture->GetSlopeBottom(texUV);
+            auto bump_texture = mat.bump_texture.lock();
+            if(mat.bump_texture.lock()){
+                float right = bump_texture->GetSlopeRight(texUV);
+                float bottom = bump_texture->GetSlopeBottom(texUV);
                 glm::vec3 tangent = i.Interpolate(i.triangle->GetTangentA(),
                                                   i.triangle->GetTangentB(),
                                                   i.triangle->GetTangentC());
