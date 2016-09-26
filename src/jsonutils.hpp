@@ -1,3 +1,6 @@
+#ifndef __JSONUTILS_HPP__
+#define __JSONUTILS_HPP__
+
 #include <string>
 
 #include "../external/json/json.h"
@@ -35,3 +38,5 @@ private:
     static bool JSONToVec3(Json::Value v, glm::vec3& out);
     static std::string fileloc_name;
 };
+
+#endif // __JSONUTILS_HPP__

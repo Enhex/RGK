@@ -1,4 +1,4 @@
-#include "brdf.hpp"
+/*#include "brdf.hpp"
 
 #include "glm.hpp"
 #include <glm/gtx/vector_angle.hpp>
@@ -23,7 +23,8 @@ float BRDFDiffuseCosine::PdfDiff() const{
 float BRDFDiffuseCosine::PdfSpec(glm::vec3, glm::vec3, glm::vec3, bool) const{
     return 0.0f;
 }
-
+*/
+/*
 float BRDFPhongEnergy::PdfDiff() const{
     return 1.0f/glm::pi<float>();
 }
@@ -47,6 +48,7 @@ BRDFCookTorr::BRDFCookTorr(float phong_exp, float ior){
     F0 = q*q;
 }
 float BRDFCookTorr::PdfDiff() const{
+    return 0.0f;
     return 1.0f/glm::pi<float>();
 }
 float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug) const{
@@ -92,7 +94,9 @@ float BRDFCookTorr::PdfSpec(glm::vec3 N, glm::vec3 Vi, glm::vec3 Vr, bool debug)
 
     return c / glm::pi<float>();
 }
-
+*/
+/*
+// ========================================================================
 
 BRDFLTCBeckmann::BRDFLTCBeckmann(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
@@ -124,6 +128,8 @@ BRDFLTCBeckmann::GetRay(glm::vec3 normal, glm::vec3 inc, Spectrum diffuse, Spect
     }
 }
 
+// ========================================================================
+
 BRDFLTCGGX::BRDFLTCGGX(float phong_exp){
     // Converting specular exponent to roughness using Brian Karis' formula:
     roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
@@ -153,3 +159,4 @@ BRDFLTCGGX::GetRay(glm::vec3 normal, glm::vec3 inc, Spectrum diffuse, Spectrum s
         return std::make_tuple(v,specular);
     }
 }
+*/

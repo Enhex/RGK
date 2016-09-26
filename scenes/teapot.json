@@ -45,19 +45,19 @@
         "brdf": "ltc_ggx",
         "specular": [0.2, 0.2, 0.2],
         "diffuse": [0.8, 0.8, 0.8],
-        "exponent": 1500
+        "roughness": 0.1
     },{
         "name": "teapot2",
         "brdf": "ltc_beckmann",
         "specular": [0.8, 0.8, 0.8],
         "diffuse": [0.2, 0.2, 0.2],
-        "exponent": 1500
+        "roughness": 0.1
     },{
         "name": "teapot3",
         "brdf": "ltc_beckmann",
         "specular": [0.8, 0.6, 0.6],
         "diffuse": [0.2, 0.16, 0.16],
-        "exponent": 80
+        "rougnhess": 0.6
     }],
     "sky": {
         "envmap": "envmap/cloudy1.hdr",

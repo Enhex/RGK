@@ -1,5 +1,5 @@
 {
-    "output-file": "cornell-box.exr",
+    "output-file": "cornell-box-spheres.exr",
     "output-width": 1024,
     "output-height": 1024,
     "multisample": 400,
@@ -25,6 +25,18 @@
             "name": "WallsAndBoxes",
             "diffuse": [0.725, 0.71, 0.68],
             "brdf": "diffuse"
+        },{
+            "name": "TallSphere",
+            //"diffuse": [0.725, 0.71, 0.88],
+            "specular": [0.825, 0.61, 0.63],
+            "roughness": 0.11,
+            "brdf": "ltc_beckmann"
+        },{
+            "name": "SmallSphere",
+            //"diffuse": [0.725, 0.71, 0.88],
+            "specular": [0.625, 0.61, 0.88],
+            "roughness": 0,
+            "brdf": "ltc_ggx"
         },{
             "name": "Light",
             "emission": [17, 12, 4],
@@ -59,18 +71,18 @@
             "translate": [-1,1,0],
             "rotate": [0,180,0],
             "material": "LeftWall"
-        },{ // Tall box
-            "primitive": "cube",
+        },{ // Tall sphere
+            "file": "meshes/sphere.obj",
             "translate": [-0.335439, 0.6, -0.291415],
-            "scale": [0.607289, 0.597739, 1.2],
+            "scale": [0.3, 0.3, 0.6],
             "rotate": [90, 180, -160.812],
-            "material": "WallsAndBoxes"
-        },{ // Short box
-            "primitive": "cube",
+            "material": "TallSphere"
+        },{ // Small sphere
+            "file": "meshes/sphere.obj",
             "translate": [0.328631, 0.3, 0.374592],
-            "scale": [0.594811, 0.604394, 0.6],
+            "scale": [0.3, 0.3, 0.3],
             "rotate": [0, -163.36, 0],
-           "material": "WallsAndBoxes"
+           "material": "SmallSphere"
         },{ // Light source
             "primitive": "tri",
             "translate": [-0.005, 1.98, -0.03],

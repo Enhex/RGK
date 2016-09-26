@@ -22,9 +22,11 @@ public:
     // Returns PDF value of a LTC approximation for a given normal
     // vector, incoming/reflected vectors, and roughness.
     static float GetPDF(LTCdef ltc, glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug = false);
+    static float GetPDFZ(LTCdef ltc, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug = false);
     // Given a random Z-oriented vector rand_hscos, this method
     // applies the linear transform that approximates the LTC BRDF.
     static glm::vec3 GetRandom(LTCdef ltc, glm::vec3 normal, glm::vec3 incoming, float roughness, glm::vec3 rand_hscos, bool debug = false);
+    static glm::vec3 GetRandomZ(LTCdef ltc, glm::vec3 incoming, float roughness, glm::vec3 rand_hscos, bool debug = false);
 
     static const LTCdef Beckmann;
     static const LTCdef GGX;

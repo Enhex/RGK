@@ -5,7 +5,7 @@
 #include "global_config.hpp"
 #include "random_utils.hpp"
 #include "sampler.hpp"
-#include "brdf.hpp"
+#include "bxdf/bxdf.hpp"
 #include "utils.hpp"
 
 #include <tuple>
@@ -72,7 +72,7 @@ PixelRenderResult PathTracer::RenderPixel(int x, int y, unsigned int & raycount,
         IFDEBUG std::cout << "[SAMPLER] Samples used for this ray: " << sampler.GetUsage().first + sampler.GetUsage().second << std::endl;
     }
 
-    IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel/multisample << std::endl;
+    IFDEBUG std::cout << "-----> pixel average: " << total.main_pixel/multisample << std::endl << std::endl;
 
     return total;
 }
@@ -96,45 +96,15 @@ Radiance PathTracer::ApplyThinglass(Radiance input, const ThinglassIsections& is
             //glm::vec2 UV = std::get<2>(isections[n]);
             // TODO: Use translucency filter instead of diffuse!
             // TODO: Respect texture UV coordinates
+
+            // TODO: This is obsolete, use better BxDF instead
+            /*
             Color c = trig->GetMaterial().diffuse->Get(glm::vec2(0.0, 0.0));
             result = result * Spectrum(c);
+            */
         }
     }
     return result;
-}
-
-float Fresnel(glm::vec3 I, glm::vec3 N, float ior){
-    float cosi = glm::dot(I, N);
-    float etai = 1.0f, etat = ior;
-    if (cosi > 0) { std::swap(etai, etat); }
-    // Snell's law
-    float sint = etai / etat * glm::sqrt(glm::max(0.f, 1.0f - cosi * cosi));
-    if(sint >= 1){
-        // Total internal reflection
-        return 1.0f;
-    }else{
-        float cost = sqrtf(std::max(0.f, 1 - sint * sint));
-        cosi = fabsf(cosi);
-        float Rs = ((etat * cosi) - (etai * cost)) / ((etat * cosi) + (etai * cost));
-        float Rp = ((etai * cosi) - (etat * cost)) / ((etai * cosi) + (etat * cost));
-        return (Rs * Rs + Rp * Rp) / 2.0f;
-    }
-}
-
-glm::vec3 Refract(glm::vec3 in, glm::vec3 N, float IOR, bool debug = false){
-    (void)debug;
-    if(glm::dot(in, N) > 0.999f) return -in;
-    glm::vec3 tangent = glm::normalize(glm::cross(N,in));
-    float cosEta1 = glm::dot(in,N);
-    float sinEta1 = glm::sqrt(1.0f - cosEta1 * cosEta1);
-    IFDEBUG std::cout << "Eta1 " << glm::degrees(glm::angle(N, in)) << std::endl;
-    IFDEBUG std::cout << "sinEta1 " << sinEta1 << std::endl;
-    float sinEta2 = sinEta1 * IOR;
-    IFDEBUG std::cout << "sinEta2 " << sinEta2 << std::endl;
-    if(sinEta2 >= 1.0f) return glm::vec3(std::numeric_limits<float>::quiet_NaN()); // total internal
-    float Eta2 = glm::asin(sinEta2);
-    IFDEBUG std::cout << "Eta2 " << glm::degrees(Eta2) << std::endl;
-    return glm::rotate(-N, Eta2, tangent);
 }
 
 std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int& raycount, unsigned int depth__, float russian__, Sampler& sampler, bool debug) const {
@@ -211,16 +181,11 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             p.Vr = -current_ray.direction;
             qassert_false(std::isnan(p.Vr.x));
 
+            // Invert normal in case this ray would enter from inside
+            // if(glm::dot(p.faceN, p.Vr) <= 0.0f) p.faceN = -p.faceN;
+
             const Material& mat = i.triangle->GetMaterial();
             p.mat = &mat;
-
-            bool fromInside = false;
-            if(glm::dot(p.faceN, p.Vr) < 0){
-                fromInside = true;
-                // Pretend correction.
-                p.faceN = -p.faceN;
-                p.backside = true;
-            }
 
             assert(!std::isnan(p.faceN.x));
 
@@ -233,10 +198,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             // Get colors from texture
             // TODO: Single-color values should also be processed as textures
-            p.diffuse = Spectrum( mat.diffuse->Get(p.texUV) );
-            p.specular = Spectrum( mat.specular->Get(p.texUV) );
             p.emission = mat.emission;
-            p.bumpmap = mat.bumpmap->Get(p.texUV);
 
             // Tilt normal using bump texture
             if(!mat.bumpmap->Empty()){
@@ -263,15 +225,6 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                     if(glm::isnan(p.lightN.x)){
                         p.lightN = p.faceN;
                     }
-                    /*
-                    qassert_true(glm::length(p.lightN) > 0);
-                    float dot2 = glm::dot(p.faceN,tangent2);
-                    qassert_true(dot2 >= -0.001f);
-                    float dot3 = glm::dot(p.faceN,bitangent);
-                    qassert_true(dot3 >= -0.001f);
-                    float dot = glm::dot(p.faceN,p.lightN);
-                    qassert_true(dot > 0);
-                    */
                 }
             }else{
                 p.lightN = p.faceN;
@@ -279,119 +232,32 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
 
             assert(!std::isnan(p.lightN.x));
 
-            // Randomly determine point type
-            float ptype_sample = sampler.Get1D();
-            if(mat.translucency > 0.001f){
-                // This is a translucent material.
-                if(fromInside){
-                    // Ray leaves the object
-                    p.type = PathPoint::LEFT;
-                }else{
-                    float q = Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index);
-                    if(RandomUtils::DecideAndRescale(ptype_sample, q))
-                        p.type = PathPoint::REFLECTED;
-                    else{
-                        if(RandomUtils::DecideAndRescale(ptype_sample, mat.translucency))
-                            p.type = PathPoint::ENTERED;
-                        else p.type = PathPoint::SCATTERED;
-                    }
-                }
-            }else{
-                // Not a translucent material.
-                if(force_fresnell){
-                    float strength =
-                        (p.specular.r + p.specular.g + p.specular.b)/
-                        (p.diffuse .r + p.diffuse .g + p.diffuse .b +
-                         p.specular.r + p.specular.g + p.specular.b);
-                    if(RandomUtils::DecideAndRescale(ptype_sample, strength) &&
-                       RandomUtils::DecideAndRescale(ptype_sample, Fresnel(p.Vr, p.lightN, 1.0/mat.refraction_index)))
-                        p.type = PathPoint::REFLECTED;
-                    else
-                        p.type = PathPoint::SCATTERED;
-                }else{
-                    p.type = PathPoint::SCATTERED;
-                }
-            }
+            p.transform = SystemTransform(p.lightN, BxDFUpVector);
 
-            p.transfer_coefficients = Spectrum(1.0f, 1.0f, 1.0f);
             // Compute next ray direction
-            IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << " and ";
+            IFDEBUG std::cout << "Ray hit material " << mat.name << " at " << p.pos << std::endl;
             glm::vec3 dir;
-            int counter = 0;
-            (void)counter;
             glm::vec2 sample;
-            switch(p.type){
-            case PathPoint::REFLECTED:
-                IFDEBUG std::cout << "REFLECTED." << std::endl;
-                dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
-                if(glm::dot(dir, p.faceN) > 0.0f)
-                    break;
-                // Otherwise, this reflected ray would enter inside the face.
-                // Therefore, pretend it's a scatter ray. Thus:
-                /* FALLTHROUGH */
-            case PathPoint::SCATTERED:
-                IFDEBUG std::cout << "SCATTERED." << std::endl;
-                // Revert to face normal in case this ray would enter from inside
-                if(glm::dot(p.lightN, p.Vr) <= 0.0f) p.lightN = p.faceN;
 
-                sample = sampler.Get2D();
-                std::tie(dir, p.transfer_coefficients) = mat.brdf->GetRay(p.lightN, p.Vr, p.diffuse, p.specular, sample, debug);
-                if(!(glm::dot(dir, p.faceN) > 0.0f)){
-                    // Huh. The next bump is right here on this very same face.
-                    // TODO: Do not add epsilon when creating next ray!
-                    // TODO: Maybe the path should terminate here?
-                }
-                //qassert_true(glm::dot(dir, p.faceN) > 0.0f);
-                /* THE FOLLOWING wastes a large number of random samples!
-                do{
-                    std::tie(dir, p.transfer_coefficients) = mat.brdf->GetRay(p.lightN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd, debug);
-                    counter++;
-                }while(glm::dot(dir, p.faceN) <= 0.0f && counter < 20);
-                if(counter == 20){
-                    // We have tried 20 different samples, and they all would enter the face.
-                    // This happens if brdf is very narrowly distributed.
-                    // In this case, we technically need a better sampling strategy.
-                    // Possible options are: 1) terminate path right here 2) revert to the face normal vector 3) other.
-                    // Unfortunatelly, I do not have the time right now to consider and compare these options.
-                    // So, temporarily, I'll do 2).
-                    do{ //                                          Notice faceN here ---\/---
-                        std::tie(dir, p.transfer_coefficients) = mat.brdf->GetRay(p.faceN, p.Vr, Radiance(p.diffuse), Radiance(p.specular), rnd);
-                    }while(glm::dot(dir, p.faceN) <= 0.0f);
-                }
-                */
-                break;
-            case PathPoint::ENTERED:
-                IFDEBUG std::cout << "ENTERED medium." << std::endl;
-                dir = Refract(p.Vr, p.lightN, 1.0f/mat.refraction_index, debug);
-                if(glm::isnan(dir.x)){
-                    // Internal reflection
-                    IFDEBUG std::cout << "internally reflected." << std::endl;
-                    p.type = PathPoint::REFLECTED;
-                    dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
-                }
-                break;
-            case PathPoint::LEFT:
-                // TODO: Refraction
-                IFDEBUG std::cout << "LEFT medium." << std::endl;
-                dir = Refract(p.Vr, p.lightN, mat.refraction_index, debug);
-                if(glm::isnan(dir.x)){
-                    // Internal reflection
-                    IFDEBUG std::cout << "internally reflected." << std::endl;
-                    p.type = PathPoint::REFLECTED;
-                    dir = 2.0f * glm::dot(p.Vr, p.lightN) * p.lightN - p.Vr;
-                }
-                break;
+
+            sample = sampler.Get2D();
+            std::tie(dir, p.transfer_coefficients) =
+                mat.bxdf->sample(p.transform.toLocal(p.Vr),
+                                 p.texUV,
+                                 sample,
+                                 debug);
+            dir = p.transform.toGlobal(dir);
+            if(!(glm::dot(dir, p.faceN) > 0.0f)){
+                // Huh. The next bump is right here on this very same face.
+                // TODO: Do not add epsilon when creating next ray!
+                // TODO: Maybe the path should terminate here?
             }
+
             p.Vi = dir;
 
             // Store russian coefficient
             if(russian__ > 0.0f && n > 1) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
-
-            // TODO: This should be done by a transparency BxDF
-            if(p.type == PathPoint::ENTERED){
-                p.transfer_coefficients *= Spectrum(p.diffuse);
-            }
 
             cumulative_transfer_coefficients *= p.russian_coefficient;
             cumulative_transfer_coefficients *= p.transfer_coefficients;
@@ -415,7 +281,8 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             // Prepate next ray
             current_ray = Ray(p.pos +
                               p.faceN * scene.epsilon * 10.0f *
-                              ((p.type == PathPoint::ENTERED || p.type == PathPoint::LEFT)?-1.0f:1.0f)
+                              // TODO: Correction depending on outcoming vector side
+                              (false?-1.0f:1.0f)
                               , glm::normalize(dir));
             qassert_false(std::isnan(current_ray.direction.x));
 
@@ -497,23 +364,25 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
 
         IFDEBUG std::cout << "At point " << n << ", light from path start reachin this point: " << light_here << std::endl;
 
-        if(p.type == PathPoint::SCATTERED){
-            // Connect the point with camera and add as a side effect
-            if(!p.infinity && scene.Visibility(p.pos, camerapos)){
-                IFDEBUG std::cout << "Point " << p.pos << " is visible from camera." << std::endl;
-                glm::vec3 direction = glm::normalize(p.pos - camerapos);
-                Radiance q = light_here * p.mat->brdf->Apply(Spectrum(p.diffuse), Spectrum(p.specular), p.lightN, p.Vr, -direction, debug);
-                float G = glm::max(0.0f, glm::dot(p.lightN, -direction)) / glm::distance2(camerapos, p.pos);
-                IFDEBUG std::cout << "G = " << G << std::endl;
-                if(G >= 0.00001f && !std::isnan(q.r)){
-                    q *= Spectrum(G);
-                    int x2, y2;
-                    IFDEBUG std::cout << "Side effect from " << direction << std::endl;
-                    bool in_view = camera.GetCoordsFromDirection( direction, x2, y2, debug);
-                    if(in_view){
-                        IFDEBUG std::cout << "In view at " << x2 << " " << y2 << ", radiance: " << q << std::endl;
-                        result.side_effects.push_back(std::make_tuple(x2, y2, q));
-                    }
+        // Connect the point with camera and add as a side effect
+        if(!p.infinity && scene.Visibility(p.pos, camerapos)){
+            IFDEBUG std::cout << "Point " << p.pos << " is visible from camera." << std::endl;
+            glm::vec3 direction = glm::normalize(p.pos - camerapos);
+            Radiance q = light_here *
+                p.mat->bxdf->value(p.transform.toLocal(p.Vr),
+                                   p.transform.toLocal(-direction),
+                                   p.texUV,
+                                   debug);
+            float G = glm::max(0.0f, glm::dot(p.lightN, -direction)) / glm::distance2(camerapos, p.pos);
+            IFDEBUG std::cout << "G = " << G << std::endl;
+            if(G >= 0.00001f && !std::isnan(q.r)){
+                q *= Spectrum(G);
+                int x2, y2;
+                IFDEBUG std::cout << "Side effect from " << direction << std::endl;
+                bool in_view = camera.GetCoordsFromDirection( direction, x2, y2, debug);
+                if(in_view){
+                    IFDEBUG std::cout << "In view at " << x2 << " " << y2 << ", radiance: " << q << std::endl;
+                    result.side_effects.push_back(std::make_tuple(x2, y2, q));
                 }
             }
         }
@@ -543,75 +412,68 @@ PixelRenderResult PathTracer::TracePath(const Ray& r, unsigned int& raycount, Sa
 
         Radiance total_here(0.0,0.0,0.0);
 
-        if(p.type == PathPoint::SCATTERED){
-            // ==========
-            // Direct lighting
+        // ==========
+        // Direct lighting
 
-            //for(unsigned int lightno = 0; lightno < lights.size(); lightno++){
-            //const Light& light = lights[lightno];
+        const Light& light = main_light;
 
-            const Light& light = main_light;
+        ThinglassIsections thinglass_isect;
+        // Visibility factor
+        if((scene.thinglass.size() == 0 && scene.Visibility(light.pos, p.pos)) ||
+           (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(light.pos, p.pos, thinglass_isect))){
 
-            //IFDEBUG std::cout << "Incorporating direct lighting component for light "
-            //                  << lightno << ", light.pos: " << light.pos << std::endl;
+            IFDEBUG std::cout << "====> Light is visible" << std::endl;
 
-            ThinglassIsections thinglass_isect;
-            // Visibility factor
-            if((scene.thinglass.size() == 0 && scene.Visibility(light.pos, p.pos)) ||
-               (scene.thinglass.size() != 0 && scene.VisibilityWithThinglass(light.pos, p.pos, thinglass_isect))){
+            // Incoming direction
+            glm::vec3 Vi = glm::normalize(light.pos - p.pos);
 
-                IFDEBUG std::cout << "====> Light is visible" << std::endl;
+            Spectrum f = mat.bxdf->value(p.transform.toLocal(Vi),
+                                         p.transform.toLocal(p.Vr),
+                                         p.texUV,
+                                         debug);
 
-                // Incoming direction
-                glm::vec3 Vi = glm::normalize(light.pos - p.pos);
+            IFDEBUG std::cout << "f = " << f << std::endl;
 
-                Spectrum f = mat.brdf->Apply(Spectrum(p.diffuse), Spectrum(p.specular), p.lightN, Vi, p.Vr, debug);
+            float G = glm::abs(glm::dot(p.lightN, Vi)) / glm::distance2(light.pos, p.pos);
+            IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
+            Radiance inc_l = Radiance(light.color) * Spectrum( light.intensity *
+                                                               light.GetDirectionalFactor(-Vi)
+                                                               );
+            inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
 
-                IFDEBUG std::cout << "f = " << f << std::endl;
+            IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
 
-                float G = glm::max(0.0f, glm::dot(p.lightN, Vi)) / glm::distance2(light.pos, p.pos);
-                IFDEBUG std::cout << "G = " << G << ", angle " << glm::angle(p.lightN, Vi) << std::endl;
-                Radiance inc_l = Radiance(light.color) * Spectrum( light.intensity *
-                                                                   light.GetDirectionalFactor(-Vi)
-                                                                   );
-                inc_l = ApplyThinglass(inc_l, thinglass_isect, Vi);
-
-                IFDEBUG std::cout << "incoming light with filters: " << inc_l << std::endl;
-
-                Radiance out = inc_l * ( f * G );
-                IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
-                total_here += out;
-            }else{
-                IFDEBUG std::cout << "Light not visible" << std::endl;
-            }
-            //}
-
-            // Reverse light
-            for(unsigned int q = 0; q < light_path.size(); q++){
-                const PathPoint& l = light_path[q];
-                // TODO: Thinglass?
-                if(!l.infinity && scene.Visibility(l.pos, p.pos)){
-                    glm::vec3 light_to_p = glm::normalize(p.pos - l.pos);
-                    glm::vec3 p_to_light = -light_to_p;
-                    Spectrum f_light = l.mat->brdf->Apply(Spectrum(l.diffuse), Spectrum(l.specular), l.lightN, light_to_p, l.Vr, debug);
-                    Spectrum f_point = p.mat->brdf->Apply(Spectrum(p.diffuse), Spectrum(p.specular), p.lightN, p.Vr, p_to_light, debug);
-                    float G = glm::max(0.0f, glm::dot(p.lightN, p_to_light)) / glm::distance2(l.pos, p.pos);
-                    total_here += l.light_from_source * ( f_light * f_point * G );
-                }// not visible from each other.
-            }
-
-            IFDEBUG std::cout << "total with light path: " << total_here << std::endl;
-
-        }else if(p.type == PathPoint::REFLECTED || p.type == PathPoint::LEFT){
-            // These cases should be covered by the BRDF, not by logic
-            // here.  A reflected ray is no different to a scattered
-            // ray, it's just that some BRDFs may have a higher (or
-            // even delta) weights for reflected direction.
-        }else if(p.type == PathPoint::ENTERED){
-
+            Radiance out = inc_l * ( f * G );
+            IFDEBUG std::cout << "total direct lighting: " << out << std::endl;
+            total_here += out;
+        }else{
+            IFDEBUG std::cout << "Light not visible" << std::endl;
         }
 
-        if(!p.backside){
+        // Reverse light
+        for(unsigned int q = 0; q < light_path.size(); q++){
+            const PathPoint& l = light_path[q];
+            // TODO: Thinglass?
+            if(!l.infinity && scene.Visibility(l.pos, p.pos)){
+                glm::vec3 light_to_p = glm::normalize(p.pos - l.pos);
+                glm::vec3 p_to_light = -light_to_p;
+                Spectrum f_light = l.mat->bxdf->value(l.transform.toLocal(light_to_p),
+                                                      l.transform.toLocal(l.Vr),
+                                                      l.texUV,
+                                                      debug);
+                Spectrum f_point = p.mat->bxdf->value(p.transform.toLocal(p.Vr),
+                                                          p.transform.toLocal(p_to_light),
+                                                      p.texUV,
+                                                      debug);
+                float G = glm::abs(glm::dot(p.lightN, p_to_light)) / glm::distance2(l.pos, p.pos);
+                total_here += l.light_from_source * ( f_light * f_point * G );
+            }// not visible from each other.
+        }
+
+        IFDEBUG std::cout << "total with light path: " << total_here << std::endl;
+
+
+        if(glm::dot(p.faceN, p.Vr) > 0){
             total_here += p.emission; /* * glm::dot(p.lightN, p.Vr); */
         }
 

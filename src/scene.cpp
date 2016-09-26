@@ -12,7 +12,7 @@
 #include "utils.hpp"
 #include "out.hpp"
 #include "global_config.hpp"
-#include "brdf.hpp"
+#include "bxdf/bxdf.hpp"
 
 // #define NO_COMPRESS
 
@@ -38,7 +38,8 @@ void Scene::FreeBuffers(){
 }
 
 void Scene::FreeMaterials(){
-    for(Material* m : materials) delete m;
+    materials.clear();
+    materials_by_name.clear();
 }
 
 void Scene::FreeTextures(){
@@ -54,10 +55,12 @@ void Scene::FreeCompressedTree(){
     compressed_array_size = 0;
 }
 
-void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string texture_directory, bool override_materials){
+void Scene::LoadAiSceneMaterials(const aiScene* scene, std::string, std::string texture_directory, bool override_materials){
     // Load materials
     for(unsigned int i = 0; i < scene->mNumMaterials; i++){
-        LoadAiMaterial(scene->mMaterials[i], default_brdf, texture_directory, override_materials);
+        auto m = std::make_shared<Material>();
+        m->LoadFromAiMaterial(scene->mMaterials[i], *this, texture_directory);
+        RegisterMaterial(m, override_materials);
     }
 }
 
@@ -67,76 +70,7 @@ void Scene::LoadAiSceneMeshes(const aiScene* scene, glm::mat4 transform, std::st
     LoadAiNode(scene,root,transform,force_mat);
 }
 
-
-void Scene::LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string texture_directory, bool override){
-
-    Material m;
-    aiString name;
-    mat->Get(AI_MATKEY_NAME, name);
-    m.name = name.C_Str();
-    aiColor3D c;
-    mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
-    m.diffuse = CreateSolidTexture(Color(c.r, c.g, c.b));
-    mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
-    m.specular = CreateSolidTexture(Color(c.r, c.g, c.b));
-    mat->Get(AI_MATKEY_COLOR_EMISSIVE,c);
-    m.emission = Radiance(c.r, c.g, c.b);
-    float f;
-    mat->Get(AI_MATKEY_SHININESS, f);
-    m.exponent = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
-    mat->Get(AI_MATKEY_REFRACTI, f);
-    m.refraction_index = f;
-    mat->Get(AI_MATKEY_OPACITY, f);
-    m.translucency = 1.0f - f;
-
-    aiString as; std::string s;
-    int n;
-    n = mat->GetTextureCount(aiTextureType_DIFFUSE);
-    if(n > 0){
-        mat->GetTexture(aiTextureType_DIFFUSE, 0, &as); s = as.C_Str();
-        if(s != ""){
-            out::cout(5) << "Material has diffuse texture " << s << std::endl;
-            m.diffuse = GetTexture(texture_directory + s);
-        }
-    }
-    n = mat->GetTextureCount(aiTextureType_SPECULAR);
-    if(n > 0){
-        mat->GetTexture(aiTextureType_SPECULAR, 0, &as); s = as.C_Str();
-        if(s != ""){
-            out::cout(5) << "Material has specular texture " << s << std::endl;
-            m.specular = GetTexture(texture_directory + s);
-        }
-    }
-    n = mat->GetTextureCount(aiTextureType_HEIGHT);
-    if(n > 0){
-        mat->GetTexture(aiTextureType_HEIGHT, 0, &as); s = as.C_Str();
-        if(s != ""){
-            out::cout(5) << "Material has bump texture " << s << std::endl;
-            m.bumpmap = GetTexture(texture_directory + s);
-        }
-    }
-
-    // Supposedly we may support different brdfs for each material.
-    if(brdf == "diffusecosine" || brdf == "diffuse"){
-        m.brdf = std::make_unique<BRDFDiffuseCosine>();
-    }else if(brdf == "cooktorr"){
-        m.brdf = std::make_unique<BRDFCookTorr>(m.exponent, m.refraction_index);
-    }else if(brdf == "ltc_beckmann"){
-        m.brdf = std::make_unique<BRDFLTCBeckmann>(m.exponent);
-    }else if(brdf == "ltc_ggx"){
-        m.brdf = std::make_unique<BRDFLTCGGX>(m.exponent);
-    }else if(brdf == "phongenergy"){
-        m.brdf = std::make_unique<BRDFPhongEnergy>(m.exponent);
-    }else{
-        assert(0 * (size_t)"Unsupported BRDF id in config!");
-    }
-
-    out::cout(4) << "Read material: " << m.name << std::endl;
-    RegisterMaterial(m, override);
-}
-
-void Scene::RegisterMaterial(const Material &mat, bool override){
-    Material* material = new Material(mat);
+void Scene::RegisterMaterial(std::shared_ptr<Material> material, bool override){
     auto it = materials_by_name.find(material->name);
     if(it != materials_by_name.end()){
         // Already exists
@@ -145,14 +79,12 @@ void Scene::RegisterMaterial(const Material &mat, bool override){
             // throw std::runtime_error("Cannot register a duplicate material: \"" + material->name + "\"");
         }else{
             // Substitute the old material with the new one
-            Material* oldmat = it->second;
+            auto oldmat = it->second;
             // Find it in the vector and remove...
             materials.erase(std::remove(materials.begin(), materials.end(), oldmat), materials.end());
             // Insert the new one
             materials.push_back(material);
             materials_by_name[material->name] = material;
-            // Free the old one
-            delete oldmat;
         }
     }else{
         // New material
@@ -204,7 +136,7 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, glm::mat4 curre
 
     // Get the material index.
     unsigned int mat_id = mesh->mMaterialIndex;
-    Material* material;
+    std::shared_ptr<Material> material;
     // Find the material by name.
     if(force_mat == ""){
         aiString mat_name;
@@ -235,7 +167,7 @@ void Scene::LoadAiMesh(const aiScene* scene, const aiMesh* mesh, glm::mat4 curre
                        face.mIndices[0] + vertex_index_offset,
                        face.mIndices[1] + vertex_index_offset,
                        face.mIndices[2] + vertex_index_offset,
-                       material);
+                       material.get());
             triangles_buffer.push_back(t);
             int n = triangles_buffer.size() - 1;
             if(light_source){
@@ -279,7 +211,7 @@ void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, s
     qassert_true(primitive.size() % 3 == 0);
     out::cout(4) << "-- Adding a primitive with " << primitive.size()/3 << " faces." << std::endl;
     unsigned int vertex_index_offset = vertices_buffer.size();
-    Material* mat = GetMaterialByName(material);
+    std::shared_ptr<Material> mat = GetMaterialByName(material);
     bool light_source = mat->emission.isNonZero();
     ArealLight al;
 
@@ -300,7 +232,7 @@ void Scene::AddPrimitive(const primitive_data& primitive, glm::mat4 transform, s
                    vertex_index_offset + 0 + i*3,
                    vertex_index_offset + 1 + i*3,
                    vertex_index_offset + 2 + i*3,
-                   mat);
+                   mat.get());
         triangles_buffer.push_back(t);
         int n = triangles_buffer.size() - 1;
         if(light_source){
@@ -351,7 +283,7 @@ std::shared_ptr<ReadableTexture> Scene::CreateSolidTexture(Color c){
     return s;
 }
 
-Material* Scene::GetMaterialByName(std::string name) const{
+std::shared_ptr<Material> Scene::GetMaterialByName(std::string name) const{
     auto it = materials_by_name.find(name);
     if(it == materials_by_name.end()){
         throw std::runtime_error("Error: Material named \"" + name + "\" was not defined");
@@ -725,7 +657,7 @@ void Scene::CompressRec(const UncompressedKdNode *node, unsigned int &array_pos,
 }
 
 void Scene::MakeThinglassSet(std::vector<std::string> phrases){
-    for(const Material* m : materials){
+    for(const auto m : materials){
         for(const std::string& phrase : phrases){
             if(m->name.find(phrase) != std::string::npos){
                 thinglass.insert(m);

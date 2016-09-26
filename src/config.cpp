@@ -12,7 +12,7 @@
 #include "utils.hpp"
 #include "scene.hpp"
 #include "out.hpp"
-#include "brdf.hpp"
+#include "bxdf/bxdf.hpp"
 #include "jsonutils.hpp"
 
 #include <glm/gtx/string_cast.hpp>
@@ -551,47 +551,8 @@ void ConfigJSON::InstallMaterials(Scene& s) const{
     for(unsigned int i = 0; i < materials.size(); i++){
         auto& m = materials[i];
         JsonUtils::setNodeSemanticName(m, "material " + std::to_string(i) + " configuration");
-        Material mat;
-        mat.name = JsonUtils::getRequiredString(m, "name");
-
-        std::string texfile;
-        texfile = JsonUtils::getOptionalString(m,"diffuse-texture","");
-        if(texfile != "")
-            mat.diffuse = s.GetTexture(configdir + "/" + texfile);
-        else if(m.isMember("diffuse") || m.isMember("diffuse255"))
-            mat.diffuse = s.CreateSolidTexture(JsonUtils::getOptionalVec3_255(m, "diffuse" , glm::vec3(0.0)));
-
-
-        texfile = JsonUtils::getOptionalString(m,"specular-texture","");
-        if(texfile != "")
-            mat.specular = s.GetTexture(configdir + "/" + texfile);
-        else if(m.isMember("specular") || m.isMember("specular255"))
-            mat.specular = s.CreateSolidTexture(JsonUtils::getOptionalVec3_255(m, "specular" , glm::vec3(0.0)));
-
-        mat.emission = Radiance(JsonUtils::getOptionalVec3_255(m, "emission", glm::vec3(0.0)));
-
-        mat.exponent = JsonUtils::getOptionalFloat(m, "exponent", 50.0f);
-        mat.refraction_index = JsonUtils::getOptionalFloat(m, "ior", 1.0f);
-        mat.translucency = JsonUtils::getOptionalFloat(m, "translucency", 0.0f);
-
-        texfile = JsonUtils::getOptionalString(m,"bump-map","");
-        if(texfile != "") mat.bumpmap = s.GetTexture(configdir + "/" + texfile);
-
-        std::string brdf = JsonUtils::getOptionalString(m,"brdf","ltc_ggx");
-        if(brdf == "diffusecosine" || brdf == "diffuse"){
-            mat.brdf = std::make_unique<BRDFDiffuseCosine>();
-        }else if(brdf == "cooktorr"){
-            mat.brdf = std::make_unique<BRDFCookTorr>(mat.exponent, mat.refraction_index);
-        }else if(brdf == "ltc_beckmann"){
-            mat.brdf = std::make_unique<BRDFLTCBeckmann>(mat.exponent);
-        }else if(brdf == "ltc_ggx"){
-            mat.brdf = std::make_unique<BRDFLTCGGX>(mat.exponent);
-        }else if(brdf == "phongenergy"){
-            mat.brdf = std::make_unique<BRDFPhongEnergy>(mat.exponent);
-        }else{
-            throw ConfigFileException("Unsupported BRDF id in config!");
-        }
-
+        auto mat = std::make_shared<Material>();
+        mat->LoadFromJson(m, s, configdir);
         s.RegisterMaterial(mat, true);
     }
 }

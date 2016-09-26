@@ -42,6 +42,8 @@ struct Light{
     }
 };
 
+class Material;
+/*
 struct Material{
     Material();
     Material(const Material&) = default;
@@ -58,6 +60,7 @@ struct Material{
 
     std::shared_ptr<BRDF> brdf;
 };
+*/
 
 class Triangle{
 public:

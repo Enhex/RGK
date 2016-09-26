@@ -30,6 +30,7 @@ add_definitions(
 file(GLOB SOURCES
   ./*.cpp
   ./LTC/*.cpp
+  ./bxdf/*.cpp
   ../external/*.cpp
   )
 

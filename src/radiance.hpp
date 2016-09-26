@@ -62,8 +62,10 @@ struct Spectrum{
         r = c.r; g = c.g, b = c.b;
     }
     Spectrum operator* (float q) const {return Spectrum(q*r, q*g, q*b);}
+    Spectrum operator/ (float q) const {return Spectrum(r/q, g/q, b/q);}
     Spectrum operator* (const Spectrum& o) const {return Spectrum(o.r*r, o.g*g, o.b*b);}
     Spectrum operator*=(float q) {*this = *this * q; return *this;}
+    Spectrum operator/=(float q) {*this = *this / q; return *this;}
     Spectrum operator*=(const Spectrum& o) {*this = *this * o; return *this;}
 
     Spectrum  operator+ (const Spectrum& o) const {return Spectrum(r+o.r,g+o.g,b+o.b);}

@@ -28,10 +28,9 @@ public:
 
     void LoadAiNode(const aiScene* scene, const aiNode* ainode, glm::mat4 transform, std::string force_mat = "");
     void LoadAiMesh(const aiScene* scene, const aiMesh* mesh, glm::mat4 transform, std::string force_mat = "");
-    void LoadAiMaterial(const aiMaterial* mat, std::string brdf, std::string working_directory, bool override = false);
     void LoadAiSceneMeshes(const aiScene* scene, glm::mat4 transform, std::string force_mat = "");
     void LoadAiSceneMaterials(const aiScene* scene, std::string default_brdf, std::string working_directory, bool override_materials = false);
-    void RegisterMaterial(const Material& mat, bool override = false);
+    void RegisterMaterial(std::shared_ptr<Material> material, bool override = false);
 
     void AddPrimitive(const primitive_data& primitive, glm::mat4 transform, std::string material, glm::mat3 texture_transform);
 
@@ -133,8 +132,9 @@ public:
     }
     Radiance GetSkyboxRay(glm::vec3 direction, bool debug=false) const;
 
-    std::set<const Material*> thinglass;
+    std::set<std::shared_ptr<const Material>> thinglass;
 
+    std::shared_ptr<Material> GetMaterialByName(std::string name) const;
 private:
 
     UncompressedKdNode* uncompressed_root = nullptr;
@@ -148,15 +148,13 @@ private:
 
     mutable std::vector<glm::vec3> vertices_buffer;
     mutable std::vector<Triangle> triangles_buffer;
-    //mutable std::vector<Material> materials_buffer;
     mutable std::vector<glm::vec3> normals_buffer;
     mutable std::vector<glm::vec3> tangents_buffer;
     mutable std::vector<glm::vec2> texcoords_buffer;
 
-    std::vector<Material*> materials; //TODO: This vector is redundant, the map below is enough
-    std::unordered_map<std::string, Material*> materials_by_name;
+    std::vector<std::shared_ptr<Material>> materials; //TODO: This vector is redundant, the map below is enough
+    std::unordered_map<std::string, std::shared_ptr<Material>> materials_by_name;
     // TODO: Material* default_material;
-    Material* GetMaterialByName(std::string name) const;
 
     // This map is the owner of all file-based textures in this scene
     std::unordered_map<std::string, std::shared_ptr<ReadableTexture>> textures;

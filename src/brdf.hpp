@@ -1,4 +1,4 @@
-#ifndef __BRDF_HPP__
+/*#ifndef __BRDF_HPP__
 #define __BRDF_HPP__
 
 #include "glm.hpp"
@@ -64,3 +64,4 @@ private:
 };
 
 #endif // __BRDF_HPP__
+*/

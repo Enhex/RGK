@@ -86,6 +86,30 @@ float LTC::GetPDF(LTCdef ltc, glm::vec3 N, glm::vec3 Vr, glm::vec3 Vi, float alp
     return res;
 }
 
+
+float LTC::GetPDFZ(LTCdef ltc, glm::vec3 Vr, glm::vec3 Vi, float alpha, bool debug){
+    assert(alpha >= 0.0f && alpha <= 1.0f);
+    (void)debug;
+
+    glm::vec3 Vr3 = Vr;
+
+    float theta = glm::angle(Vi, glm::vec3(0.0, 0.0, 1.0));
+
+    auto q = get_bilinear(ltc, theta, alpha);
+    glm::mat3 M = q.first;
+    float amplitude = q.second;
+    glm::mat3 invM = glm::inverse(M);
+    glm::vec3 p = glm::normalize( invM * Vr3 );
+    glm::vec3 Loriginal = p;
+    glm::vec3 L_ = M * Loriginal;
+    float l = glm::length(L_);
+    float detM = glm::determinant(M);
+	float Jacobian = detM / (l*l*l);
+    float D = 1.0f / 3.14159f * glm::max<float>(0.0f, Loriginal.z);
+    float res = amplitude * D / Jacobian;
+    return res;
+}
+
 glm::vec3 LTC::GetRandom(LTCdef ltc, glm::vec3 N, glm::vec3 Vi, float roughness, glm::vec3 rand_hscos, bool debug){
 
     glm::vec3 tangent = glm::cross(N,Vi);
@@ -115,5 +139,38 @@ glm::vec3 LTC::GetRandom(LTCdef ltc, glm::vec3 N, glm::vec3 Vi, float roughness,
 
     IFDEBUG std::cout << "s1 = " << glm::normalize(s) << std::endl;
     s = rotate * s;
+    return glm::normalize(s);
+}
+
+
+glm::vec3 LTC::GetRandomZ(LTCdef ltc, glm::vec3 Vi, float roughness, glm::vec3 rand_hscos, bool debug){
+    assert(false);
+
+    float theta = glm::angle(Vi, glm::vec3(0.0, 0.0, 1.0));
+    auto q = get_bilinear(ltc, glm::max(theta, glm::pi<float>()/4.0f), roughness, debug);
+    glm::mat3 M = q.first;
+
+    IFDEBUG std::cout << "Vi = " << Vi << std::endl;
+    IFDEBUG std::cout << "theta = " << theta << ", alpha = " << roughness << std::endl;
+    IFDEBUG std::cout << "M = " << glm::to_string(M) << std::endl;
+
+    qassert_false(std::isnan(rand_hscos.x));
+    IFDEBUG std::cout << "rand_hscos = " << rand_hscos << std::endl;
+    glm::vec3 s = M*rand_hscos;
+    // This completly skews the distribution, but since we cannot
+    // reject-sample the area that lays beyond the normal hemisphere,
+    // some workaround is necesary
+    // if(s.z < 0.0001f) s.z = 0.0001f;
+    /*
+    if(glm::dot(s, glm::vec3(0.0, 0.0, 1.0)) < 0){
+        std::cout << "Vi = " << Vi << std::endl;
+        std::cout << "theta = " << theta << ", alpha = " << roughness << std::endl;
+        std::cout << "M = " << glm::to_string(M) << std::endl;
+        std::cout << "rand_hscos = " << rand_hscos << std::endl;
+    }
+
+    qassert_directed(s, glm::vec3(0.0, 0.0, 1.0));
+    */
+    IFDEBUG std::cout << "s1 = " << glm::normalize(s) << std::endl;
     return glm::normalize(s);
 }

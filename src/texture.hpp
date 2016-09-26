@@ -19,6 +19,9 @@ public:
     inline Color Get(const glm::vec2& pos) const {
         return GetPixelInterpolated(pos);
     }
+    inline Spectrum GetSpectrum(const glm::vec2& pos) const {
+        return Spectrum(GetPixelInterpolated(pos));
+    }
     virtual bool Empty() const = 0;
 };
 

@@ -42,27 +42,33 @@
     "materials": [{
         "name": "floor",
         "brdf": "ltc_beckmann",
-        "specular": [0.7, 0.7, 0.7],
-        "diffuse": [0.2, 0.2, 0.2],
+        "color": [0.7, 0.7, 0.7],
         "bump-map": "floor/intensity.jpg",
         "exponent": 800
     },{
-        "name": "teapot1",
+        "name": "teapot1_m1",
         "brdf": "ltc_ggx",
-        "specular": [0.2, 0.2, 0.2],
-        "diffuse": [0.6, 0.6, 0.6],
+        "color": [0.2, 0.2, 0.2],
         "exponent": 1500
+    },{
+        "name": "teapot1_m2",
+        "brdf": "diffuse",
+        "diffuse": [0.4, 0.8, 0.6]
+    },{
+        "name": "teapot1",
+        "brdf": "mix",
+        "material1": "teapot1_m1",
+        "material2": "teapot1_m2",
+        "amount": 0.5
     },{
         "name": "teapot2",
         "brdf": "ltc_beckmann",
-        "specular": [0.8, 0.8, 0.8],
-        "diffuse": [0.2, 0.2, 0.2],
+        "color": [0.8, 0.8, 0.8],
         "exponent": 15000
     },{
         "name": "teapot3",
         "brdf": "ltc_beckmann",
-        "specular": [0.8, 0.6, 0.6],
-        "diffuse": [0.2, 0.16, 0.16],
+        "color": [0.8, 0.6, 0.6],
         "exponent": 80
     }],
     "sky": {

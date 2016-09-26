@@ -27,19 +27,13 @@ private:
     PixelRenderResult TracePath(const Ray& r, unsigned int& raycount, Sampler& sampler, bool debug = false);
 
     struct PathPoint{
-        enum Type{
-            SCATTERED,
-            REFLECTED,
-            ENTERED,
-            LEFT,
-        };
-        Type type;
         bool infinity = false;
         // Point position
         glm::vec3 pos;
         // Normal vectors
         glm::vec3 lightN;
         glm::vec3 faceN;
+        SystemTransform transform;
         // reflected direction (pointing towards previous path point)
         glm::vec3 Vr;
         // incoming  direction (pointing towards next path point)
@@ -47,10 +41,7 @@ private:
         // Material properties at hitpoint
         const Material* mat;
         glm::vec2 texUV;
-        Spectrum diffuse;
-        Spectrum specular;
         Radiance emission;
-        Color bumpmap;
         // Thinglass encountered on the way of the ray that generated this point
         ThinglassIsections thinglass_isect;
         // Currection for rusian roulette

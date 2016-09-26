@@ -1,4 +1,5 @@
 #include "scene.hpp"
+#include "bxdf/bxdf.hpp"
 
 Intersection Scene::FindIntersectKd(const Ray& __restrict__ r) __restrict__ const{
 
@@ -390,7 +391,7 @@ Intersection Scene::FindIntersectKdOtherThanWithThinglass(const Ray& r, const Tr
 
                     // Skip the triangle, if the material is in thinglass set
                     const Material* mat = &(tri.GetMaterial());
-                    if(thinglass.find( mat ) != thinglass.end() ){
+                    if(mat->is_thinglass){
                         // Add this triangle data to intersection.
                         res.thinglass.push_back(std::make_pair(&tri,t));
                         // Skip.
