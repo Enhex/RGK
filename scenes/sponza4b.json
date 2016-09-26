@@ -2,9 +2,9 @@
     "materials": [{
         "name": "sp_00_pod",
         "brdf": "ltc_ggx",
-        "specular255": [209, 197, 181],
+        //"specular255": [209, 197, 181],
         "roughness": 0.1,
-        "diffuse-texture": "sponza-fixed/KAMEN.JPG",
+        "color-texture": "sponza-fixed/KAMEN.JPG",
         "bump-map": "sponza-fixed/KAMEN-bump.jpg"
     }],
     "scene": [{

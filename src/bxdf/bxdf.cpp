@@ -82,12 +82,12 @@ void Material::LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::stri
     name = ainame.C_Str();
     aiColor3D c;
     mat->Get(AI_MATKEY_COLOR_DIFFUSE,c);
-    std::cout << "Processing ai material named " << name << std::endl;
+    //std::cout << "Processing ai material named " << name << std::endl;
     auto diffuse = scene.CreateSolidTexture(Color(c.r, c.g, c.b));
-    std::cout << "Example diffuse: " << diffuse->Get(glm::vec2(0,0)) << std::endl;
+    //std::cout << "Example diffuse: " << diffuse->Get(glm::vec2(0,0)) << std::endl;
     mat->Get(AI_MATKEY_COLOR_SPECULAR,c);
     auto specular = scene.CreateSolidTexture(Color(c.r, c.g, c.b));
-    std::cout << "Example specular: " << specular->Get(glm::vec2(0,0)) << std::endl;
+    //std::cout << "Example specular: " << specular->Get(glm::vec2(0,0)) << std::endl;
     mat->Get(AI_MATKEY_COLOR_EMISSIVE,c);
     emission = Radiance(c.r, c.g, c.b);
     float f;
@@ -143,7 +143,7 @@ void Material::LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::stri
     auto specularbxdf = std::make_unique<BxDFLTC<LTC::GGX>>();
     specularbxdf->color = specular;
     specularbxdf->roughness = roughness;
-    std::cout << "Roughness: " << roughness << std::endl;
+    //std::cout << "Roughness: " << roughness << std::endl;
     specularmaterial->bxdf = std::move(specularbxdf);
     specularmaterial->name = name + "|___specular";
     scene.RegisterMaterial(specularmaterial);
@@ -158,7 +158,7 @@ void Material::LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::stri
     float diffuse_power = average_diffuse.r + average_diffuse.g + average_diffuse.b;
     float specular_power = average_specular.r + average_specular.g + average_specular.b;
     float diffuse_probability = diffuse_power / (diffuse_power + specular_power + 0.000001f);
-    std::cout << "Selected prob.: " << diffuse_probability << std::endl;
+    //std::cout << "Selected prob.: " << diffuse_probability << std::endl;
     mixbxdf->amt1 = diffuse_probability;
 
     bxdf = std::move(mixbxdf);
