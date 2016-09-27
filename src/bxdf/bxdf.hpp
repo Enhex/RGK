@@ -2,6 +2,7 @@
 #define __BXDF_HPP__
 
 #include <memory>
+#include <iostream>
 
 #include "../../external/json/json.h"
 
@@ -102,7 +103,6 @@ public:
 
 class BxDFLTCDiffuseBase : public BxDFLTCBase{
 public:
-    float roughness;
     std::shared_ptr<ReadableTexture> diffuse = std::make_shared<EmptyTexture>();
 
     virtual void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
@@ -144,6 +144,7 @@ public:
         float diffuse_power = diff.r + diff.g + diff.b; // Integral over diffuse spectrum...
         float specular_power = spec.r + spec.g + spec.b; // Integral over specular spectrum...
         float diffuse_probability = diffuse_power / (diffuse_power + specular_power + 0.0001f);
+        IFDEBUG std::cout << "[BxDF] Roughness: " << roughness << std::endl;
         if(RandomUtils::DecideAndRescale(sample.x, diffuse_probability)){
             // Diffuse ray
             if(Vi.z <= 0) return std::make_tuple(glm::vec3(0,1,0), Spectrum(0), false);

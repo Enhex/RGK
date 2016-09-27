@@ -3,11 +3,11 @@
     "output-file": "coffee.exr",
     "output-width": 800,
     "output-height": 1000,
-    "multisample": 400,
+    "multisample": 200,
     "russian": 0.75,
     "recursion-max": 10,
     "rounds": 4,
-    "clamp": 100,
+    "clamp": 3,
     "camera": {
         "position": [-0.00296, 0.19830, 0.82815],
         "lookat":   [ 0.00289, 0.16660, 0.02271],
@@ -15,13 +15,28 @@
     },
     "materials": [
         {
-            "name": "Plastic_Orange",
+            "name": "Plastic_Orange1",
             "brdf": "diffuse",
-            "diffuse": [1.0, 0.3787, 0.0135]
+            // Original color
+            //"diffuse": [1.0, 0.3787, 0.0135]
+            // Adjusted for temporary lack of coating
+            "diffuse": [1.0, 0.25, 0.0135]
+        },{
+            "name": "Plastic_Orange2",
+            "brdf": "mirror",
+            "color": [1.0, 1.0, 1.0]
+        },{
+            "name": "Plastic_Orange",
+            "brdf": "mix",
+            "material1": "Plastic_Orange1",
+            "material2": "Plastic_Orange2",
+            "amount": 0.88
         },{
             "name": "Plastic_Black",
-            "brdf": "diffuse",
-            "diffuse": 0.00631
+            "brdf": "ltc_ggx_diffuse",
+            "roughness": 0.5,
+            "specular": 0.04,
+            "diffuse":  0.00631
         },{
             "name": "Glass",
             "brdf": "dielectric",
@@ -31,9 +46,15 @@
             "name": "Metal",
             "brdf": "mirror"
         },{
+            "name": "Floor1", "brdf": "mirror", "color": 0.5786
+        },{
+            "name": "Floor2", "brdf": "diffuse", "diffuse": 0.5786
+        },{
             "name": "Floor",
-            "brdf": "diffuse",
-            "diffuse": 0.5786
+            "brdf": "mix",
+            "material1": "Floor1",
+            "material2": "Floor2",
+            "amount": 0.5
         },{
             "name": "Light",
             "brdf": "diffuse",
