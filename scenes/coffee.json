@@ -1,0 +1,90 @@
+{
+    // The coffee maker model can be downloaded from https://benedikt-bitterli.me/resources/
+    "output-file": "coffee.exr",
+    "output-width": 800,
+    "output-height": 1000,
+    "multisample": 400,
+    "russian": 0.6,
+    "recursion-max": 10,
+    "rounds": 4,
+    "clamp": 100,
+    "camera": {
+        "position": [-0.00296, 0.19830, 0.82815],
+        "lookat":   [ 0.00289, 0.16660, 0.02271],
+        "fov": 25
+    },
+    "materials": [
+        {
+            "name": "Plastic_Orange",
+            "brdf": "diffuse",
+            "diffuse": [1.0, 0.3787, 0.0135]
+        },{
+            "name": "Plastic_Black",
+            "brdf": "diffuse",
+            "diffuse": 0.00631
+        },{
+            "name": "Glass",
+            "brdf": "diffuse",
+            "diffuse": 0.8
+        },{
+            "name": "Metal",
+            "brdf": "mirror"
+        },{
+            "name": "Floor",
+            "brdf": "diffuse",
+            "diffuse": 0.5786
+        },{
+            "name": "Light",
+            "brdf": "diffuse",
+            "emission": 2.0
+        }
+    ],
+    "scene": [ { "file": "coffee/Mesh000.obj", "material": "Plastic_Orange" },
+               { "file": "coffee/Mesh001.obj", "material": "Plastic_Orange" },
+               { "file": "coffee/Mesh002.obj", "material": "Metal" },
+               { "file": "coffee/Mesh003.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh004.obj", "material": "Floor" },
+               { "file": "coffee/Mesh005.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh006.obj", "material": "Plastic_Orange" },
+               { "file": "coffee/Mesh007.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh008.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh009.obj", "material": "Plastic_Orange" },
+               { "file": "coffee/Mesh010.obj", "material": "Glass" },
+               { "file": "coffee/Mesh011.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh012.obj", "material": "Plastic_Orange" },
+               { "file": "coffee/Mesh013.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh014.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh015.obj", "material": "Metal" },
+               { "file": "coffee/Mesh016.obj", "material": "Plastic_Orange" },
+               { "file": "coffee/Mesh017.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh018.obj", "material": "Plastic_Black" },
+               { "file": "coffee/Mesh019.obj", "material": "Plastic_Black" },
+               {
+                   "primitive": "plane",
+                   "translate": [ -0.2779231, 0.22527096, 0.16372351 ],
+                   //"scale": [ 0.3851, 0.1728, 0.4488 ],
+                   "scale": [ 0.19255, 0.0865, 0.2244 ],
+                   "rotate": [ -90, 0, 115 ],
+                   "material": "Light"
+               },
+               {
+                   "primitive": "plane",
+                   "translate": [ 0.3229, 0.2517, 0.0462 ],
+                   //"scale": [ 0.4488, 0.1640, 0.3654 ],
+                   "scale": [ 0.2244, 0.082, 0.1827 ],
+                   "rotate": [ 0.0, 180, 90.0 ],
+                   "material": "Light"
+               },{
+                   "primitive": "plane",
+                   "translate": [ 0.0, 0.5038, 0.0372 ],
+                   //"scale": [ 0.4602, 0.2118, 0.4602 ],
+                   "scale": [ 0.2301, 0.1059, 0.2301 ],
+                   "rotate": [ 0.0, 0.0, 180 ],
+                   "material": "Light"
+               }
+             ],
+    "sky": {
+        "color": 1.0,
+        "intensity": 0.0
+    }
+}
