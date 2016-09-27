@@ -3,6 +3,7 @@
     "output-file": "coffee.exr",
     "output-width": 800,
     "output-height": 1000,
+    "output-scale": 0.5,
     "multisample": 200,
     "russian": 0.75,
     "recursion-max": 10,
@@ -58,6 +59,7 @@
         },{
             "name": "Light",
             "brdf": "transparent",
+            "no-russian": true,
             "emission": 2.0
         }
     ],
