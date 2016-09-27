@@ -69,6 +69,10 @@ void Material::LoadFromJson(Json::Value& node, Scene& scene, std::string texture
         bxdf = std::make_unique<BxDFLTC<LTC::Beckmann>>();
     }else if(brdf == "ltc_ggx"){
         bxdf = std::make_unique<BxDFLTC<LTC::GGX>>();
+    }else if(brdf == "ltc_beckmann_diffuse"){
+        bxdf = std::make_unique<BxDFLTCDiffuse<LTC::Beckmann>>();
+    }else if(brdf == "ltc_ggx_diffuse"){
+        bxdf = std::make_unique<BxDFLTCDiffuse<LTC::GGX>>();
     }else{
         throw ConfigFileException("Unsupported BRDF id in config!");
     }
@@ -132,6 +136,7 @@ void Material::LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::stri
     float phong_exp = f/4; // This is weird. Why does assimp multiply by 4 in the first place?
     float roughness = glm::pow(2.0f / (2.0f + phong_exp), 0.5f);
 
+    /*
     auto diffusematerial = std::make_shared<Material>();
     auto diffusebxdf = std::make_unique<BxDFDiffuse>();
     diffusebxdf->diffuse = diffuse;
@@ -160,8 +165,13 @@ void Material::LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::stri
     float diffuse_probability = diffuse_power / (diffuse_power + specular_power + 0.000001f);
     //std::cout << "Selected prob.: " << diffuse_probability << std::endl;
     mixbxdf->amt1 = diffuse_probability;
-
     bxdf = std::move(mixbxdf);
+    */
+    auto ltc_diffused_bxdf = std::make_unique<BxDFLTCDiffuse<LTC::GGX>>();
+    ltc_diffused_bxdf->roughness = roughness;
+    ltc_diffused_bxdf->diffuse = diffuse;
+    ltc_diffused_bxdf->color = specular;
+    bxdf = std::move(ltc_diffused_bxdf);
 
     out::cout(4) << "Read material: " << name << std::endl;
 
@@ -190,7 +200,9 @@ void BxDFDiffuse::LoadFromJson(Json::Value& node, Scene& scene, std::string text
     if(texfile != "")
         diffuse = scene.GetTexture(texturedir + "/" + texfile);
     else if(node.isMember("diffuse") || node.isMember("diffuse255"))
-        diffuse = scene.CreateSolidTexture(JsonUtils::getOptionalVec3_255(node, "diffuse" , glm::vec3(0.0)));
+        diffuse = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "diffuse"));
+    //else
+    //   diffuse = scene.CreateSolidTexture(Color(0,0,0));
 }
 
 void BxDFMix::LoadFromJson(Json::Value& node, Scene& scene, std::string) {
@@ -230,7 +242,9 @@ void BxDFMirror::LoadFromJson(Json::Value& node, Scene& scene, std::string textu
     if(texfile != "")
         color = scene.GetTexture(texturedir + "/" + texfile);
     else if(node.isMember("color") || node.isMember("color255"))
-        color = scene.CreateSolidTexture(JsonUtils::getOptionalVec3_255(node, "color" , glm::vec3(1.0)));
+        color = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "color"));
+    else
+        color = scene.CreateSolidTexture(Color(1.0, 1.0, 1.0));
 }
 
 Spectrum BxDFMirror::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool) const{
@@ -257,9 +271,27 @@ void BxDFLTCBase::LoadFromJson(Json::Value& node, Scene& scene, std::string text
     }
 
     std::string texfile;
-    texfile = JsonUtils::getOptionalString(node,"color-texture","");
+    texfile = JsonUtils::getOptionalString(node,"color-texture",texfile = JsonUtils::getOptionalString(node,"specular-texture",""));
     if(texfile != "")
         color = scene.GetTexture(texturedir + "/" + texfile);
     else if(node.isMember("color") || node.isMember("color255"))
-        color = scene.CreateSolidTexture(JsonUtils::getOptionalVec3_255(node, "color" , glm::vec3(0.0)));
+        color = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "color"));
+    else if(node.isMember("specular") || node.isMember("specular255"))
+        color = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "specular"));
+    else
+        color = scene.CreateSolidTexture(Color(0.0, 0.0, 0.0));
+}
+
+void BxDFLTCDiffuseBase::LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir){
+
+    BxDFLTCBase::LoadFromJson(node,scene,texturedir);
+
+    std::string texfile;
+    texfile = JsonUtils::getOptionalString(node,"diffuse-texture","");
+    if(texfile != "")
+        diffuse = scene.GetTexture(texturedir + "/" + texfile);
+    else if(node.isMember("diffuse") || node.isMember("diffuse255"))
+        diffuse = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "diffuse"));
+    else
+        diffuse = scene.CreateSolidTexture(Color(0,0,0));
 }

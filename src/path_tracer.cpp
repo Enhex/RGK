@@ -251,6 +251,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                 // Huh. The next bump is right here on this very same face.
                 // TODO: Do not add epsilon when creating next ray!
                 // TODO: Maybe the path should terminate here?
+                n += 10000;
             }
 
             p.Vi = dir;

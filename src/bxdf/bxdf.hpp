@@ -86,7 +86,15 @@ public:
     float roughness;
     std::shared_ptr<ReadableTexture> color = std::make_shared<EmptyTexture>();
 
-    void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
+    virtual void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
+};
+
+class BxDFLTCDiffuseBase : public BxDFLTCBase{
+public:
+    float roughness;
+    std::shared_ptr<ReadableTexture> diffuse = std::make_shared<EmptyTexture>();
+
+    virtual void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
 };
 
 template <const LTCdef& ltc>
@@ -103,6 +111,42 @@ public:
         v = LTC::GetRandom(ltc, BxDFUpVector, Vi, roughness, v, debug);
         if(v.z <= 0) return {v, Spectrum(0)};
         return std::make_pair(v,color->GetSpectrum(texUV));
+    }
+};
+
+
+template <const LTCdef& ltc>
+class BxDFLTCDiffuse : public BxDFLTCDiffuseBase{
+public:
+    virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override{
+        if(Vi.z <= 0 || Vr.z <= 0) return Spectrum(0);
+
+        auto diff = diffuse->GetSpectrum(texUV);
+        auto spec = color->GetSpectrum(texUV);
+
+        return spec * LTC::GetPDF(ltc, BxDFUpVector, Vi, Vr, roughness, debug) +
+               diff / glm::pi<float>() ;
+    }
+    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override{
+        auto diff = diffuse->Get(texUV);
+        auto spec = color->Get(texUV);
+        float diffuse_power = diff.r + diff.g + diff.b; // Integral over diffuse spectrum...
+        float specular_power = spec.r + spec.g + spec.b; // Integral over specular spectrum...
+        float diffuse_probability = diffuse_power / (diffuse_power + specular_power + 0.0001f);
+        if(RandomUtils::DecideAndRescale(sample.x, diffuse_probability)){
+            // Diffuse ray
+            if(Vi.z <= 0) return {glm::vec3(0,1,0), Spectrum(0)};
+            glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
+            qassert_true(v.z >= -0.001f);
+            return {v,diffuse->GetSpectrum(texUV)};
+        }else{
+            // LTC ray
+            glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
+            qassert_false(std::isnan(v.x));
+            v = LTC::GetRandom(ltc, BxDFUpVector, Vi, roughness, v, debug);
+            if(v.z <= 0) return {v, Spectrum(0)};
+            return std::make_pair(v,color->GetSpectrum(texUV));
+        }
     }
 };
 
