@@ -69,6 +69,8 @@ void Material::LoadFromJson(Json::Value& node, Scene& scene, std::string texture
         bxdf = std::make_unique<BxDFDielectric>();
     }else if(brdf == "mirror"){
         bxdf = std::make_unique<BxDFMirror>();
+    }else if(brdf == "transparent"){
+        bxdf = std::make_unique<BxDFTransparent>();
     }else if(brdf == "ltc_beckmann"){
         bxdf = std::make_unique<BxDFLTC<LTC::Beckmann>>();
     }else if(brdf == "ltc_ggx"){
@@ -403,4 +405,19 @@ BxDFDielectric::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool deb
         glm::vec3 refracted(-Vi.x * eta, -Vi.y * eta, (Vi.z > 0) ? -cosTheta : cosTheta);
         return std::make_tuple(refracted, c, true);
     }
+}
+
+// ================ Transparent ===============
+
+Spectrum BxDFTransparent::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2, bool) const{
+    glm::vec3 inverse(-Vi.x, -Vi.y, -Vi.z);
+    if(glm::abs(glm::dot(inverse, Vr)-1) < 0.0001f){
+        return Spectrum(1.0f);
+    }else return Spectrum(0.0f);
+}
+
+std::tuple<glm::vec3, Spectrum, bool>
+BxDFTransparent::sample(glm::vec3 Vi, glm::vec2, glm::vec2, bool) const{
+    glm::vec3 inverse(-Vi.x, -Vi.y, -Vi.z);
+    return std::make_tuple(inverse, Spectrum(1.0f), true);
 }

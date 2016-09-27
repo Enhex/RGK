@@ -34,7 +34,7 @@
         },{
             "name": "Plastic_Black",
             "brdf": "ltc_ggx_diffuse",
-            "roughness": 0.5,
+            "roughness": 0.08,
             "specular": 0.04,
             "diffuse":  0.00631
         },{
@@ -57,7 +57,7 @@
             "amount": 0.5
         },{
             "name": "Light",
-            "brdf": "diffuse",
+            "brdf": "transparent",
             "emission": 2.0
         }
     ],

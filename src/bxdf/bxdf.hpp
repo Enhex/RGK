@@ -57,10 +57,6 @@ class BxDFTransparent : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
     virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
-    float ior_outside;
-    float ior_inside;
-
-    void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
 };
 
 class BxDFMirror : public BxDF{
