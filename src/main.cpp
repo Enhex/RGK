@@ -83,9 +83,9 @@ int main(int argc, char** argv){
     std::string directory = "";
     int opt_index = 0;
 #if ENABLE_DEBUG
-    #define OPTSTRING "hpcvqrt:d:s:"
+    #define OPTSTRING "hpcvqrt:d:s:D:"
 #else
-    #define OPTSTRING "hpcvqrt:s:"
+    #define OPTSTRING "hpcvqrt:s:D:"
 #endif
     while((c = getopt_long(argc,argv,OPTSTRING,long_opts,&opt_index)) != -1){
         switch (c){
@@ -226,7 +226,7 @@ int main(int argc, char** argv){
     // TODO: Configurable FPS and length
     float fps = 50.0;
     float time_length = 0.0f, time_increment = 1.0f/fps;
-    if(rotate) time_length = 5.0f;
+    if(rotate) time_length = 10.0f;
 
     bool animated = (time_length > 0.0f);
 
