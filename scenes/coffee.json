@@ -24,8 +24,8 @@
             "diffuse": 0.00631
         },{
             "name": "Glass",
-            "brdf": "diffuse",
-            "diffuse": 0.8
+            "brdf": "dielectric",
+            "ior": 1.5
         },{
             "name": "Metal",
             "brdf": "mirror"

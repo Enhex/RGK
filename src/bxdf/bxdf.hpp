@@ -70,6 +70,16 @@ public:
     void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
 };
 
+class BxDFDielectric : public BxDF{
+public:
+    virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
+    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
+
+    float ior = 1.0;
+    std::shared_ptr<ReadableTexture> color = std::make_shared<EmptyTexture>();
+    void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
+};
+
 class BxDFMix : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;

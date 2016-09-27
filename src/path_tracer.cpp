@@ -246,6 +246,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
                                  p.texUV,
                                  sample,
                                  debug);
+            bool inside = dir.z < 0;
             dir = p.transform.toGlobal(dir);
             if(!(glm::dot(dir, p.faceN) > 0.0f)){
                 // Huh. The next bump is right here on this very same face.
@@ -274,7 +275,10 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             }
 
             // Russian roulette path termination
-            if(russian__ >= 0.0f && sampler.Get1D() > russian__) break;
+            if(russian__ >= 0.0f && sampler.Get1D() > russian__){
+                IFDEBUG std::cout << "Russian terminating." << std::endl;
+                break;
+            }
 
             // Fixed depth path termination
             if(n > depth__) break;
@@ -283,7 +287,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             current_ray = Ray(p.pos +
                               p.faceN * scene.epsilon * 10.0f *
                               // TODO: Correction depending on outcoming vector side
-                              (false?-1.0f:1.0f)
+                              (inside?-1.0f:1.0f)
                               , glm::normalize(dir));
             qassert_false(std::isnan(current_ray.direction.x));
 

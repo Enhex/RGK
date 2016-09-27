@@ -63,6 +63,8 @@ void Material::LoadFromJson(Json::Value& node, Scene& scene, std::string texture
         bxdf = std::make_unique<BxDFDiffuse>();
     }else if(brdf == "mix"){
         bxdf = std::make_unique<BxDFMix>();
+    }else if(brdf == "dielectric"){
+        bxdf = std::make_unique<BxDFDielectric>();
     }else if(brdf == "mirror"){
         bxdf = std::make_unique<BxDFMirror>();
     }else if(brdf == "ltc_beckmann"){
@@ -179,6 +181,10 @@ void Material::LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::stri
 
 // ================ BXDF ===============
 
+
+
+// ================ Diffuse ===============
+
 Spectrum BxDFDiffuse::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool) const{
     if(Vi.z <= 0 || Vr.z <= 0) return Spectrum(0);
     return diffuse->GetSpectrum(texUV) / glm::pi<float>();
@@ -201,9 +207,12 @@ void BxDFDiffuse::LoadFromJson(Json::Value& node, Scene& scene, std::string text
         diffuse = scene.GetTexture(texturedir + "/" + texfile);
     else if(node.isMember("diffuse") || node.isMember("diffuse255"))
         diffuse = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "diffuse"));
-    //else
-    //   diffuse = scene.CreateSolidTexture(Color(0,0,0));
+    else
+        diffuse = scene.CreateSolidTexture(Color(0.5, 0.5, 0.5));
 }
+
+
+// ================ Mix ===============
 
 void BxDFMix::LoadFromJson(Json::Value& node, Scene& scene, std::string) {
     std::string mat1 = JsonUtils::getRequiredString(node, "material1");
@@ -236,6 +245,8 @@ BxDFMix::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug) con
 }
 
 
+// ================ Mirror ===============
+
 void BxDFMirror::LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) {
     std::string texfile;
     texfile = JsonUtils::getOptionalString(node,"color-texture","");
@@ -259,6 +270,9 @@ BxDFMirror::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2, bool) const{
     glm::vec3 reflected(-Vi.x, -Vi.y, Vi.z);
     return {reflected, color->GetSpectrum(texUV)};
 }
+
+
+// ================ LTC ===============
 
 void BxDFLTCBase::LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir){
     if(node.isMember("roughness"))
@@ -294,4 +308,72 @@ void BxDFLTCDiffuseBase::LoadFromJson(Json::Value& node, Scene& scene, std::stri
         diffuse = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "diffuse"));
     else
         diffuse = scene.CreateSolidTexture(Color(0,0,0));
+}
+
+// ================ Dielectric ===============
+
+void BxDFDielectric::LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) {
+    ior = JsonUtils::getRequiredFloat(node, "ior");
+
+    std::string texfile;
+    texfile = JsonUtils::getOptionalString(node,"color-texture",texfile = JsonUtils::getOptionalString(node,"specular-texture",""));
+    if(texfile != "")
+        color = scene.GetTexture(texturedir + "/" + texfile);
+    else if(node.isMember("color") || node.isMember("color255"))
+        color = scene.CreateSolidTexture(JsonUtils::getRequiredVec3_255(node, "color"));
+    else
+        color = scene.CreateSolidTexture(Color(1.0, 1.0, 1.0));
+}
+
+static std::pair<float, float>
+FresnellDielectric(float eta, float cosTheta){
+
+    if (cosTheta < 0.0f) {
+        eta = 1.0f/eta;
+        cosTheta = -cosTheta;
+    }
+    float sinThetaTSq = eta*eta*(1.0f - cosTheta*cosTheta);
+    if (sinThetaTSq > 1.0f) {
+        return {1.0, 0.0};
+    }
+    float cosThetaTrans = glm::sqrt(glm::max(1.0f - sinThetaTSq, 0.0f));
+
+    float Rs = (eta*cosTheta      - cosThetaTrans)/(eta*cosTheta      + cosThetaTrans);
+    float Rp = (eta*cosThetaTrans - cosTheta     )/(eta*cosThetaTrans + cosTheta     );
+    float q = (Rs*Rs + Rp*Rp)*0.5f;
+    return {q, cosThetaTrans};
+}
+
+Spectrum BxDFDielectric::value(glm::vec3, glm::vec3, glm::vec2, bool) const{
+
+    // TODO: TEMPORARY
+    return Spectrum(0.0);
+}
+
+std::pair<glm::vec3, Spectrum>
+BxDFDielectric::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug) const{
+
+    // Note: This is, naturally a bidirectional material.
+    float eta;
+    if(Vi.z < 0) eta = ior;
+    else eta = 1.0/ior;
+
+    float reflectionP, cosTheta;
+    std::tie(reflectionP, cosTheta) = FresnellDielectric(eta, Vi.z);
+
+    Spectrum c = color->GetSpectrum(texUV);
+
+    if(RandomUtils::DecideAndRescale(sample.x, reflectionP)){
+        // Reflected ray
+        IFDEBUG std::cout << "[BxDF] Ray reflected" << std::endl;
+        glm::vec3 reflected(-Vi.x, -Vi.y, Vi.z); // This way, rays reflected from below surface stay below surface
+        return {reflected, c};
+    }else{
+        // Refracted ray
+        IFDEBUG std::cout << "[BxDF] Ray refracted" << std::endl;
+        cosTheta = std::abs(cosTheta);
+        glm::vec3 refracted(-Vi.x * eta, -Vi.y * eta, (Vi.z > 0) ? -cosTheta : cosTheta);
+        return {refracted, c};
+    }
+
 }
