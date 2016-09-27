@@ -62,7 +62,7 @@ public:
     // two samples, but needs three.
     static bool DecideAndRescale(float& sample, float probability){
         if(probability == 0.0f) return false;
-        if(probability == 1.0f) return false;
+        if(probability == 1.0f) return true;
         if(sample < probability){
             sample /= probability;
             return true;

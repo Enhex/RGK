@@ -26,6 +26,7 @@ public:
     std::unique_ptr<BxDF> bxdf;
 
     bool is_thinglass = false;
+    bool no_russian = false;
 
     void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir);
     void LoadFromAiMaterial(const aiMaterial* mat, Scene& scene, std::string texturedir);
@@ -36,7 +37,7 @@ public:
 class BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const = 0;
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const = 0;
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const = 0;
     virtual void LoadFromJson(Json::Value&, Scene&, std::string){};
 };
 
@@ -45,7 +46,7 @@ public:
 class BxDFDiffuse : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
 
     void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
     std::shared_ptr<ReadableTexture> diffuse = std::make_shared<EmptyTexture>();
@@ -54,7 +55,7 @@ public:
 class BxDFTransparent : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
     float ior_outside;
     float ior_inside;
 
@@ -64,7 +65,7 @@ public:
 class BxDFMirror : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
 
     std::shared_ptr<ReadableTexture> color = std::make_shared<EmptyTexture>();
     void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
@@ -73,7 +74,7 @@ public:
 class BxDFDielectric : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
 
     float ior = 1.0;
     std::shared_ptr<ReadableTexture> color = std::make_shared<EmptyTexture>();
@@ -83,7 +84,7 @@ public:
 class BxDFMix : public BxDF{
 public:
     virtual Spectrum value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug = false) const override;
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override;
 
     void LoadFromJson(Json::Value& node, Scene& scene, std::string texturedir) override;
     std::shared_ptr<const Material> m1;
@@ -115,12 +116,12 @@ public:
         return color->GetSpectrum(texUV) *
             LTC::GetPDF(ltc, BxDFUpVector, Vi, Vr, roughness, debug);
     }
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override{
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override{
         glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
         qassert_false(std::isnan(v.x));
         v = LTC::GetRandom(ltc, BxDFUpVector, Vi, roughness, v, debug);
-        if(v.z <= 0) return {v, Spectrum(0)};
-        return std::make_pair(v,color->GetSpectrum(texUV));
+        if(v.z <= 0) return std::make_tuple(v, Spectrum(0), false);
+        return std::make_tuple(v,color->GetSpectrum(texUV), false);
     }
 };
 
@@ -137,7 +138,7 @@ public:
         return spec * LTC::GetPDF(ltc, BxDFUpVector, Vi, Vr, roughness, debug) +
                diff / glm::pi<float>() ;
     }
-    virtual std::pair<glm::vec3, Spectrum> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override{
+    virtual std::tuple<glm::vec3, Spectrum, bool> sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug = false) const override{
         auto diff = diffuse->Get(texUV);
         auto spec = color->Get(texUV);
         float diffuse_power = diff.r + diff.g + diff.b; // Integral over diffuse spectrum...
@@ -145,17 +146,17 @@ public:
         float diffuse_probability = diffuse_power / (diffuse_power + specular_power + 0.0001f);
         if(RandomUtils::DecideAndRescale(sample.x, diffuse_probability)){
             // Diffuse ray
-            if(Vi.z <= 0) return {glm::vec3(0,1,0), Spectrum(0)};
+            if(Vi.z <= 0) return std::make_tuple(glm::vec3(0,1,0), Spectrum(0), false);
             glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
             qassert_true(v.z >= -0.001f);
-            return {v,diffuse->GetSpectrum(texUV)};
+            return std::make_tuple(v,diffuse->GetSpectrum(texUV), false);
         }else{
             // LTC ray
             glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
             qassert_false(std::isnan(v.x));
             v = LTC::GetRandom(ltc, BxDFUpVector, Vi, roughness, v, debug);
-            if(v.z <= 0) return {v, Spectrum(0)};
-            return std::make_pair(v,color->GetSpectrum(texUV));
+            if(v.z <= 0) return std::make_tuple(v, Spectrum(0), false);
+            return std::make_tuple(v,color->GetSpectrum(texUV), false);
         }
     }
 };

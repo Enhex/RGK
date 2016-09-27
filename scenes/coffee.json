@@ -4,7 +4,7 @@
     "output-width": 800,
     "output-height": 1000,
     "multisample": 400,
-    "russian": 0.6,
+    "russian": 0.75,
     "recursion-max": 10,
     "rounds": 4,
     "clamp": 100,
@@ -25,6 +25,7 @@
         },{
             "name": "Glass",
             "brdf": "dielectric",
+            "no-russian": true,
             "ior": 1.5
         },{
             "name": "Metal",

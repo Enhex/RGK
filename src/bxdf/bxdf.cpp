@@ -58,6 +58,8 @@ void Material::LoadFromJson(Json::Value& node, Scene& scene, std::string texture
     texfile = JsonUtils::getOptionalString(node,"bump-map","");
     if(texfile != "") bumpmap = scene.GetTexture(texturedir + "/" + texfile);
 
+    no_russian = JsonUtils::getOptionalBool(node, "no-russian", false);
+
     std::string brdf = JsonUtils::getRequiredString(node,"brdf");
     if(brdf == "diffusecosine" || brdf == "diffuse"){
         bxdf = std::make_unique<BxDFDiffuse>();
@@ -190,13 +192,13 @@ Spectrum BxDFDiffuse::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool) c
     return diffuse->GetSpectrum(texUV) / glm::pi<float>();
 }
 
-std::pair<glm::vec3, Spectrum>
+std::tuple<glm::vec3, Spectrum, bool>
 BxDFDiffuse::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool) const{
-    if(Vi.z <= 0) return {glm::vec3(0,1,0), Spectrum(0)};
+    if(Vi.z <= 0) return std::make_tuple(glm::vec3(0,1,0), Spectrum(0), false);
 
     glm::vec3 v = RandomUtils::Sample2DToHemisphereCosineZ(sample);
     qassert_true(v.z >= -0.001f);
-    return {v,diffuse->GetSpectrum(texUV)};
+    return std::make_tuple(v,diffuse->GetSpectrum(texUV), false);
 }
 
 
@@ -234,7 +236,7 @@ Spectrum BxDFMix::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool debug)
     return s1*amt1 + s2*(1.0f-amt1);
 }
 
-std::pair<glm::vec3, Spectrum>
+std::tuple<glm::vec3, Spectrum, bool>
 BxDFMix::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug) const{
     if(RandomUtils::DecideAndRescale(sample.x, amt1)){
         auto p = m1->bxdf->sample(Vi, texUV, sample, debug);
@@ -265,10 +267,10 @@ Spectrum BxDFMirror::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool) co
     }else return Spectrum(0.0f);
 }
 
-std::pair<glm::vec3, Spectrum>
+std::tuple<glm::vec3, Spectrum, bool>
 BxDFMirror::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2, bool) const{
     glm::vec3 reflected(-Vi.x, -Vi.y, Vi.z);
-    return {reflected, color->GetSpectrum(texUV)};
+    return std::make_tuple(reflected, color->GetSpectrum(texUV), false);
 }
 
 
@@ -326,7 +328,7 @@ void BxDFDielectric::LoadFromJson(Json::Value& node, Scene& scene, std::string t
 }
 
 static std::pair<float, float>
-FresnellDielectric(float eta, float cosTheta){
+FresnellDielectric(float eta, float cosTheta, bool debug = false){
 
     if (cosTheta < 0.0f) {
         eta = 1.0f/eta;
@@ -338,22 +340,19 @@ FresnellDielectric(float eta, float cosTheta){
     }
     float cosThetaTrans = glm::sqrt(glm::max(1.0f - sinThetaTSq, 0.0f));
 
+    IFDEBUG std::cout << "[BxDF] ThetaInc: " << glm::acos(cosTheta)*180.0f/glm::pi<float>() << std::endl;
+    IFDEBUG std::cout << "[BxDF] ThetaTrans: " << glm::acos(cosThetaTrans)*180.0f/glm::pi<float>() << std::endl;
+
     float Rs = (eta*cosTheta      - cosThetaTrans)/(eta*cosTheta      + cosThetaTrans);
     float Rp = (eta*cosThetaTrans - cosTheta     )/(eta*cosThetaTrans + cosTheta     );
-    float q = (Rs*Rs + Rp*Rp)*0.5f;
-    return {q, cosThetaTrans};
+    IFDEBUG std::cout << "[BxDF] Rs: " << Rs*Rs << std::endl;
+    IFDEBUG std::cout << "[BxDF] Rp: " << Rp*Rp << std::endl;
+    float R = 0.5f*(Rs*Rs + Rp*Rp);
+    return {R, cosThetaTrans};
 }
 
-Spectrum BxDFDielectric::value(glm::vec3, glm::vec3, glm::vec2, bool) const{
+Spectrum BxDFDielectric::value(glm::vec3 Vi, glm::vec3 Vr, glm::vec2 texUV, bool) const{
 
-    // TODO: TEMPORARY
-    return Spectrum(0.0);
-}
-
-std::pair<glm::vec3, Spectrum>
-BxDFDielectric::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug) const{
-
-    // Note: This is, naturally a bidirectional material.
     float eta;
     if(Vi.z < 0) eta = ior;
     else eta = 1.0/ior;
@@ -363,17 +362,45 @@ BxDFDielectric::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool deb
 
     Spectrum c = color->GetSpectrum(texUV);
 
+    if(Vi.z * Vr.z > 0){
+        // Same side
+        glm::vec3 reflected(-Vi.x, -Vi.y, Vi.z); // This way, rays reflected from below surface stay below surface
+        if(glm::abs(glm::dot(Vr, reflected) - 1) < 0.001f) return Spectrum(reflectionP) * c;
+        else return Spectrum(0.0f);
+    }else{
+        // Opposite sides
+        glm::vec3 refracted(-Vi.x * eta, -Vi.y * eta, (Vi.z > 0) ? -cosTheta : cosTheta);
+        if(glm::abs(glm::dot(Vr, refracted) - 1) < 0.001f) return Spectrum(1.0f - reflectionP) * c;
+        else return Spectrum(0.0f);
+    }
+}
+
+std::tuple<glm::vec3, Spectrum, bool>
+BxDFDielectric::sample(glm::vec3 Vi, glm::vec2 texUV, glm::vec2 sample, bool debug) const{
+    // Note: This is, naturally a bidirectional material.
+    float eta;
+    if(Vi.z < 0) eta = ior;
+    else eta = 1.0/ior;
+
+    float reflectionP, cosTheta;
+    std::tie(reflectionP, cosTheta) = FresnellDielectric(eta, std::abs(Vi.z), debug);
+
+    Spectrum c = color->GetSpectrum(texUV);
+    IFDEBUG std::cout << "[BxDF] Eta: " << eta << std::endl;
+    IFDEBUG std::cout << "[BxDF] CosThetaInc: " << Vi.z << std::endl;
+    IFDEBUG std::cout << "[BxDF] Reflection probability: " << reflectionP << std::endl;
+    IFDEBUG std::cout << "[BxDF] CosThetaRefr: " << cosTheta << std::endl;
+
     if(RandomUtils::DecideAndRescale(sample.x, reflectionP)){
         // Reflected ray
         IFDEBUG std::cout << "[BxDF] Ray reflected" << std::endl;
         glm::vec3 reflected(-Vi.x, -Vi.y, Vi.z); // This way, rays reflected from below surface stay below surface
-        return {reflected, c};
+        return std::make_tuple(reflected, c, false);
     }else{
         // Refracted ray
         IFDEBUG std::cout << "[BxDF] Ray refracted" << std::endl;
         cosTheta = std::abs(cosTheta);
         glm::vec3 refracted(-Vi.x * eta, -Vi.y * eta, (Vi.z > 0) ? -cosTheta : cosTheta);
-        return {refracted, c};
+        return std::make_tuple(refracted, c, true);
     }
-
 }

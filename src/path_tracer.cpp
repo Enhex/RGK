@@ -239,26 +239,30 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             glm::vec3 dir;
             glm::vec2 sample;
 
-
+            bool may_leak;
             sample = sampler.Get2D();
-            std::tie(dir, p.transfer_coefficients) =
+            std::tie(dir, p.transfer_coefficients, may_leak) =
                 mat.bxdf->sample(p.transform.toLocal(p.Vr),
                                  p.texUV,
                                  sample,
                                  debug);
             bool inside = dir.z < 0;
             dir = p.transform.toGlobal(dir);
-            if(!(glm::dot(dir, p.faceN) > 0.0f)){
+#define sameSign(x,y) (x*y > 0)
+            if(!sameSign(glm::dot(dir, p.faceN), glm::dot(p.Vr, p.faceN)) && !may_leak){
                 // Huh. The next bump is right here on this very same face.
                 // TODO: Do not add epsilon when creating next ray!
                 // TODO: Maybe the path should terminate here?
+                IFDEBUG std::cout << "Ray leaked when it should not, terminating path after this point" << std::endl;
+                //IFDEBUG std::cout << glm::dot(dir, p.faceN) << std::endl;
+                //IFDEBUG std::cout << glm::dot(p.Vr, p.faceN) << std::endl;
                 n += 10000;
             }
 
             p.Vi = dir;
 
             // Store russian coefficient
-            if(russian__ > 0.0f && n > 1) p.russian_coefficient = 1.0f/russian__;
+            if(!mat.no_russian && russian__ > 0.0f && n > 1) p.russian_coefficient = 1.0f/russian__;
             else p.russian_coefficient = 1.0f;
 
             cumulative_transfer_coefficients *= p.russian_coefficient;
@@ -275,7 +279,7 @@ std::vector<PathTracer::PathPoint> PathTracer::GeneratePath(Ray r, unsigned int&
             }
 
             // Russian roulette path termination
-            if(russian__ >= 0.0f && sampler.Get1D() > russian__){
+            if(!mat.no_russian && russian__ >= 0.0f && sampler.Get1D() > russian__){
                 IFDEBUG std::cout << "Russian terminating." << std::endl;
                 break;
             }
